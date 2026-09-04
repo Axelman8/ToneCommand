@@ -106,7 +106,7 @@ def parse(raw: bytes, filename: str = "") -> CabFile:
 DEFAULT_TAG = 0x10
 
 
-def retarget(cf: CabFile, slot: int, model: int = p.MODEL_FM9,
+def retarget(cf: CabFile, slot: int, model: int | None = None,
              tag: int = DEFAULT_TAG) -> list[list[int]]:
     """The file's frames aimed at user-cab index `slot` on `model`.
 
@@ -118,6 +118,8 @@ def retarget(cf: CabFile, slot: int, model: int = p.MODEL_FM9,
     direction is UNVERIFIED on hardware until the first live install, and
     callers must verify by reading the slot back.
     """
+    if model is None:
+        model = p.device_model()
     if not 0 <= slot <= 0x3FFF:
         raise CabFileError(f"user cab slot {slot} is out of range")
     out = []

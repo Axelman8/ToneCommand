@@ -194,18 +194,24 @@ class SetResult:
 
 
 class FM9:
-    def __init__(self, registry: Registry | None = None, port_hint: str = "fm9",
+    def __init__(self, registry: Registry | None = None, port_hint: str | None = None,
                  ports=None):
         """`ports=(inp, outp)` injects transport objects (used by fm9.sim for
-        hardware-free testing); default discovers the real FM9 over mido."""
+        hardware-free testing); default discovers the configured Fractal unit
+        over mido."""
         self.reg = registry or Registry()
+        self.device_name = p.device_name()
+        self.model = p.device_model()
+        self.port_hint = (port_hint or p.device_port_hint()).lower()
         if ports is not None:
             self.inp, self.outp = ports
         else:
-            ins = [n for n in mido.get_input_names() if port_hint in n.lower()]
-            outs = [n for n in mido.get_output_names() if port_hint in n.lower()]
+            ins = [n for n in mido.get_input_names() if self.port_hint in n.lower()]
+            outs = [n for n in mido.get_output_names() if self.port_hint in n.lower()]
             if not ins or not outs:
-                raise FM9NotFound("FM9 MIDI ports not found; is it connected and powered on?")
+                raise FM9NotFound(
+                    f"{self.device_name} MIDI ports not found; is it connected "
+                    "and powered on?")
             self.inp = mido.open_input(ins[0])
             self.outp = mido.open_output(outs[0])
         # per-effect channel info, refreshed from status dumps
@@ -220,8 +226,9 @@ class FM9:
         if self.current_preset() is None:
             self.close()
             raise FM9NotFound(
-                "FM9 port opened but the device did not answer a preset-name "
-                "query. Either it is still booting, FM9-Edit is running, or a "
+                f"{self.device_name} port opened but the device did not answer "
+                "a preset-name query. Either it is still booting, the Fractal "
+                "editor is running, or a "
                 "zombie process is holding the MIDI port (ps aux | grep python).")
 
     # What the FM9 can actually answer. Every field here is backed by
@@ -283,18 +290,18 @@ class FM9:
     # which protected the FM9 and nothing else.
     SENDABLE_FNS = frozenset({0x01, 0x08, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
                               0x13, 0x14, 0x1F})
-    guard = sysex_guard("FM9", SENDABLE_FNS)
+    guard = sysex_guard(p.device_name(), SENDABLE_FNS)
     #: The preset-dump family (0x77/0x78/0x79), sendable ONLY through
     #: install_preset, which takes nothing but frames the presetfile module
     #: has validated. A separate guard, so no other code path can emit them
     #: and the main surface stays exactly as narrow as it was.
-    install_guard = sysex_guard("FM9-preset-install",
+    install_guard = sysex_guard(f"{p.device_name()}-preset-install",
                                 frozenset({0x77, 0x78, 0x79}))
     #: Likewise for user-cab (IR) installs: the 0x7A/0x7B/0x7C family,
     #: reachable only through install_user_cab with parser-validated
     #: frames. The read REQUEST (fn 0x19) sits in SENDABLE_FNS' spirit but
     #: gets its own guard here too, keeping the main surface untouched.
-    cab_guard = sysex_guard("FM9-cab-install",
+    cab_guard = sysex_guard(f"{p.device_name()}-cab-install",
                             frozenset({0x19, 0x7A, 0x7B, 0x7C}))
 
     def _send(self, frame: list[int]):

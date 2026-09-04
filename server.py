@@ -397,7 +397,8 @@ def snapshot(fm9: FM9) -> dict:
         # rest are eight scene names and a status dump, each waiting out its
         # own timeout: finding out slowly would freeze the poll for ten
         # seconds an unplugged device does not deserve.
-        raise FM9NotFound("the FM9 stopped answering; is it still plugged in?")
+        raise FM9NotFound(
+            f"the {proto.device_name()} stopped answering; is it still plugged in?")
     scene = fm9.scene_name()
     blocks = fm9.status_dump() or []
     out_blocks = []
@@ -609,17 +610,17 @@ def logo():
 
 
 def _fm9_port_present() -> bool:
-    """Whether an FM9 port is on the MIDI bus right now.
+    """Whether the configured Fractal port is on the MIDI bus right now.
 
     Enumeration only: no port is opened and nothing touches the wire, so
-    this is safe to ask every second. Same match rule as FM9.__init__
-    (case-insensitive "fm9" in the port name), so the watcher and the
-    connector cannot disagree about what counts as present.
+    this is safe to ask every second. Same match rule as FM9.__init__, so
+    the watcher and the connector cannot disagree about what counts as present.
     """
     try:
         _pump_coremidi()
         import mido
-        return any("fm9" in n.lower() for n in mido.get_input_names())
+        hint = proto.device_port_hint()
+        return any(hint in n.lower() for n in mido.get_input_names())
     except Exception:
         return False
 
@@ -2010,7 +2011,7 @@ def api_install_cab(body: dict):
             return JSONResponse({"error": str(e)}, status_code=403)
         except FM9NotFound:
             drop_fm9()
-            return JSONResponse({"error": "FM9 not connected"},
+            return JSONResponse({"error": f"{proto.device_name()} not connected"},
                                 status_code=503)
         except cabfile.CabFileError as e:
             return JSONResponse({"error": str(e)}, status_code=422)
@@ -2115,7 +2116,7 @@ def api_install(body: dict):
             return JSONResponse({"error": str(e)}, status_code=403)
         except FM9NotFound:
             drop_fm9()
-            return JSONResponse({"error": "FM9 not connected"},
+            return JSONResponse({"error": f"{proto.device_name()} not connected"},
                                 status_code=503)
         except presetfile.PresetFileError as e:
             return JSONResponse({"error": str(e)}, status_code=422)
@@ -2259,7 +2260,7 @@ def api_presets(refresh: bool = False):
                 })
         except FM9NotFound:
             drop_fm9()
-            return JSONResponse({"error": "FM9 not connected"}, status_code=503)
+            return JSONResponse({"error": f"{proto.device_name()} not connected"}, status_code=503)
         except Exception as e:
             drop_fm9()
             return JSONResponse({"error": str(e)}, status_code=500)
@@ -2299,7 +2300,7 @@ def api_presets_stream(refresh: bool = False):
                         emit("progress", {"read": s.number + 1, "total": 512})
             except FM9NotFound:
                 drop_fm9()
-                emit("error", "FM9 not connected")
+                emit("error", f"{proto.device_name()} not connected")
                 return
             except Exception as e:
                 drop_fm9()
@@ -2336,7 +2337,7 @@ def api_preset(body: PresetBody):
             got = fm9.current_preset()
         except FM9NotFound:
             drop_fm9()
-            return JSONResponse({"error": "FM9 not connected"}, status_code=503)
+            return JSONResponse({"error": f"{proto.device_name()} not connected"}, status_code=503)
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
     # Report what the unit says it loaded, not what we asked for: a dropped
@@ -2794,7 +2795,7 @@ def api_shared():
             return {"preset": key, "shared": None, "unswept": True}
         except FM9NotFound:
             drop_fm9()
-            return JSONResponse({"error": "FM9 not connected"}, status_code=503)
+            return JSONResponse({"error": f"{proto.device_name()} not connected"}, status_code=503)
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
 
@@ -2826,7 +2827,7 @@ def api_shared_sweep():
             got = shared_scenes(fm9)
         except FM9NotFound:
             drop_fm9()
-            return JSONResponse({"error": "FM9 not connected"}, status_code=503)
+            return JSONResponse({"error": f"{proto.device_name()} not connected"}, status_code=503)
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
     _shared_cache["preset"], _shared_cache["map"] = key, got
@@ -3021,7 +3022,7 @@ def api_profile_export():
                 grid = None
         except FM9NotFound:
             drop_fm9()
-            return JSONResponse({"error": "FM9 not connected"}, status_code=503)
+            return JSONResponse({"error": f"{proto.device_name()} not connected"}, status_code=503)
     return {"profile": rigprofile.build(snap, grid)}
 
 
@@ -3103,7 +3104,7 @@ def api_design_check(design_id: str):
             snap = snapshot(get_fm9())
         except FM9NotFound:
             drop_fm9()
-            return JSONResponse({"error": "FM9 not connected"}, status_code=503)
+            return JSONResponse({"error": f"{proto.device_name()} not connected"}, status_code=503)
     return designs.check(d, (snap.get("preset") or {}).get("number"),
                          snap.get("values", {}))
 
@@ -3528,7 +3529,7 @@ def _apply_for(body: ApplyBody, on_step=None):
                     break
         except FM9NotFound:
             drop_fm9()
-            return JSONResponse({"error": "FM9 not connected"}, status_code=503)
+            return JSONResponse({"error": f"{proto.device_name()} not connected"}, status_code=503)
     return {"results": results}
 
 

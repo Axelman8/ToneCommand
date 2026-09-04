@@ -20,11 +20,69 @@ get/set paths re-verified on 12.00 (hardware_regression.py, 2026-08-19).
 from __future__ import annotations
 
 import math
+import os
 import struct
 from dataclasses import dataclass
 
 MFR = (0x00, 0x01, 0x74)
+MODEL_AXE_FX_III = 0x10
+MODEL_FM3 = 0x11
 MODEL_FM9 = 0x12
+MODEL_VP4 = 0x14
+
+MODEL_NAMES = {
+    MODEL_AXE_FX_III: "Axe-Fx III",
+    MODEL_FM3: "FM3",
+    MODEL_FM9: "FM9",
+    MODEL_VP4: "VP4",
+}
+
+DEVICE_PROFILES = {
+    "axe-fx-iii": {
+        "name": "Axe-Fx III",
+        "model": MODEL_AXE_FX_III,
+        "port_hint": "axe-fx",
+    },
+    "axefx3": {
+        "name": "Axe-Fx III",
+        "model": MODEL_AXE_FX_III,
+        "port_hint": "axe-fx",
+    },
+    "axe3": {
+        "name": "Axe-Fx III",
+        "model": MODEL_AXE_FX_III,
+        "port_hint": "axe-fx",
+    },
+    "fm9": {
+        "name": "FM9",
+        "model": MODEL_FM9,
+        "port_hint": "fm9",
+    },
+}
+
+
+def device_profile() -> dict:
+    """The configured Fractal target.
+
+    FM9 remains the default so upstream behaviour and the simulator stay
+    stable. This fork can target Axe-Fx III by setting
+    TONECOMMAND_DEVICE=axe-fx-iii.
+    """
+    key = os.environ.get("TONECOMMAND_DEVICE", "fm9").strip().lower()
+    return DEVICE_PROFILES.get(key, DEVICE_PROFILES["fm9"])
+
+
+def device_name() -> str:
+    return str(device_profile()["name"])
+
+
+def device_model() -> int:
+    return int(device_profile()["model"])
+
+
+def device_port_hint() -> str:
+    override = os.environ.get("TONECOMMAND_MIDI_PORT_HINT", "").strip()
+    return override.lower() if override else str(device_profile()["port_hint"])
 
 # Official (Rev 1.4 PDF)
 FN_BYPASS = 0x0A          # id id dd; dd: 0 engaged, 1 bypassed, 7F query
@@ -57,8 +115,10 @@ def checksum(body: list[int]) -> int:
     return x & 0x7F
 
 
-def envelope(fn: int, payload: list[int], model: int = MODEL_FM9) -> list[int]:
+def envelope(fn: int, payload: list[int], model: int | None = None) -> list[int]:
     """Full message byte list including F0/F7, ready for mido sysex data[1:-1]."""
+    if model is None:
+        model = device_model()
     body = [*MFR, model, fn, *payload]
     return [0xF0, *body, checksum(body), 0xF7]
 

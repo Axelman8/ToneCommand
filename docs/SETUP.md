@@ -53,6 +53,42 @@ Planner configuration (which AI answers your sentences) is in
 [AI-BACKENDS.md](AI-BACKENDS.md). The default needs nothing: a signed-in
 Claude Code CLI is found on its own.
 
+## Axe-Fx III mode
+
+This fork can target an Axe-Fx III by switching the Fractal device profile
+before the app starts:
+
+```powershell
+$env:TONECOMMAND_DEVICE = "axe-fx-iii"
+.venv\Scripts\tonecommand
+```
+
+On macOS/Linux:
+
+```bash
+TONECOMMAND_DEVICE=axe-fx-iii .venv/bin/tonecommand
+```
+
+The Axe-Fx III profile sends Fractal SysEx with model byte `0x10` and looks
+for MIDI ports whose name contains `axe-fx`. If your operating system exposes
+the USB MIDI port under a different name, override the match:
+
+```powershell
+$env:TONECOMMAND_DEVICE = "axe-fx-iii"
+$env:TONECOMMAND_MIDI_PORT_HINT = "Axe-Fx III"
+.venv\Scripts\tonecommand
+```
+
+The official scene/bypass/channel/name command family is shared across the
+Axe-Fx III generation, but ToneCommand's deeper editor-protocol writes were
+originally verified on FM9 hardware. After changing firmware or moving to an
+Axe-Fx III, run the hardware regression before trusting a performance rig:
+
+```powershell
+$env:TONECOMMAND_DEVICE = "axe-fx-iii"
+.venv\Scripts\python hardware_regression.py
+```
+
 ## Building from a video (optional)
 
 The "build from a video or description" field takes pasted text and page URLs

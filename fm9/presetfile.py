@@ -47,7 +47,7 @@ NAME_FIRST_WORD, NAME_MAX_WORDS = 4, 16
 
 #: Gen-3 model bytes, for a refusal that names the actual device instead
 #: of saying "wrong byte".
-MODEL_NAMES = {0x10: "Axe-Fx III", 0x11: "FM3", 0x12: "FM9", 0x14: "VP4"}
+MODEL_NAMES = p.MODEL_NAMES
 
 
 class PresetFileError(ValueError):
@@ -90,7 +90,7 @@ def _word(chunk_payload: list[int], index: int) -> int:
     return (b[0] | (b[1] << 7) | (b[2] << 14)) & 0xFFFF
 
 
-def parse(raw: bytes, model: int = p.MODEL_FM9) -> PresetFile:
+def parse(raw: bytes, model: int | None = None) -> PresetFile:
     """Validate `raw` as a preset file for `model`, or raise PresetFileError.
 
     Every frame is length-checked, header-checked and checksum-checked
@@ -98,6 +98,8 @@ def parse(raw: bytes, model: int = p.MODEL_FM9) -> PresetFile:
     least one chunk, one footer, in order; and the name magic must be
     present. Everything the install path will send has passed through here.
     """
+    if model is None:
+        model = p.device_model()
     frames = _split_frames(raw)
     if not frames:
         raise PresetFileError("no MIDI messages in the file at all")

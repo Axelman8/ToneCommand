@@ -67,10 +67,12 @@ def parse(raw: bytes) -> BundleFile:
         raise BundleFileError("the map inside is not a Bundle-Map")
     dev = root.find("Device")
     device_id = int(dev.get("deviceId", "-1")) if dev is not None else -1
-    if device_id != p.MODEL_FM9:
+    target_model = p.device_model()
+    target_name = p.MODEL_NAMES.get(target_model, p.device_name())
+    if device_id != target_model:
         raise BundleFileError(
-            f"this bundle targets device id {device_id}, not the FM9 "
-            f"({p.MODEL_FM9}); bundles are device-specific")
+            f"this bundle targets device id {device_id}, not the "
+            f"{target_name} ({target_model}); bundles are device-specific")
 
     def _read(rel: str) -> bytes:
         hit = next((n for n in names if n == rel

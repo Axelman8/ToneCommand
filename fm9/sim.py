@@ -201,7 +201,7 @@ class SimFM9Core:
 
     def handle(self, frame: list[int]) -> list[list[int]]:
         d = frame[1:-1]                        # strip F0/F7 -> mido-style data
-        if list(d[:3]) != list(p.MFR) or d[3] != p.MODEL_FM9:
+        if list(d[:3]) != list(p.MFR) or d[3] != p.device_model():
             return []
         fn = d[4]
         body = d[5:-1]                          # strip checksum
