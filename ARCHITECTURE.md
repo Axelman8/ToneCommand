@@ -30,6 +30,13 @@ invariant this codebase is organised around.
 
 ## Layers, in dependency order
 
+Experimental AFX3 work is isolated in `devices/axefx3`; it is not connected
+to device selection yet. It implements the adapter contract without FM9
+transport inheritance or FM9 global routing restore. Its own firmware-pinned
+registry and captured SET domains prevent a product-byte-only substitution.
+See `docs/AFX3-INTEGRATION.md` for the remaining
+server/UI and hardware gates. `server.py` remains 7,713 lines in this stage.
+
 | Layer | Files | Knows about |
 |---|---|---|
 | Protocol | `protocol.py` | SysEx bytes, effect ids, nothing above |

@@ -1,0 +1,116 @@
+"""A firmware-pinned Axe-Fx III registry, never an FM9 parameter fallback."""
+from __future__ import annotations
+
+from dataclasses import dataclass
+import json
+from importlib.resources import files
+
+from fm9.registry import ParamSpec as BaseParamSpec, Registry as BaseRegistry
+from .evidence import AXE_FX_III_PARAM_DEFINITIONS
+
+
+SUPPORTED_FIRMWARE = frozenset({"32.06"})
+
+
+@dataclass
+class ParamSpec(BaseParamSpec):
+    set_opcode: str = "09"
+    verify_display_text: bool = True
+    set_divisor: float | None = None
+    wire_min: float | None = None
+    display_tolerance: float | None = None
+    firmware_versions: tuple[str, ...] = ()
+    tempo_param_id: int | None = None
+
+
+class Registry(BaseRegistry):
+    """Reuse names/aliases, not the FM9 catalog or its write calibrations.
+
+    Unsupported firmware has no writable specs or model roster. A catalog
+    being present on disk never constitutes evidence for another firmware.
+    """
+
+    def __init__(self, firmware: str = ""):
+        self.firmware = firmware
+        self.model_byte = 0x10
+        self.params = {}
+        self.ranges = {}
+        self.amp_roster = {}
+        self.drive_roster = {}
+        self.reverb_roster = {}
+        self.cab_bank_names = {"0": "FACTORY 1", "1": "FACTORY 2", "2": "USER"}
+        # Populated from device-specific catalogs or explicit user imports
+        # later. Never label an AFX3 bank using the FM9 Legacy roster.
+        self.cab_rosters = {}
+        self.amp_models = {}
+        self.drive_models = {}
+        self.effect_type_models = {}
+        self.cab_models = {}
+        self.dynacabs = {}
+        if firmware not in SUPPORTED_FIRMWARE:
+            return
+        for family, definitions in AXE_FX_III_PARAM_DEFINITIONS.items():
+            for name, definition in definitions.items():
+                self.params[family, definition["pid"]] = {
+                    "name": name, "displayLabel": definition["label"],
+                    "unit": definition["unit"], "family": family,
+                    "paramId": definition["pid"],
+                }
+        data = json.loads(files("devices.axefx3").joinpath("data", "axe_fx_iii_amp_models.json").read_text(
+            encoding="utf-8"))
+        self.amp_roster = dict(data["firmware"][firmware]["models"])
+
+    def spec(self, family: str, param_id: int, instance: int = 1) -> ParamSpec:
+        if type(param_id) is not int or type(instance) is not int:
+            raise ValueError("Parameter and instance addresses must be integers")
+        entry = self.params.get((family, param_id))
+        if entry is None:
+            raise KeyError(f"No verified Axe-Fx III {self.firmware} parameter {family}/{param_id}")
+        definition = AXE_FX_III_PARAM_DEFINITIONS[family][entry["name"]]
+        if family == "DISTORT" and instance not in (1, 2):
+            raise ValueError("Axe-Fx III has Amp 1 and Amp 2 only")
+        effect_id = self.effect_id(family, instance)
+        return ParamSpec(
+            family=family, instance=instance, effect_id=effect_id,
+            param_id=param_id, name=entry["name"], label=definition["label"],
+            unit=definition["unit"], kind=definition.get("kind", "float"),
+            dmin=definition["min"], dmax=definition["max"],
+            scale=definition.get("scale", "linear"),
+            enum_count=definition.get("enum_count"),
+            set_opcode=definition["set_opcode"], verify_display_text=True,
+            set_divisor=definition.get("set_divisor"),
+            wire_min=definition.get("wire_min"),
+            display_tolerance=definition.get("display_tolerance"),
+            firmware_versions=tuple(definition.get("firmware_versions", ())),
+            tempo_param_id=definition.get("tempo_param_id"),
+        )
+
+    def validate_spec(self, spec: ParamSpec) -> None:
+        """Reject forged addresses, encodings and ranges before any I/O."""
+        if type(spec) is not ParamSpec:
+            raise ValueError("An Axe-Fx III parameter specification is required")
+        if self.firmware not in SUPPORTED_FIRMWARE:
+            raise ValueError(f"Axe-Fx III firmware {self.firmware!r} is not verified")
+        expected = self.spec(spec.family, spec.param_id, spec.instance)
+        if spec != expected:
+            raise ValueError("Parameter does not match the pinned Axe-Fx III reference")
+
+    def selectable_amp_models(self) -> dict[str, str]:
+        # Model ordinal zero needs separate evidence; do not reuse FM9's
+        # alternate setter just because it works on that different unit.
+        return {k: v for k, v in self.amp_roster.items() if k != "0"}
+
+    def effect_id(self, family: str, instance: int = 1) -> int:
+        if type(instance) is not int or family == "GLOBAL":
+            raise ValueError("Not a writable Axe-Fx III block address")
+        if family == "DISTORT" and instance not in (1, 2):
+            raise ValueError("Axe-Fx III has Amp 1 and Amp 2 only")
+        return super().effect_id(family, instance)
+
+    def family_of_effect_id(self, eid: int):
+        if type(eid) is not int:
+            return None
+        found = super().family_of_effect_id(eid)
+        if found and (found[0] == "GLOBAL" or (found[0] == "DISTORT" and found[1] > 2)):
+            return None
+        return found

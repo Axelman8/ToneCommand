@@ -5,6 +5,13 @@ Notable changes to ToneCommand. Dates are UTC.
 ## Unreleased
 
 ### Added
+- Experimental `devices.axefx3` adapter foundation, not yet registered in
+  device selection. It isolates captured FW 32.06 parameters/model rosters
+  from the FM9, requires an explicit muted edit session and target preset,
+  independently verifies writes, and preserves cab mixer/channel boundaries.
+  No storage, global routing restore, IR upload or audio-limiter capability
+  is enabled. See `docs/AFX3-INTEGRATION.md` for outstanding integration and
+  hardware gates; offline tests are not a sound-quality claim.
 - `docs/WINDOWS.md`, the step-by-step Windows guide, is its own page with its
   own short link to share: **tonecommand.com/windows**. It was the Windows
   section of `docs/SETUP.md`, which now points at it, so there is one place to
@@ -14,6 +21,9 @@ Notable changes to ToneCommand. Dates are UTC.
   Windows untested: the suite runs there on every change.
 
 ### Fixed
+- The library symlink security test explicitly skips WinError 1314 when a
+  Windows account cannot create symlinks. All other OS errors still fail;
+  the production path containment rule is unchanged.
 - The site's `ROUTES` did not know about the new page, so the README's and
   SETUP.md's links to `docs/WINDOWS.md` rendered as
   `.../blob/main/WINDOWS.md`: a path that does not exist, on the two pages
