@@ -31,6 +31,10 @@ Notable changes to ToneCommand. Dates are UTC.
   Windows untested: the suite runs there on every change.
 
 ### Fixed
+- AFX3 modifier diagnostics distinguish observed Volume/Pan 1 control PID 0
+  from a model selector and label captured Wah Auto Engage modes read-only.
+  Observed labels do not authorize new writes. Parallel routing rejection is
+  explicitly described as a serial-validator limitation, not an audio verdict.
 - The AFX3 read-only inspection report marks modifier-controlled display
   readings as unverified effective values. A fixed Control=0 must not be
   presented as proof of a stationary pedal or a failed modifier binding.

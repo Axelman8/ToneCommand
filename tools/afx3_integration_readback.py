@@ -38,6 +38,8 @@ def inspect(dev):
         route = {"verified": True, "effect_ids": route_guard.serial_route(cells, blocks, dev.reg)}
     except ValueError as exc:
         route = {"verified": False, "reason": str(exc)}
+    route["validation_scope"] = "single_serial_route_only"
+    route["note"] = "A parallel topology is not supported by this validator; rejection does not prove a broken audio path."
     observed = []
     for block in blocks or []:
         family = dev.reg.family_of_effect_id(block.effect_id)

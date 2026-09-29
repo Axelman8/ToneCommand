@@ -102,6 +102,27 @@ def curve_usable(words):
             and words[1] != words[2] and len({words[3], words[4], words[5]}) > 1)
 
 
+def observed_target(reg, words):
+    """Read-only labels independently paired with Axe-Edit on FW 32.06.
+
+    In Volume/Pan 1, PID 0 is Volume, NOT a model selector. Naming that
+    observed target never adds a writable spec or authorizes an allocation.
+    The mode word is not evidence of its SET encoding or of physical bypass.
+    """
+    if reg.firmware != "32.06" or len(words) != 25:
+        return None
+    target = (words[8], words[9])
+    name = {(94, 5): "WAH_CONTROL", (95, 5): "WAH_CONTROL",
+            (102, 0): "VOLUME_CONTROL"}.get(target)
+    if name is None:
+        return None
+    modes = {0: "Off", 6: "Fast Pos"} if name == "WAH_CONTROL" else {0: "Off"}
+    return {"parameter": name, "auto_engage_word": words[10],
+            "auto_engage_name": modes.get(words[10]),
+            "auto_engage_write_verified": False,
+            "physical_bypass_verified": False}
+
+
 def inspect(dev):
     """Read all slots without changing scenes/channels or asking a model GET."""
     entries = []
@@ -119,11 +140,14 @@ def inspect(dev):
                 pass
         active = source != 0
         assessed = bool(spec is not None and not audio_safety.modifier_error(spec))
+        observed = observed_target(dev.reg, words)
         entries.append({"slot": slot, "source": source,
                         "source_name": SOURCE_NAMES.get(source, f"Source {source}"),
                         "effect_id": eid, "param_id": pid, "active": active,
                         "empty": source == eid == pid == 0,
-                        "parameter": spec.name if spec else None,
+                        "parameter": spec.name if spec else (observed or {}).get("parameter"),
+                        "observed_target": observed,
+                        "target_in_write_registry": spec is not None,
                         "curve_structurally_usable": curve_usable(words),
                         "assessed_target": assessed,
                         "physical_pedal_verified": False, "words": words})

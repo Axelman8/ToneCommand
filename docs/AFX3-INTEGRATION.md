@@ -258,3 +258,34 @@ plus mandatory device-handle/capability/UI-warning gates passed together:
 **145 passed** in 229.86 s, UTF-8/SIM mode, Python 3.12.10. Report:
 `native-modifier-gates.xml`. The previous full-suite run is still the last
 full-suite result; this checkpoint did not rerun every unrelated test.
+
+### Owner-supplied Wah and volume reference
+
+Independent bulk reads paired with fresh Axe-Edit UI observations confirmed
+Wah 2 Control on External 1 with Auto Engage Fast Pos, and Volume/Pan 1
+Volume on External 2 with Auto Engage Off. The volume target is effect102,
+parameter0: this is NOT its model selector. Modifier diagnostics now name
+that observed target without creating a writable parameter specification.
+Observed Auto Engage words 0/6 are labelled Off/Fast Pos for the verified
+Wah targets; volume has only the observed Off label. No SET law is inferred
+from those read values, no unknown mode names are guessed, and physical
+bypass is not certified from a snapshot. A volume modifier still fails
+write preflight pending captured, independently verified write support.
+
+The user reference has parallel branches, intentionally left intact. The
+read-only report explicitly states the existing serial validator's scope;
+rejecting that topology does not prove it has a broken audio path.
+
+A subsequent attempt to capture an Auto Engage change was interrupted before
+any UI write because Windows had no usable interactive desktop. Mouse input
+and later screenshot capture failed. Independent MIDI readback confirmed
+all 32 modifier records unchanged. No guessed command was substituted for
+the missing capture. Completing Auto Engage and volume creation still needs
+an active editor session for the controlled comparison.
+
+Verification: **165 passed** in 123.18 s, including the changed modifier,
+readback, native-allocator, executor and adapter tests and all required
+device-handle/capability/UI-warning gates. UTF-8/SIM mode, four workers;
+report `modifier-observations-gates.xml`. A further real-device read-only
+run confirmed the new observed labels on the owner reference. No new write
+capability or complete-suite/installed-app acceptance is claimed.
