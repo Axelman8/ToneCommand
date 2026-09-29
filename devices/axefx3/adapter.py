@@ -124,6 +124,9 @@ class AxeFxIII:
                             raise PermissionError("Model SET is not the captured frame")
                     elif not tempo_none:
                         self.reg.spec(family[0], pid, family[1])
+                elif payload[:2] == [0x3A, 0]:
+                    if len(payload) != 15 or frame != modifiers.allocation_frame(shared.decode14(*payload[2:4])):
+                        raise PermissionError("Unverified modifier allocation frame")
                 elif payload[:2] in ([0x30, 0], [0x32, 0], [0x35, 0]):
                     if not grid.valid_write(frame, self.reg):
                         raise PermissionError("Unverified/destructive grid frame")
@@ -259,6 +262,11 @@ class AxeFxIII:
         with self._lock:
             self._check_edit_target()
             return modifiers.assign_existing(self, slot_1based, target_effect_id, target_param_id, source_ordinal)
+
+    def create_wah_modifier(self, effect_id, source_ordinal):
+        with self._lock:
+            self._check_edit_target()
+            return modifiers.create_wah(self, effect_id, source_ordinal)
 
     def place_block(self, position, effect_id):
         with self._lock:

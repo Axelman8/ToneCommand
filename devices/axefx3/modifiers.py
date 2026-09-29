@@ -1,4 +1,4 @@
-"""Modifier inspection and existing Wah source reassignment only.
+"""Modifier inspection and narrowly captured Wah source operations.
 
 The old from-scratch fallback omitted unknown transfer-curve fields. That is
 not evidence of a working expression pedal. Never synthesize such a curve.
@@ -10,6 +10,84 @@ from . import protocol, audio_safety
 
 SOURCE_NAMES = {0: "NONE", 10: "Pedal 1", 11: "Pedal 2", 12: "External 1", 13: "External 2"}
 FIELDS = (1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 14)
+
+
+def allocation_frame(effect_id):
+    """FW 32.06 Axe-Edit native allocation, only Wah 1/2 Control.
+
+    This asks the device to initialize its own modifier. It never sends
+    synthesized curve fields or a guessed modifier-slot number.
+    """
+    if type(effect_id) is not int or effect_id not in (94, 95):
+        raise ValueError("Native allocation captured only for Wah 1/2 Control")
+    return protocol.envelope(1, [0x3A, 0, effect_id, 0, 5, 0] + [0] * 9)
+
+
+def native_default(effect_id):
+    """Comparison evidence only. These words must NEVER be transmitted."""
+    return [0, 0, 65534, 0, 32767, 65534, 32767, 66, effect_id, 5,
+            0, 0, 0, 32767, 32767, 66, 0, 0, 0, 0, 0, 65534, 65534, 0, 0]
+
+
+def create_wah(dev, effect_id, source):
+    """Experimental native creation, not an enabled planner capability.
+
+    A failed allocation may remain in the edit buffer. Never allocate again
+    after a failed read, and never overwrite an existing/inactive target.
+    """
+    frame = allocation_frame(effect_id)
+    source_frame(1, source)  # Validate before any write; slot is chosen by the device.
+    if dev.reg.firmware != "32.06":
+        raise ValueError("Native modifier allocation requires captured firmware 32.06")
+    before = preflight(dev)
+    if any(len(e["words"]) != 25 for e in before):
+        raise ValueError("Native allocation requires all 32 complete 25-word records")
+    if any(e["effect_id"] == effect_id and e["param_id"] == 5 for e in before):
+        raise ValueError("Wah Control already has a record; do not recreate its curve")
+    if not any(e["source"] == e["effect_id"] == 0 for e in before):
+        raise ValueError("No unassigned modifier slot; nothing written")
+    blocks = dev.status_dump()
+    scene, cells = dev.current_scene(), dev.read_grid()
+    if (blocks is None or not any(b.effect_id == effect_id for b in blocks)
+            or scene is None or cells is None):
+        raise ValueError("Wah block/scene/grid unreadable or missing; nothing written")
+    dev._write(frame)
+    allocated = None
+    for _ in range(4):
+        time.sleep(.15)
+        after = inspect(dev)
+        changed = [(b, a) for b, a in zip(before, after) if b["words"] != a["words"]]
+        if not changed:
+            continue
+        if len(changed) != 1:
+            return SetResult(False, "Unexpected modifier-slot changes; stopped", None, None)
+        old, new = changed[0]
+        if (old["source"] != 0 or old["effect_id"] != 0
+                or new["words"] != native_default(effect_id)):
+            return SetResult(False, "Native modifier defaults differ from capture; source not written", None, new["words"])
+        allocated = new
+        break
+    if allocated is None:
+        return SetResult(False, "Native allocation not verified; source not written", None, None)
+    if (dev.status_dump() != blocks or dev.current_scene() != scene or dev.read_grid() != cells):
+        return SetResult(False, "Block/scene/grid changed during allocation; source not written", None, None)
+    slot = allocated["slot"]
+    dev._write(source_frame(slot, source))
+    wanted = [e["words"].copy() for e in after]
+    wanted[slot - 1][0] = source
+    for _ in range(4):
+        time.sleep(.15)
+        actual = [e["words"] for e in inspect(dev)]
+        if actual == wanted:
+            if dev.status_dump() != blocks or dev.current_scene() != scene or dev.read_grid() != cells:
+                return SetResult(False, "Block/scene/grid changed; stopped", None, None)
+            return SetResult(True, "Device-built modifier and source verified; physical pedal unverified", None, slot)
+        # An unchanged source can be a delayed write, but collateral changes cannot.
+        waiting = [w.copy() for w in wanted]
+        waiting[slot - 1][0] = 0
+        if actual != waiting:
+            return SetResult(False, "Modifier curve/other slots changed unexpectedly; stopped", None, None)
+    return SetResult(False, "Source write not independently verified; stopped", None, None)
 
 
 def slot_eid(slot):

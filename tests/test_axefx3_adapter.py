@@ -107,6 +107,26 @@ def test_no_write_without_explicit_session_and_no_automatic_store(rig):
     assert ports.writes() == []
 
 
+def test_native_modifier_allocator_requires_exact_frame_and_edit_session(rig):
+    from devices.axefx3 import modifiers
+    dev, ports = rig
+    frame = modifiers.allocation_frame(94)
+    with pytest.raises(PermissionError):
+        dev._send(frame)
+    with pytest.raises(PermissionError):
+        dev.create_wah_modifier(94, 12)
+    with dev.edit_session(external_audio_muted=True, expected_preset=322):
+        dev._write(frame)
+        payload = frame[6:-2]
+        payload[4] = 6  # Wah Level, not Control.
+        with pytest.raises(PermissionError):
+            dev._write(protocol.envelope(1, payload))
+        with pytest.raises(PermissionError):
+            dev._write(protocol.envelope(1, frame[6:-3]))
+    assert sum(d[4:7] == [1, 0x3A, 0] for d in ports.sent) == 1
+    assert not dev.capabilities().has_modifiers
+
+
 def test_mid_six_is_verified_from_display_not_from_the_value_we_sent(rig):
     dev, ports = rig
     with dev.edit_session(external_audio_muted=True, expected_preset=322):

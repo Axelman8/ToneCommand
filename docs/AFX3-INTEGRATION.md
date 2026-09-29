@@ -11,7 +11,8 @@ This is a deliberate port, not a completed merge. The original installation,
 private settings, cab imports and presets remain separate and unchanged.
 The adapter is **not registered in device selection or the server** yet.
 Installing these modules does not replace the owner's working application.
-No publication, paid AI request or hardware session is part of this stage.
+No publication or paid AI request is part of this work. Separately authorized
+hardware checkpoints are recorded below; they do not enable the application.
 
 The upstream gitignored knowledge base is absent. The owner explicitly
 authorized continuing offline with public source/docs and the earlier fork's
@@ -65,7 +66,7 @@ reference alone still does not prove that the produced preset sounds alike.
 | Batch | Validate all static values before the first write, stop after the first failed verification |
 | Cab lists/selections | Atomic Factory/User name imports with explicit bank/slot bounds; independent IR1/IR2 selection, preserving other slots and mixer state |
 | Grid | Empty-grid serial construction or exact existing-route reuse; no implicit overwrite, flattening, deletion, preset reload or flash store |
-| Modifiers | Inspect all 32 slots, refuse unassessed active targets/curves; reassign an existing usable Wah Control source to External 1/2 without changing its curve |
+| Modifiers | Inspect all 32 slots, refuse unassessed active targets/curves; preserve existing curves on source reassignment. Experimental native Wah 1/2 creation has a separate hardware checkpoint below and is not exposed to the planner yet |
 | Execution seam | Preflight the whole action list and route before construction; explicit model channel/final level, first-failure stop, partial-edit recovery warning |
 | Transport cleanup | Release the input if opening the output fails on either backend; no FM9 invariant-guard change |
 
@@ -81,7 +82,8 @@ not mean stereo pan; a selected IR may still be muted or excluded by solo.
 
 1. Verify the new read paths and an actually working, device-built Wah
    modifier on the unit. The old from-scratch defaults omit transfer-curve
-   fields, so the new path deliberately does not create a fresh curve.
+   fields. A native allocator is now captured and narrowly implemented,
+   but the planner does not use it pending physical acceptance.
    Existing source readback does not prove physical pedal/global CC mapping
    or sweep. A new-empty-preset plan requiring that binding is rejected
    BEFORE building any blocks until this gap is resolved.
@@ -98,7 +100,7 @@ not mean stereo pan; a selected IR may still be muted or excluded by solo.
    test slots 321-329. Compare with Axe-Edit and independently read all four
    scenes. Human listening and physical pedal tests remain necessary.
 
-Hardware is intentionally off during this foundation work. Historical
+Hardware was intentionally off during the initial foundation work. Historical
 [2026-09-19 acceptance](AFX3-PARITY-2026-09-19.md) documents the old code,
 not a hardware pass for this port. A stored preset reload can discard all
 unsaved work; permanent storage and global pedal changes require separate
@@ -211,3 +213,48 @@ capability and UI-warning checks: **54 passed** in 112.46 s. Report:
 `pedal-readback-gates.xml`. The earlier complete-suite result above remains
 the last full run; these changes have focused, not repeated full-suite,
 coverage.
+
+### Native modifier allocation checkpoint (2026-09-29)
+
+The owner selected a disposable test preset and authorized muted hardware
+testing. Two isolated Wah blocks were used, with no Input, Output or cables.
+No store, preset reload, global MIDI setting or original-app code was changed.
+
+Passive Axe-Edit captures on FW 32.06 showed a separate native allocation
+command before the source SET. Merely opening an unbound modifier dialog
+did not send this command. Selecting External 1/2 did:
+
+```
+Wah 1: f0 00 01 74 10 01 3a 00 5e 00 05 00 00 00 00 00 00 00 00 00 00 75 f7
+Wah 2: f0 00 01 74 10 01 3a 00 5f 00 05 00 00 00 00 00 00 00 00 00 00 74 f7
+```
+
+Source selection then targets the allocated modifier slot, not the Wah block.
+The device supplies the full 25-word curve. `create_wah_modifier` is limited
+to these two captured targets. It refuses existing target records, requires
+all slots readable, checks that exactly one unassigned slot acquired the
+captured device defaults, then sends only the source selector. Other slots,
+grid, scene and block status must remain unchanged. Allocation is sent once;
+failed reads never cause a retry of the allocation or a guessed slot write.
+The default record is comparison evidence, never a raw curve-write template.
+
+After Axe-Edit released Wah 2's source, the new adapter recreated it with
+External 2. Independent bulk readback matched all 25 words and every other
+slot was unchanged. Axe-Edit, reopened as the only MIDI owner, independently
+showed External 2, Modifier Enabled, Min 0 / Max 10, and Auto Engage Off.
+This verifies a recreated binding in the edit buffer, not flash persistence,
+an acoustic sweep, global CC mapping, or fully integrated planner behavior.
+Auto Engage Off means this test does not promise automatic bypass at heel.
+
+The owner has been asked to move the second physical pedal while viewing
+the modifier indicator. Until physical acceptance and executor integration
+are complete, the planner continues to reject a new binding before building
+blocks. General modifier capabilities remain false; only the experimental
+direct adapter method gained the captured allocation operation. Raw captures
+and user-preset records stay in ignored local backups.
+
+The changed native-allocation, adapter, existing-modifier and executor tests
+plus mandatory device-handle/capability/UI-warning gates passed together:
+**145 passed** in 229.86 s, UTF-8/SIM mode, Python 3.12.10. Report:
+`native-modifier-gates.xml`. The previous full-suite run is still the last
+full-suite result; this checkpoint did not rerun every unrelated test.

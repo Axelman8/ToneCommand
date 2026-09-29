@@ -5,6 +5,11 @@ Notable changes to ToneCommand. Dates are UTC.
 ## Unreleased
 
 ### Added
+- Experimental, FW 32.06 native Wah modifier creation from Axe-Edit captures.
+  The device initializes the curve; TC verifies all 32 modifier records before
+  assigning External 1/2. Only Wah 1/2 Control is allowed, no global CC writes
+  or synthetic curve fields. Direct hardware readback and Axe-Edit confirmed
+  a recreated Wah 2 binding; physical sweep and planner exposure remain gated.
 - Experimental AFX3 cab-name imports, independent IR selection, bounded
   empty-grid construction, modifier inspection and reviewed-plan execution
   seam. These are not yet wired into the application. Fresh modifier curves
