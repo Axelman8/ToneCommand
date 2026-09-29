@@ -76,3 +76,28 @@ def test_scene_change_during_readback_is_not_a_coherent_snapshot():
     report = readback.inspect(dev)
     assert report["same_preset"] and not report["same_scene_and_block_status"]
     dev.edit_session.assert_not_called()
+
+
+@pytest.mark.parametrize("source,name", [(12, "External 1"), (13, "External 2")])
+def test_zero_control_read_is_not_claimed_as_zero_pedal_position(source, name):
+    blocks = [{"effect_id": 94, "parameters": {"WAH_CONTROL": 0}}]
+    slots = {"readable": True, "slots": [
+        {"slot": 1, "effect_id": 94, "param_id": 5, "active": True,
+         "parameter": "WAH_CONTROL", "source": source, "source_name": name},
+        {"slot": 2, "effect_id": 94, "active": False},
+        {"slot": 3, "effect_id": 58, "active": True},
+    ]}
+    readback.annotate_modifier_reads(blocks, slots)
+    observed = blocks[0]["modifier_controlled_parameters"]
+    assert len(observed) == 1
+    assert observed[0]["display_read"] == 0
+    assert observed[0]["source_name"] == name
+    assert observed[0]["effective_value_verified"] is False
+    assert "CC" not in observed[0]  # No owner-specific CC mapping invented.
+
+
+def test_unreadable_modifiers_are_not_reported_as_uncontrolled():
+    blocks = [{"effect_id": 94, "parameters": {"WAH_CONTROL": 0}}]
+    readback.annotate_modifier_reads(blocks, {"readable": False, "reason": "timeout"})
+    assert blocks[0]["modifier_state_readable"] is False
+    assert blocks[0]["modifier_controlled_parameters"] == []

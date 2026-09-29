@@ -178,3 +178,36 @@ the working installation were replaced for this check.
 No MIDI port was opened and no real-device result is claimed in this run.
 The owner has been asked to power on the muted unit, release its MIDI port,
 and identify the pedal connection for the next read-only checkpoint.
+
+### First real-device read-only observations (2026-09-29)
+
+The owner supplied an existing Wah preset on FW 32.06. Independent reads
+confirmed Cry Babe, one External 1 binding targeting Wah Control, and a
+complete 25-word modifier record. During 180 passive samples, Control read
+0 while both bypass states were observed; the modifier record was equal
+before and after. This is not an acoustic sweep or measured pedal range.
+The report now explicitly labels modifier-controlled display values as
+unverified effective values rather than treating zero as a dead pedal.
+
+Axe-Edit was opened separately after releasing the observer's MIDI port.
+Its Wah page independently showed Modifier Enabled and Cry Babe. The user
+reports that its bypass/enable follows their pedal. A later UI observation
+held a fixed display value; the two observations were not simultaneous and
+must not be used as a calibration comparison. A separate 25-second USB
+input-only listen received no CCs; this does not establish absence of CCs
+on the controller's hardware-MIDI link.
+
+The owner's separate controller source uses configurable CCs and hardware
+serial MIDI. No controller-specific CC mapping is embedded in TC. That
+other project was inspected but not modified or flashed. All captures,
+raw curves, preset identities and source-review details remain private in
+ignored backups. No preset/scene/channel, parameter, global setting or
+store was written by this inspection. A working fresh-binding write and
+its audible sweep remain unverified; an existing curve read is not a SET
+encoding calibration or permission to write unknown fields.
+
+Changed inspection/modifier tests: **18 passed**. Required device-handle,
+capability and UI-warning checks: **54 passed** in 112.46 s. Report:
+`pedal-readback-gates.xml`. The earlier complete-suite result above remains
+the last full run; these changes have focused, not repeated full-suite,
+coverage.

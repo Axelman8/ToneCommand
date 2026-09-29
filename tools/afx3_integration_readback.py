@@ -12,6 +12,22 @@ from devices.axefx3.adapter import AxeFxIII
 from devices.axefx3 import route_guard, cab_mix
 
 
+def annotate_modifier_reads(blocks, modifier_state):
+    """Stored/display reads are not measurements of a moving controller."""
+    for block in blocks:
+        block["modifier_state_readable"] = modifier_state["readable"]
+        block["modifier_controlled_parameters"] = [
+            {"slot": slot["slot"], "param_id": slot["param_id"],
+             "parameter": slot["parameter"], "source": slot["source"],
+             "source_name": slot["source_name"],
+             "display_read": block["parameters"].get(slot["parameter"]),
+             "effective_value_verified": False,
+             "note": "Display read may stay fixed while the pedal moves; it does not prove a dead binding."}
+            for slot in modifier_state.get("slots", [])
+            if slot["active"] and slot["effect_id"] == block["effect_id"]
+        ]
+
+
 def inspect(dev):
     start = dev.current_preset()
     start_scene = dev.current_scene()
@@ -43,6 +59,7 @@ def inspect(dev):
         slots = {"readable": True, "slots": dev.modifier_report()}
     except ValueError as exc:
         slots = {"readable": False, "reason": str(exc)}
+    annotate_modifier_reads(observed, slots)
     end = dev.current_preset()
     end_scene = dev.current_scene()
     end_blocks = dev.status_dump()
@@ -54,6 +71,7 @@ def inspect(dev):
             "scene": end_scene, "same_scene_and_block_status": coherent,
             "route": route, "blocks": observed, "modifiers": slots,
             "read_only": True, "stored": False, "physical_pedal_verified": False,
+            "live_modulation_verified": False,
             "note": "Current channels only. No scene switches, global writes, model queries, recording or sound-match claim."}
 
 
