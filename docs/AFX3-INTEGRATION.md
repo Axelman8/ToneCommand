@@ -350,3 +350,29 @@ the required device-handle/capability/UI-warning gates and the new exact
 frame, allocation, refusal, collateral-change, settling and no-op tests.
 Hardware evidence separately records the two successful round-trips above;
 neither a passing suite nor readback proves acoustic pedal behavior.
+
+### Native Volume allocation hardware acceptance (2026-09-29)
+
+After the owner restored an active desktop, Axe-Edit released the existing
+Volume/Pan 1 source to NONE under external audio mute. Independent readback
+confirmed the target record was released before TC attempted allocation.
+The new adapter then successfully called `bind_pedal_control(102, 13, "Off")`:
+the device created its native modifier record and TC assigned External 2.
+All 32 final modifier records, Volume block words, grid, block status,
+preset and scene matched the original reference exactly. No Store occurred.
+
+Axe-Edit was reopened as the only MIDI owner. Its freshly loaded modifier
+UI independently confirmed Volume/Pan 1 Source 1 External 2 and Auto Engage
+Off, full Min 0 / Max 10 range and Level 0 dB. Wah 2 remained External 1
+with Fast Pos. Initial UI assertions ran before the dialog had fully loaded;
+a settled read and screenshots confirmed the result, without another write.
+
+This closes the native Volume allocation/recreation hardware gate above.
+Physical pedal motion, heel bypass and audible level behavior still require
+the owner's acceptance; no global CC mapping or sound-match claim is made.
+The adapter remains an integration component, not a registered app feature.
+
+Documentation checkpoint gates: **101 passed** in 116.14 s (SIM, UTF-8,
+four workers), covering device-handle, capability, UI-warning and pedal
+execution tests; `native-volume-hardware-gates.xml`. Implementation is
+unchanged since the complete 2842-pass/22-skip suite above.

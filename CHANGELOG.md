@@ -9,8 +9,9 @@ Notable changes to ToneCommand. Dates are UTC.
   profile: Wah Off/Fast Pos and External 1/2, plus Volume/Pan 1 native binding.
   Preserves existing parallel grids and verifies all modifier records; no
   level, global CC or curve writes. Wah mode round-trip passed hardware
-  readback, as did existing Volume source reassignment. Volume allocation
-  replay and physical acceptance remain pending;
+  readback, as did existing Volume source reassignment. Native Volume binding
+  recreation now also passed independent hardware readback and Axe-Edit UI
+  confirmation; physical pedal acceptance remains pending;
   this is not yet registered in the application or general planner.
 - Experimental, FW 32.06 native Wah modifier creation from Axe-Edit captures.
   The device initializes the curve; TC verifies all 32 modifier records before
