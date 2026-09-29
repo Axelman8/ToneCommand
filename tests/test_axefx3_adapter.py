@@ -127,6 +127,30 @@ def test_native_modifier_allocator_requires_exact_frame_and_edit_session(rig):
     assert not dev.capabilities().has_modifiers
 
 
+def test_pedal_frames_keep_exact_allowlist_and_session_gate(rig):
+    from devices.axefx3 import pedal_control as pc
+    dev, ports = rig
+    with pytest.raises(PermissionError):
+        dev.bind_pedal_control(102, 13, "Off")
+    with pytest.raises(PermissionError):
+        dev._send(pc.auto_frame(2, 0))
+    with dev.edit_session(external_audio_muted=True, expected_preset=322):
+        dev._write(pc.allocation_frame(102))
+        dev._write(pc.auto_frame(2, 0))
+        dev._write(pc.auto_frame(2, 6))
+        bad = pc.allocation_frame(102)[6:-2]
+        bad[4] = 5
+        with pytest.raises(PermissionError):
+            dev._write(protocol.envelope(1, bad))
+        for pid, value, opcode in [(10,1,9),(10,0,0x52),(1,6,9)]:
+            with pytest.raises((ValueError, PermissionError)):
+                dev._write(protocol.param_frame(4,pid,value,opcode=opcode))
+        with pytest.raises((ValueError, PermissionError)):
+            dev._write(protocol.param_frame(102,0,1,opcode=9))
+    assert len(ports.writes()) == 2
+    assert not dev.capabilities().has_modifiers
+
+
 def test_mid_six_is_verified_from_display_not_from_the_value_we_sent(rig):
     dev, ports = rig
     with dev.edit_session(external_audio_muted=True, expected_preset=322):

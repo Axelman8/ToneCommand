@@ -18,7 +18,7 @@ from fm9.adapter import Capabilities, ReadPath
 from fm9.device import FM9NotFound, SetResult
 from fm9 import protocol as shared
 from fm9.safety import sysex_guard
-from . import protocol, audio_safety, cab_mix, models, cab_selection, grid, modifiers
+from . import protocol, audio_safety, cab_mix, models, cab_selection, grid, modifiers, pedal_control
 from .registry import Registry, SUPPORTED_FIRMWARE
 from . import evidence
 
@@ -106,8 +106,12 @@ class AxeFxIII:
                     if family[0] == "MODIFIER":
                         source = shared.decode_f32_septets(payload[6:11])
                         if (not math.isfinite(source) or source != int(source)
-                                or frame != modifiers.source_frame(family[1], int(source))):
-                            raise PermissionError("No new or altered modifier curves are enabled")
+                                or pid not in (0, 10)):
+                            raise PermissionError("No arbitrary modifier field writes")
+                        expected = (modifiers.source_frame(family[1], int(source)) if pid == 0
+                                    else pedal_control.auto_frame(family[1], int(source)))
+                        if frame != expected:
+                            raise PermissionError("Modifier SET differs from captured encoding")
                     elif family[0] == "CABINET" and pid in (0, 1, 4, 5):
                         value = shared.decode_f32_septets(payload[6:11])
                         if (not math.isfinite(value) or value != int(value) or
@@ -125,7 +129,7 @@ class AxeFxIII:
                     elif not tempo_none:
                         self.reg.spec(family[0], pid, family[1])
                 elif payload[:2] == [0x3A, 0]:
-                    if len(payload) != 15 or frame != modifiers.allocation_frame(shared.decode14(*payload[2:4])):
+                    if len(payload) != 15 or frame != pedal_control.allocation_frame(shared.decode14(*payload[2:4])):
                         raise PermissionError("Unverified modifier allocation frame")
                 elif payload[:2] in ([0x30, 0], [0x32, 0], [0x35, 0]):
                     if not grid.valid_write(frame, self.reg):
@@ -267,6 +271,11 @@ class AxeFxIII:
         with self._lock:
             self._check_edit_target()
             return modifiers.create_wah(self, effect_id, source_ordinal)
+
+    def bind_pedal_control(self, effect_id, source, auto_engage=None):
+        with self._lock:
+            self._check_edit_target()
+            return pedal_control.bind(self, effect_id, source, auto_engage)
 
     def place_block(self, position, effect_id):
         with self._lock:

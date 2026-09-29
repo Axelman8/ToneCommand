@@ -289,3 +289,64 @@ device-handle/capability/UI-warning gates. UTF-8/SIM mode, four workers;
 report `modifier-observations-gates.xml`. A further real-device read-only
 run confirmed the new observed labels on the owner reference. No new write
 capability or complete-suite/installed-app acceptance is claimed.
+
+### Bounded pedal execution checkpoint (2026-09-29)
+
+A resumed interactive Axe-Edit session supplied independent captures for
+Wah Auto Engage Fast Pos -> Off -> Fast Pos and Volume/Pan 1's native
+modifier allocation. Independent MIDI reads followed each editor handoff.
+The captured mode setter is typed command 01 09, modifier parameter 10,
+ordinal 0 or 6. Zero here is a captured SET, not an inferred query or a
+reason to permit zero writes to unrelated parameters. Volume allocation
+is command 01 3A targeting effect 102, parameter 0. Source assignment
+targets the allocated modifier slot, not the Volume block's parameter 0.
+
+`bind_pedal_control` and a pedal-only `pedal_control.execute` seam now check
+the complete request before execution. They accept only captured Wah 1/2
+Control and Volume/Pan 1 Volume, explicit External 1/2, and optional Off or
+Fast Pos for Wah. Volume requires Off, the exact observed full-range curve,
+Type Volume and the captured 0 dB Level on all four channels. These are
+comparison gates, not inferred scalar conversion laws. No curve, level,
+global MIDI mapping, channel, scene or grid is written. An existing parallel
+grid is compared unchanged; no serial flattening is attempted. The target
+Wah's bypass may change as a legitimate consequence of Auto Engage.
+
+Native allocation is never retried after a missing read. Exactly one free
+slot must acquire the complete device-built record before source assignment;
+all 32 records are independently checked after each write, including no-op
+requests. Missing/changed state stops execution. Partial changes can remain
+in the edit buffer; no automatic rollback or flash Store is provided.
+
+Hardware replay by the new adapter successfully changed Wah 2 from Fast Pos
+to Off and back to Fast Pos. Independent readback verified both operations;
+all 32 records, Volume block words and the full grid matched the initial
+reference afterwards. The two-pedal executor also passed as a verified
+no-op on the restored reference. This is not a physical sweep/bypass test.
+
+A further TC hardware round-trip reassigned the EXISTING Volume modifier
+from External 2 to External 1 and back to External 2 under external mute.
+Only that record's source word changed in the middle snapshot. Final
+preset, scene, grid, status, all 32 records and Volume bulk matched exactly.
+Auto Engage stayed Off and no Volume/Level scalar was written. This proves
+source reassignment, not allocation of a new Volume modifier or live sweep.
+
+Volume allocation and source selection were captured and independently
+verified through Axe-Edit, but replay from TC remains pending. The attempt
+to release its existing binding for that test failed at mouse input because
+Windows again had no active interactive desktop. No binding was released:
+subsequent readback verified the original External 2 record intact. The
+user's Wah remains External 1 / Fast Pos. No arbitrary unbind command was
+substituted. An active desktop is required to complete this hardware gate.
+
+The application, device selector and general tone executor are NOT enabled
+by this checkpoint. The Volume scalar/model registry and original FM9 paths
+remain unchanged. Off Value writes, other Auto Engage modes, arbitrary
+Volume curves/types/levels, global pedal setup and physical loudness are
+not verified capabilities. Raw records and captures remain private.
+
+Verification: complete SIM suite **2842 passed, 22 skipped** in 324.18 s,
+Python 3.12.10, UTF-8, six workers, `pedal-control-full.xml`. This includes
+the required device-handle/capability/UI-warning gates and the new exact
+frame, allocation, refusal, collateral-change, settling and no-op tests.
+Hardware evidence separately records the two successful round-trips above;
+neither a passing suite nor readback proves acoustic pedal behavior.

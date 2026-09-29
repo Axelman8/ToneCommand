@@ -5,6 +5,13 @@ Notable changes to ToneCommand. Dates are UTC.
 ## Unreleased
 
 ### Added
+- Experimental bounded pedal-only execution for the captured AFX3 FW 32.06
+  profile: Wah Off/Fast Pos and External 1/2, plus Volume/Pan 1 native binding.
+  Preserves existing parallel grids and verifies all modifier records; no
+  level, global CC or curve writes. Wah mode round-trip passed hardware
+  readback, as did existing Volume source reassignment. Volume allocation
+  replay and physical acceptance remain pending;
+  this is not yet registered in the application or general planner.
 - Experimental, FW 32.06 native Wah modifier creation from Axe-Edit captures.
   The device initializes the curve; TC verifies all 32 modifier records before
   assigning External 1/2. Only Wah 1/2 Control is allowed, no global CC writes

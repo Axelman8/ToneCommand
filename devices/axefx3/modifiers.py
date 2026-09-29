@@ -107,7 +107,8 @@ def observed_target(reg, words):
 
     In Volume/Pan 1, PID 0 is Volume, NOT a model selector. Naming that
     observed target never adds a writable spec or authorizes an allocation.
-    The mode word is not evidence of its SET encoding or of physical bypass.
+    Mode labels alone are not SET evidence. Off/Fast Pos have a separate
+    bounded setter capture and replay; physical bypass remains unverified.
     """
     if reg.firmware != "32.06" or len(words) != 25:
         return None
@@ -119,7 +120,7 @@ def observed_target(reg, words):
     modes = {0: "Off", 6: "Fast Pos"} if name == "WAH_CONTROL" else {0: "Off"}
     return {"parameter": name, "auto_engage_word": words[10],
             "auto_engage_name": modes.get(words[10]),
-            "auto_engage_write_verified": False,
+            "auto_engage_write_verified": name == "WAH_CONTROL" and words[10] in (0, 6),
             "physical_bypass_verified": False}
 
 

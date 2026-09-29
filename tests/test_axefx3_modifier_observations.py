@@ -21,7 +21,7 @@ def test_only_observed_mode_names_are_reported(eid, pid, mode, name, label):
     assert result["parameter"] == name
     assert result["auto_engage_name"] == label
     assert result["auto_engage_word"] == mode
-    assert not result["auto_engage_write_verified"]
+    assert result["auto_engage_write_verified"] == (name == "WAH_CONTROL" and mode in (0, 6))
     assert not result["physical_bypass_verified"]
 
 
