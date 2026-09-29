@@ -18,7 +18,7 @@ from fm9.adapter import Capabilities, ReadPath
 from fm9.device import FM9NotFound, SetResult
 from fm9 import protocol as shared
 from fm9.safety import sysex_guard
-from . import protocol, audio_safety, cab_mix, models
+from . import protocol, audio_safety, cab_mix, models, cab_selection, grid, modifiers
 from .registry import Registry, SUPPORTED_FIRMWARE
 from . import evidence
 
@@ -32,7 +32,10 @@ class AxeFxIII:
     def __init__(self, ports=None):
         if ports is None:
             from fm9 import midi_transport
-            ports = midi_transport.open_ports("axe-fx")
+            try:
+                ports = midi_transport.open_ports("axe-fx")
+            except midi_transport.TransportError as exc:
+                raise FM9NotFound(str(exc).replace("FM9", "Axe-Fx III")) from exc
         self.inp, self.outp = ports
         self._lock = threading.RLock()
         self._edit_target = None
@@ -84,7 +87,8 @@ class AxeFxIII:
                     or (fn == 0x0C and payload == [127])
                     or (fn in (0x0A, 0x0B) and len(payload) == 3 and payload[2] == 127)
                     or (fn == 1 and len(payload) == 6 and payload[:2] == [0x10, 0]
-                        and shared.decode14(payload[4], payload[5]) != 0))
+                        and shared.decode14(payload[4], payload[5]) != 0)
+                    or frame == grid.reframe(shared.build_request_grid_layout()))
         if not readonly:
             if self._approved_frame != tuple(frame):
                 raise PermissionError("Raw writes must pass the verified Axe-Fx III action path")
@@ -92,12 +96,24 @@ class AxeFxIII:
                 if payload[:2] in ([9, 0], [0x52, 0]) and len(payload) == 15:
                     effect_id = shared.decode14(payload[2], payload[3])
                     family = self.reg.family_of_effect_id(effect_id)
+                    if effect_id in range(3, 35):
+                        family = ("MODIFIER", effect_id - 2)
                     if family is None or family[0] == "GLOBAL":
                         raise PermissionError("No generic/global parameter writes on Axe-Fx III")
                     pid = shared.decode14(payload[4], payload[5])
                     tempo_none = (family[0] == "DELAY" and pid == 9
                                   and frame == protocol.param_frame(effect_id, 9, 0, opcode=0x52))
-                    if pid == 0:
+                    if family[0] == "MODIFIER":
+                        source = shared.decode_f32_septets(payload[6:11])
+                        if (not math.isfinite(source) or source != int(source)
+                                or frame != modifiers.source_frame(family[1], int(source))):
+                            raise PermissionError("No new or altered modifier curves are enabled")
+                    elif family[0] == "CABINET" and pid in (0, 1, 4, 5):
+                        value = shared.decode_f32_septets(payload[6:11])
+                        if (not math.isfinite(value) or value != int(value) or
+                                frame != cab_selection.frame(effect_id, pid, int(value))):
+                            raise PermissionError("Cab selector is not a verified discrete frame")
+                    elif pid == 0:
                         ordinal = shared.decode_f32_septets(payload[6:11])
                         names = models.roster(self.reg, family[0], selectable=True)
                         if (not math.isfinite(ordinal) or ordinal != int(ordinal)
@@ -108,6 +124,9 @@ class AxeFxIII:
                             raise PermissionError("Model SET is not the captured frame")
                     elif not tempo_none:
                         self.reg.spec(family[0], pid, family[1])
+                elif payload[:2] in ([0x30, 0], [0x32, 0], [0x35, 0]):
+                    if not grid.valid_write(frame, self.reg):
+                        raise PermissionError("Unverified/destructive grid frame")
                 elif payload[:2] not in ([0x28, 0], [0x2B, 0]):
                     raise PermissionError("Editor command has not been enabled for Axe-Fx III")
             elif not (fn == 0x0C and len(payload) == 1 and payload[0] in range(8)) \
@@ -224,6 +243,37 @@ class AxeFxIII:
             got = protocol.parse_display_text_response(data)
             return got[2] if got and got[:2] == (effect_id, param_id) else None
         return self._request(protocol.display_query(effect_id, param_id), parse)
+
+    def read_grid(self, timeout=2.0):
+        return self._request(grid.reframe(shared.build_request_grid_layout()),
+                             shared.parse_grid_layout, timeout)
+
+    def read_modifier(self, slot_1based):
+        return self.bulk_read(modifiers.slot_eid(slot_1based))
+
+    def modifier_report(self):
+        with self._lock:
+            return modifiers.inspect(self)
+
+    def assign_existing_modifier(self, slot_1based, target_effect_id, target_param_id, source_ordinal):
+        with self._lock:
+            self._check_edit_target()
+            return modifiers.assign_existing(self, slot_1based, target_effect_id, target_param_id, source_ordinal)
+
+    def place_block(self, position, effect_id):
+        with self._lock:
+            self._check_edit_target()
+            return grid.place(self, position, effect_id)
+
+    def connect_cells(self, src_row, src_col, dest_row):
+        with self._lock:
+            self._check_edit_target()
+            return grid.connect(self, src_row, src_col, dest_row)
+
+    def build_route(self, required_route, actions):
+        with self._lock:
+            self._check_edit_target()
+            return grid.build(self, required_route, actions)
 
     @staticmethod
     def _parse_display_value(text, unit):
@@ -435,6 +485,11 @@ class AxeFxIII:
     def read_model(self, family, effect_id):
         with self._lock:
             return models.read(self, family, effect_id)
+
+    def set_cab(self, effect_id, bank, ordinal, side="left"):
+        with self._lock:
+            self._check_edit_target()
+            return cab_selection.select(self, effect_id, bank, ordinal, side)
 
     def set_model(self, family, effect_id, name):
         with self._lock:

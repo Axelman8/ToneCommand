@@ -5,6 +5,11 @@ Notable changes to ToneCommand. Dates are UTC.
 ## Unreleased
 
 ### Added
+- Experimental AFX3 cab-name imports, independent IR selection, bounded
+  empty-grid construction, modifier inspection and reviewed-plan execution
+  seam. These are not yet wired into the application. Fresh modifier curves
+  are refused rather than filled with incomplete defaults. A separate
+  explicit read-only inspection tool supports the next hardware checkpoint.
 - Experimental `devices.axefx3` adapter foundation, not yet registered in
   device selection. It isolates captured FW 32.06 parameters/model rosters
   from the FM9, requires an explicit muted edit session and target preset,
@@ -21,6 +26,9 @@ Notable changes to ToneCommand. Dates are UTC.
   Windows untested: the suite runs there on every change.
 
 ### Fixed
+- Release the already opened MIDI input when output opening fails, on both
+  mido and supriya backends. Successful traffic and the invariant guard are
+  unchanged; fake-port tests exercise both failure paths.
 - The library symlink security test explicitly skips WinError 1314 when a
   Windows account cannot create symlinks. All other OS errors still fail;
   the production path containment rule is unchanged.

@@ -238,3 +238,15 @@ def test_transport_refuses_uncaptured_model_commands_even_inside_session(rig, ei
         with pytest.raises((PermissionError, ValueError)):
             dev._write(protocol.param_frame(eid, 0, ordinal, opcode=opcode))
     assert not ports.writes()
+
+
+@pytest.mark.parametrize("eid,pid,value,opcode", [
+    (62, 0, 0, 9), (62, 0, 3, 9), (62, 4, 1024, 9), (62, 4, 1.5, 9),
+    (3, 0, 0, 0x52), (3, 0, 10, 9), (3, 1, .5, 9), (3, 8, 94, 9),
+])
+def test_transport_rejects_invalid_cab_selection_and_modifier_curve_writes(rig, eid, pid, value, opcode):
+    dev, ports = rig
+    with dev.edit_session(external_audio_muted=True, expected_preset=322):
+        with pytest.raises((PermissionError, ValueError)):
+            dev._write(protocol.param_frame(eid, pid, value, opcode=opcode))
+    assert not ports.writes()

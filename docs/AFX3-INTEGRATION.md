@@ -1,6 +1,6 @@
 # Axe-Fx III upstream integration
 
-## Status: adapter foundation, not an enabled application feature
+## Status: adapter and execution seam, not an enabled application feature
 
 Worktree: `integration/axefx3-upstream-20260929`, based on upstream
 `c2c8a8789b0f065e2a5d37d0b359fbb33d28fdb1` (after 1.5.3).
@@ -37,8 +37,8 @@ profile in this foundation; other firmware is read-only.
 
 The upstream amp sidecar contains exact-name factual metadata for 330 of
 the 336 models in our FW 32.06 inventory. In this particular comparison their
-ordinals also match, but a future port should join by unambiguous name, not
-assume that index equality survives firmware changes. Six models have no
+ordinals also match, but `Registry.load_amp_facts` joins by unambiguous name,
+never by ordinal. Six models have no
 exact matching record and must not receive invented descriptions. These
 facts (amp identity, intended cab, control layout) are useful reasoning
 input; they do not authorize additional DSP parameters or model writes.
@@ -63,6 +63,11 @@ reference alone still does not prove that the produced preset sounds alike.
 | Writes | Explicit external-mute acknowledgement and target preset; changed firmware/preset aborts, no automatic store or reload |
 | Restore | Only independently established bulk laws, exact word verification, no guessed alternate opcode |
 | Batch | Validate all static values before the first write, stop after the first failed verification |
+| Cab lists/selections | Atomic Factory/User name imports with explicit bank/slot bounds; independent IR1/IR2 selection, preserving other slots and mixer state |
+| Grid | Empty-grid serial construction or exact existing-route reuse; no implicit overwrite, flattening, deletion, preset reload or flash store |
+| Modifiers | Inspect all 32 slots, refuse unassessed active targets/curves; reassign an existing usable Wah Control source to External 1/2 without changing its curve |
+| Execution seam | Preflight the whole action list and route before construction; explicit model channel/final level, first-failure stop, partial-edit recovery warning |
+| Transport cleanup | Release the input if opening the output fails on either backend; no FM9 invariant-guard change |
 
 Unknown readings fail closed. A successful command receipt is not a
 successful verification. None of these checks measures loudness, pedal
@@ -74,20 +79,22 @@ not mean stereo pan; a selected IR may still be muted or excluded by solo.
 
 ## Remaining integration gates
 
-1. Port IR name imports and selection without borrowing FM9 bank mappings.
-2. Port grid construction and required-route verification, including refusal
-   to flatten or overwrite existing parallel/unsupported routes.
-3. Port modifier preflight/binding without defaulting an unknown transfer
-   curve. External 1/2 is not evidence of the physical pedal/global CC map.
-4. Connect the adapter through upstream device contexts, capability gates,
+1. Verify the new read paths and an actually working, device-built Wah
+   modifier on the unit. The old from-scratch defaults omit transfer-curve
+   fields, so the new path deliberately does not create a fresh curve.
+   Existing source readback does not prove physical pedal/global CC mapping
+   or sweep. A new-empty-preset plan requiring that binding is rejected
+   BEFORE building any blocks until this gap is resolved.
+2. Connect the adapter through upstream device contexts, capability gates,
    planner reference, manual controls, send preflight, staging and recovery.
    Do not expose FM9 reamp/capture or startup global-restore actions to AFX3.
-5. Deliberately reconcile the owner's audio-reference and conversation UI
+3. Deliberately reconcile the owner's audio-reference and conversation UI
    with upstream's newer sound-check/tone-match and amp/cab metadata features.
    Preserve provider choice, no paid fallback, and measured-vs-heard labels.
-6. Run focused and full offline regressions plus UI/package checks on that
+4. Run focused and full offline regressions plus UI/package checks on that
    integrated path, not just the independent adapter.
-7. Then request the unit on, reconfirm external mute, and use only authorized
+5. After the complete application path is verified offline, reconfirm external
+   mute and use only authorized
    test slots 321-329. Compare with Axe-Edit and independently read all four
    scenes. Human listening and physical pedal tests remain necessary.
 
@@ -96,6 +103,29 @@ Hardware is intentionally off during this foundation work. Historical
 not a hardware pass for this port. A stored preset reload can discard all
 unsaved work; permanent storage and global pedal changes require separate
 explicit permission. Neither operation is enabled in this adapter.
+
+### Next hardware checkpoint: read-only, not the integrated server
+
+After the owner confirms power and external mute, stop TC and Axe-Edit so
+only one process owns MIDI. From this integration worktree run:
+
+```powershell
+.\.venv\Scripts\python.exe -m tools.afx3_integration_readback --hardware-read-only
+```
+
+This tool refuses `TONECOMMAND_SIM=1` rather than labelling simulation as
+hardware. It imports no server, enters no edit session, and does not change
+the selected preset, scene, channel, global mapping or stored data. It reads
+the current channels, passive models/parameters, cab mixer, grid and modifier
+slots, with before/after preset, scene and block-status consistency checks.
+Keep any raw user-preset/modifier reports private under ignored backups.
+
+The physical pedal's connection point must be known before deciding whether
+External 1 is the right source. Missing or structurally plausible curve words
+are not permission to synthesize a transfer function. A separately reviewed
+Axe-Edit comparison and physical sweep test are still needed. The broad
+modifier/topology capabilities remain disabled: these narrow internal
+operations do not implement every upstream editor operation.
 
 ## Verification record
 
@@ -128,3 +158,23 @@ installed-GUI or frozen-application acceptance test.
 The repository's required device-handle/capability/UI-warning suite must
 also pass before each commit. CI, another computer and the real device
 remain unproven until their own runs exist. No push/PR is authorized yet.
+
+### Cab, routing and modifier checkpoint (2026-09-29)
+
+Final full run: **2,751 passed, 22 skipped** in 365.23 s with the same
+Python 3.12.10, UTF-8/SIM environment and six workers. JUnit:
+`routing-final.xml`. Required gates separately: **54 passed** in 128.52 s
+(`routing-final-required-gates.xml`). Focused adapter, transport, packaging
+and site suite: **318 passed** in 11.62 s (`routing-focused.xml`). Reports
+remain private in `backups/integration-20260929/`.
+
+The wheel build and isolated imports also pass, including all six new AFX3
+modules, the read-only inspection tool and firmware-pinned JSON resources.
+Wheel SHA-256: `7c5992e59765b99a0b7550dc7cd3cf5cf2c7d9599ceb767fe8983232bb3aa61e`.
+The first no-build-isolation attempt lacked setuptools in the virtualenv;
+the normal isolated build then succeeded. No application dependencies or
+the working installation were replaced for this check.
+
+No MIDI port was opened and no real-device result is claimed in this run.
+The owner has been asked to power on the muted unit, release its MIDI port,
+and identify the pedal connection for the next read-only checkpoint.

@@ -47,6 +47,8 @@ class Registry(BaseRegistry):
         self.effect_type_models = {}
         self.cab_models = {}
         self.dynacabs = {}
+        from .catalog import Catalog
+        self.cab_catalog = Catalog()
         if firmware not in SUPPORTED_FIRMWARE:
             return
         for family, definitions in AXE_FX_III_PARAM_DEFINITIONS.items():
@@ -114,3 +116,26 @@ class Registry(BaseRegistry):
         if found and (found[0] == "GLOBAL" or (found[0] == "DISTORT" and found[1] > 2)):
             return None
         return found
+
+    def import_cab_names(self, text, kind, *, replace=False):
+        count = self.cab_catalog.import_text(text, kind, replace=replace)
+        self.cab_rosters = {str(bank): {str(o): name for (b, o), name in self.cab_catalog.names.items()
+                                      if b == bank} for bank in (0, 1, 2)}
+        return count
+
+    def load_amp_facts(self, document):
+        """Reuse upstream's facts by exact unique name, NEVER by FM9 ordinal.
+
+        This does not expand the write roster or supply missing calibrations.
+        The caller supplies the public facts document, not private guide prose.
+        """
+        if not isinstance(document, dict) or document.get("content") != "facts":
+            raise ValueError("Expected the public facts-only amp sidecar")
+        by_name = {}
+        for record in document.get("amps", {}).values():
+            by_name.setdefault(record.get("fractal"), []).append(record)
+        fields = {"fractal", "model", "orig_cab", "dynacab", "controls",
+                  "preamp_tubes", "power_tubes", "tonestack"}
+        self.amp_models = {ordinal: {k: v for k, v in by_name[name][0].items() if k in fields}
+                           for ordinal, name in self.amp_roster.items() if len(by_name.get(name, [])) == 1}
+        return len(self.amp_models)

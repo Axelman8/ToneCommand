@@ -34,6 +34,10 @@ Experimental AFX3 work is isolated in `devices/axefx3`; it is not connected
 to device selection yet. It implements the adapter contract without FM9
 transport inheritance or FM9 global routing restore. Its own firmware-pinned
 registry and captured SET domains prevent a product-byte-only substitution.
+The isolated executor validates the whole plan before routing construction,
+preserves separate scene/channel intent, and stops at the first failed
+readback. Cab imports/selections and narrow grid/modifier operations remain
+behind this boundary; broad topology/modifier capabilities stay disabled.
 See `docs/AFX3-INTEGRATION.md` for the remaining
 server/UI and hardware gates. `server.py` remains 7,713 lines in this stage.
 

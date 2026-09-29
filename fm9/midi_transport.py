@@ -18,7 +18,8 @@ mido stays as the message class either way; it is pure Python. The
 never-brick guard (device.FM9._send) sits ABOVE this module: a frame is
 checked before any port sees it, so no backend can widen what reaches the
 wire. The supriya path is fake-port proven here and hardware-pass pending
-(#172 REQ-004); the mido path is unchanged.
+(#172 REQ-004). Opening either backend releases the input if opening the
+output fails; successful mido traffic is unchanged.
 """
 from __future__ import annotations
 
@@ -105,9 +106,19 @@ def open_ports(hint: str, env: dict | None = None, supriya_module: Any = None) -
         outs = [n for n in mido.get_output_names() if hint in n.lower()]
         if not ins or not outs:
             raise TransportError("FM9 MIDI ports not found; is it connected and powered on?")
-        return mido.open_input(ins[0]), mido.open_output(outs[0])
+        inp = mido.open_input(ins[0])
+        try:
+            return inp, mido.open_output(outs[0])
+        except BaseException:
+            inp.close()
+            raise
     sm = supriya_module or __import__("supriya_midi")
-    return SupriyaIn.open(sm, hint), SupriyaOut.open(sm, hint)
+    inp = SupriyaIn.open(sm, hint)
+    try:
+        return inp, SupriyaOut.open(sm, hint)
+    except BaseException:
+        inp.close()
+        raise
 
 
 # --- supriya-midi behind the mido-shaped ports -----------------------------------------
