@@ -5,6 +5,12 @@ Notable changes to ToneCommand. Dates are UTC.
 ## Unreleased
 
 ### Added
+- Axe-Fx III controller workspace at `/controllers`, linked from TC's shelf.
+  Users choose External 1/2 for verified Wah/Volume targets, review the live
+  preset and confirm external mute before sending. Single-use state-bound
+  reviews reject stale/replayed requests. Unsupported controls/unbinding and
+  the generic tone planner remain blocked in this scoped integration mode;
+  FM9 behavior and global MIDI mapping are unchanged.
 - Experimental bounded pedal-only execution for the captured AFX3 FW 32.06
   profile: Wah Off/Fast Pos and External 1/2, plus Volume/Pan 1 native binding.
   Preserves existing parallel grids and verifies all modifier records; no

@@ -138,6 +138,7 @@ DEVICE_KINDS = {
     "fm9": "Fractal FM9",
     "headrush": "HeadRush",
     "tonex": "IK Multimedia ToneX",
+    "axefx3": "Axe-Fx III (controllers)",
 }
 #: Chosen explicitly, by kind, through /api/device/select. None means no
 #: choice has been made, which is only a problem when there is a choice.
@@ -147,6 +148,8 @@ _selected_kind: dict = {"kind": None}
 def available_devices() -> list[dict]:
     import os
     out = [{"kind": "fm9", "label": DEVICE_KINDS["fm9"]}]
+    if device_context().kind == "axefx3":
+        out.append({"kind": "axefx3", "label": DEVICE_KINDS["axefx3"]})
     if os.environ.get("TONECOMMAND_HEADRUSH_HOST") or \
             os.environ.get("TONECOMMAND_HEADRUSH_SIM") == "1":
         out.append({"kind": "headrush", "label": DEVICE_KINDS["headrush"]})
@@ -499,6 +502,8 @@ def get_fm9() -> DeviceAdapter:
     context's adapter, gated exactly the same way."""
     global _fm9
     ctx = device_context()
+    if ctx.kind == "axefx3":
+        raise CapabilityDeclined("controller_workspace_only", "get_fm9")
     if ctx.kind != "fm9" or ctx.adapter is not None:
         if ctx.adapter is None:
             raise FM9NotFound(f"no {ctx.kind} adapter is connected")
@@ -7654,6 +7659,11 @@ def _apply_for(body: ApplyBody, on_step=None):
                        "actions": len(body.actions),
                        "slowest": [{"kind": (r.get("action") or {}).get("kind"),
                                     "seconds": r["seconds"]} for r in slow]}}
+
+
+import sys as _sys
+from devices.axefx3.controller_ui import register as _register_controller_ui
+_controller_reviews = _register_controller_ui(app, _sys.modules[__name__])
 
 
 def main():

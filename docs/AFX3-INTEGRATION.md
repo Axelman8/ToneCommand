@@ -1,6 +1,6 @@
 # Axe-Fx III upstream integration
 
-## Status: adapter and execution seam, not an enabled application feature
+## Status: controller workspace enabled; general AFX3 tone planning not enabled
 
 Worktree: `integration/axefx3-upstream-20260929`, based on upstream
 `c2c8a8789b0f065e2a5d37d0b359fbb33d28fdb1` (after 1.5.3).
@@ -9,10 +9,12 @@ Source for the port: owner checkpoint
 
 This is a deliberate port, not a completed merge. The original installation,
 private settings, cab imports and presets remain separate and unchanged.
-The adapter is **not registered in device selection or the server** yet.
-Installing these modules does not replace the owner's working application.
+The adapter can now be explicitly connected from the **controller workspace**
+at `/controllers`. Only reviewed Wah/Volume controller operations are exposed;
+the generic FM9 executor and other device API routes are blocked in this mode.
+Installing this integration does not replace the owner's working application.
 No publication or paid AI request is part of this work. Separately authorized
-hardware checkpoints are recorded below; they do not enable the application.
+hardware checkpoints are recorded below; they do not enable general AFX3 builds.
 
 The upstream gitignored knowledge base is absent. The owner explicitly
 authorized continuing offline with public source/docs and the earlier fork's
@@ -80,14 +82,13 @@ not mean stereo pan; a selected IR may still be muted or excluded by solo.
 
 ## Remaining integration gates
 
-1. Verify the new read paths and an actually working, device-built Wah
-   modifier on the unit. The old from-scratch defaults omit transfer-curve
-   fields. A native allocator is now captured and narrowly implemented,
-   but the planner does not use it pending physical acceptance.
-   Existing source readback does not prove physical pedal/global CC mapping
-   or sweep. A new-empty-preset plan requiring that binding is rejected
-   BEFORE building any blocks until this gap is resolved.
-2. Connect the adapter through upstream device contexts, capability gates,
+1. Exercise the new browser-to-hardware controller path under reconfirmed
+   external mute. Native Wah/Volume allocation and source/mode writes passed
+   the earlier hardware checkpoints. The owner confirmed Wah movement/bypass
+   and Volume movement; complete Volume no-bypass and acoustic acceptance
+   remain separate. The general tone executor still rejects fresh bindings
+   before constructing a rig; the reviewed controller workspace is distinct.
+2. Extend the controller-only device context through upstream capability gates,
    planner reference, manual controls, send preflight, staging and recovery.
    Do not expose FM9 reamp/capture or startup global-restore actions to AFX3.
 3. Deliberately reconcile the owner's audio-reference and conversation UI
@@ -376,3 +377,63 @@ Documentation checkpoint gates: **101 passed** in 116.14 s (SIM, UTF-8,
 four workers), covering device-handle, capability, UI-warning and pedal
 execution tests; `native-volume-hardware-gates.xml`. Implementation is
 unchanged since the complete 2842-pass/22-skip suite above.
+
+### User-selected controller workflow (2026-10-01)
+
+The TC shelf now links to `/controllers`. Explicit connection selects the
+AFX3 adapter and its own registry; loading the page itself never connects
+to MIDI. Close Axe-Edit and other TC MIDI owners before connecting. The
+workspace is intentionally separate from the unported general tone planner,
+not a claim that the complete FM9 workflow already runs on AFX3. Disconnect
+releases MIDI and returns to the normal TC context. Existing production TC
+remains untouched in its separate worktree.
+
+Only present, preflight-eligible Wah 1/2 and Volume/Pan 1 controls are offered.
+Users choose External 1/2 explicitly; no controller CC is hardcoded. Existing
+curves and ranges are preserved. A fresh binding uses the captured native
+device initializer. Wah offers preserved mode, Off or Fast Pos; Volume is
+restricted to Off. Unbinding, other sources, editable curves, amp/delay
+modifiers and arbitrary Volume types/levels are not enabled. Unsupported
+states are explained instead of silently replaced. There is no automatic
+preference application or AI selection of the user's pedal source.
+
+Read and review perform no SET. The server issues a single-use, five-minute
+ticket bound to the adapter instance, exact request, preset/scene, routing,
+block/channel state, all modifier records and relevant Volume bulk state.
+Sending requires target confirmation and external mute acknowledgement,
+fresh preflight, matching reviewed state and independent post-write readback.
+Tickets are consumed before I/O; failures never auto-retry. Preset/connection
+changes, GIG LOCK, active tone plans and cab auditions are refused. No Store,
+global MIDI writes or automatic Undo is offered; partial writes may remain.
+
+The controller page uses text-only rendering of device strings, disables
+Send until both acknowledgements are checked, invalidates the displayed
+review after a changed selection and shows readback failure distinctly.
+Device selection and the shared writer lock are integrated with the host;
+legacy API routes and `get_fm9()` refuse AFX3 outside this workspace. The
+FM9 transport, global-restore code, protocol guard and whitelists are not
+modified. Page assets use existing resource paths and packaging conventions.
+
+Earlier physical acceptance: the owner confirmed Wah marker movement and
+automatic bypass, and Volume marker movement on the recreated binding.
+Volume staying active through the complete sweep was not separately
+confirmed, and no audible level/sound-match acceptance is inferred.
+
+Start this separate integration workspace on Windows with
+`tools/start_controllers.ps1` (default port 8910). The script checks the
+endpoint before reusing a listener, starts only on localhost, launches Chrome
+if installed and never connects MIDI automatically. `-NoBrowser` and `-Port`
+are available. The page can also be opened at `/controllers` on an already
+running integration server. Disconnect here before reopening Axe-Edit.
+
+Verification: complete offline suite **2869 passed, 22 skipped**, 464.25 s,
+UTF-8/SIM with six workers, `controller-workspace-full.xml`. The final
+cross-origin request guard and malformed-ticket validation were added
+afterwards: controller/pedal tests **79 passed**; final mandatory and
+controller UI gates **86 passed**, 202.50 s, `controller-ui-final-gates.xml`.
+Real Chrome browser
+tests exercised selection without writes, dirty-review invalidation, both
+acknowledgements, one-shot send, failure messaging, failed-connection exit,
+HTML injection protection and a 390-pixel layout using mocked API data.
+They sent nothing to hardware. The PowerShell launcher passed parsing,
+startup and reuse checks; the live local page reports disconnected.
