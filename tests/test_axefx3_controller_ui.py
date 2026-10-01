@@ -132,6 +132,19 @@ def test_browser_shaped_review_send_path(api):
     assert dev._write.call_count == 1
 
 
+def test_upstream_named_parameter_capability_does_not_enable_afx3_writes(api):
+    from devices.axefx3.adapter import AxeFxIII
+    client, dev, _ = api
+    dev.capabilities.return_value = AxeFxIII.capabilities(dev)
+    assert dev.capabilities().has_named_params is False
+    client.post('/api/controllers/connect')
+    errors, _ = server.validate_action(server.Action(kind='set_device_param', param='GAIN', value=96))
+    assert errors and 'has no named parameters' in errors[0]
+    assert client.post('/api/apply', json={'actions':[
+        {'kind':'set_device_param','param':'GAIN','value':96}]}).status_code == 409
+    dev._write.assert_not_called()
+
+
 @pytest.mark.parametrize('body',[{'effect_id':True,'source':12},{'effect_id':102,'source':6},
     {'effect_id':58,'source':12},{'effect_id':95,'source':12,'auto_engage':'Slow Pos'},
     {'effect_id':102,'source':12,'auto_engage':'Fast Pos'},

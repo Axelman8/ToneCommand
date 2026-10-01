@@ -3,7 +3,7 @@
 ## Status: controller workspace enabled; general AFX3 tone planning not enabled
 
 Worktree: `integration/axefx3-upstream-20260929`, based on upstream
-`c2c8a8789b0f065e2a5d37d0b359fbb33d28fdb1` (after 1.5.3).
+`3c97d6cff34c8b9ca842b79bed21154052411047` (1.5.4, merged 2026-10-01).
 Source for the port: owner checkpoint
 `18f8eac0b49820c8fb7c4248f76bfacacc6b6feb`.
 
@@ -82,12 +82,10 @@ not mean stereo pan; a selected IR may still be muted or excluded by solo.
 
 ## Remaining integration gates
 
-1. Exercise the new browser-to-hardware controller path under reconfirmed
-   external mute. Native Wah/Volume allocation and source/mode writes passed
-   the earlier hardware checkpoints. The owner confirmed Wah movement/bypass
-   and Volume movement; complete Volume no-bypass and acoustic acceptance
-   remain separate. The general tone executor still rejects fresh bindings
-   before constructing a rig; the reviewed controller workspace is distinct.
+1. Controller browser-to-hardware and physical acceptance passed on
+   2026-10-01 (see checkpoint below). Acoustic acceptance remains separate.
+   The general tone executor still rejects fresh bindings before constructing
+   a rig; the reviewed controller workspace is distinct.
 2. Extend the controller-only device context through upstream capability gates,
    planner reference, manual controls, send preflight, staging and recovery.
    Do not expose FM9 reamp/capture or startup global-restore actions to AFX3.
@@ -437,3 +435,47 @@ acknowledgements, one-shot send, failure messaging, failed-connection exit,
 HTML injection protection and a 390-pixel layout using mocked API data.
 They sent nothing to hardware. The PowerShell launcher passed parsing,
 startup and reuse checks; the live local page reports disconnected.
+
+### Live controller and physical acceptance (2026-10-01)
+
+With external mute reconfirmed, the real Chrome interface on preset 324,
+scene 1, FW 32.06 passed six reviewed sends: Wah 2 External 1 -> 2 -> 1;
+Volume 1 External 2 -> 1 -> 2; Wah Fast Pos -> Off -> Fast Pos. Independent
+readback verified every send. Separate before/after captures of all 32
+modifier records, current block/channel/bypass state, complete grid and
+all 12 present block bulk payloads were identical at the end. Out 1, routing
+and global mappings were not edited; no Store or preset reload occurred.
+
+Afterwards the owner explicitly confirmed the physical test: Wah follows
+External 1 and bypasses at heel; Volume follows External 2 without automatic
+bypass. This completes the bounded controller workflow, not tone matching,
+calibrated loudness or general preset generation. Raw captures remain private.
+
+### Upstream 1.5.4 integration (2026-10-01)
+
+Merged the 19 upstream commits after c2c8a87. Both device-list entries survive
+the merge: the new BOSS IR-2 and the explicit AFX3 controller workspace.
+The upstream main-page missing-brace repair and Node syntax regression guard
+are included, together with IR-2 named-parameter planning and deterministic
+settling tests. Local AFX3 code and its verified controller page are unchanged;
+general AFX3 planning, global restoration, reamp/capture and unverified
+parameter writes remain blocked. Upstream named-parameter capability defaults
+to false on this adapter; it does not grant new wire-format permissions.
+
+The original production worktree is unchanged. This merge uses a separate
+SIM server for browser checks, no hardware connection, writes or paid AI
+calls. Public docs retain the distinction between upstream features and
+completed Axe-Fx III integration. `tests/main_ui.browser.cjs` checks real
+Chrome parsing, SIM polling, text input, settings/activity drawers and text
+size, blocks all POSTs, and never requests an AI plan.
+
+Verification: full SIM suite **2950 passed, 22 skipped**, 328.23 s,
+`merge154-full.xml`, six workers, UTF-8. Subsequent packaging-list correction
+and two extra regressions passed the mandatory/focused final gates:
+**103 passed**, 114.87 s, `merge154-final-gates.xml`. Final documentation,
+packaging, syntax and controller checks: **49 passed**. Real Chrome main
+UI smoke and controller browser tests passed. The built 1.5.4 wheel was
+installed into an isolated target and imported with Python `-I`: AFX3
+registry/resources and controller module, IR-2 simulator and ToneX module
+all loaded from that installation. This is package/module verification,
+not a new hardware or frozen-application acceptance claim.

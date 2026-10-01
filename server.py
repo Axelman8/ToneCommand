@@ -139,6 +139,7 @@ DEVICE_KINDS = {
     "headrush": "HeadRush",
     "tonex": "IK Multimedia ToneX",
     "axefx3": "Axe-Fx III (controllers)",
+    "ir2": "BOSS IR-2",
 }
 #: Chosen explicitly, by kind, through /api/device/select. None means no
 #: choice has been made, which is only a problem when there is a choice.
@@ -157,7 +158,23 @@ def available_devices() -> list[dict]:
     if os.environ.get("TONECOMMAND_TONEX_PORT") or \
             os.environ.get("TONECOMMAND_TONEX_SIM") == "1":
         out.append({"kind": "tonex", "label": DEVICE_KINDS["tonex"]})
+    # The IR-2 announces itself: it is listed when its MIDI port is present,
+    # so a plugged-in pedal needs no environment variable. The simulator is
+    # opt-in the same way the others are.
+    if os.environ.get("TONECOMMAND_IR2_SIM") == "1" or _ir2_port_present():
+        out.append({"kind": "ir2", "label": DEVICE_KINDS["ir2"]})
     return out
+
+
+def _ir2_port_present() -> bool:
+    """True when a BOSS IR-2 is on the MIDI bus. Cheap and never raises: a
+    missing MIDI binding means no IR-2, not a broken device list."""
+    try:
+        import rtmidi
+        from devices.ir2.client import PORT_HINT
+        return any(PORT_HINT in n.lower() for n in rtmidi.MidiIn().get_ports())
+    except Exception:      # noqa: BLE001  device discovery must never fail the page
+        return False
 
 
 def device_target() -> tuple[str | None, list[dict]]:
@@ -193,6 +210,16 @@ def _build_context(kind: str) -> DeviceContext:
         return DeviceContext("headrush", registry,
                              HeadrushAdapter(client, registry),
                              DEVICE_KINDS["headrush"])
+    if kind == "ir2":
+        from devices.ir2.adapter import IR2Adapter
+        from devices.ir2.sim import SimIR2
+        client = SimIR2() if os.environ.get("TONECOMMAND_IR2_SIM") == "1" else None
+        # No registry of its own in the FM9's shape: the pedal's surface is
+        # seven named knobs, not blocks and grid positions. The FM9 registry
+        # is lent so the device-blind code above has something to answer
+        # with, exactly as the ToneX context does; nothing reads it here.
+        return DeviceContext("ir2", FM9_REGISTRY, IR2Adapter(client=client),
+                             DEVICE_KINDS["ir2"])
     if kind == "tonex":
         # No registry of its own yet: the pedal's surface is captures, not
         # blocks and parameters. The FM9 registry is lent so the device-blind
@@ -2114,12 +2141,50 @@ def api_reconnect():
     return {"connected": True, "preset": snap.get("preset")}
 
 
+def _named_param_state(adapter, device: dict) -> dict:
+    """The state block for a device whose surface is named parameters.
+
+    Same shape the page already reads (`connected`, `device`, `preset`) so
+    nothing in the header needs to know which kind of device it is, plus a
+    `params` list that is this device's whole story. No scenes and no grid
+    are reported, because claiming either would be inventing them.
+    """
+    patch = adapter.patch()
+    number, amp = adapter.current_preset()
+    rows = []
+    for spec in adapter.named_params():
+        value = patch.get(spec["name"])
+        rows.append({"name": spec["name"], "value": value,
+                     "lo": spec["lo"], "hi": spec["hi"],
+                     "options": spec["options"]})
+    return {"connected": True, "gig_mode": _gig_mode["on"], "device": device,
+            "preset": {"number": number, "editor": number, "name": str(amp)},
+            "params": rows,
+            "observed": adapter.observed_changes()
+            if hasattr(adapter, "observed_changes") else []}
+
+
 @app.get("/api/state")
 def api_state():
     # #139: the device block rides on every answer, connected or not, so the
     # header can offer the choice while the chosen rig is still unplugged.
     device = device_block()
     with _lock:
+        # #198: `snapshot` reads a preset, eight scenes and a block grid. A
+        # device with named parameters has none of those and declines them,
+        # which made this answer 500 and left the page reading OFFLINE for a
+        # pedal that was plugged in and answering. It reports what it has.
+        adapter = device_context().adapter
+        if getattr(adapter, "capabilities", None) and \
+                adapter.capabilities().has_named_params:
+            try:
+                return _named_param_state(adapter, device)
+            except CapabilityDeclined:
+                raise
+            except Exception as e:      # noqa: BLE001  reported, not swallowed
+                return JSONResponse({"connected": False, "error": str(e),
+                                     "gig_mode": _gig_mode["on"],
+                                     "device": device}, status_code=200)
         try:
             snap = snapshot(get_fm9())
             snap["device"] = device
@@ -2573,6 +2638,20 @@ def _plan_counting(prompt: str, context: str, on_count=None, cancel=None):
     old = _os.environ.get("PLANNER_TIMEOUT")
     if planner.timeout_s() < describe.timeout_s():
         _os.environ["PLANNER_TIMEOUT"] = str(describe.timeout_s())
+    # #198: a device whose parameters are named rather than addressed by
+    # block gets its own prompt, vocabulary and schema. The FM9 reference
+    # below is 331 amps, 2,235 cabs, blocks, scenes and modifiers, none of
+    # which the BOSS IR-2 has; planning against it would produce actions
+    # validate_action refuses. The vocabulary is read from the DEVICE, so it
+    # cannot drift from what the adapter will accept.
+    adapter = device_context().adapter
+    if getattr(adapter, "capabilities", None) and \
+            adapter.capabilities().has_named_params:
+        from devices.ir2 import planning as devplan
+        return planner.plan(prompt, devplan.device_state(adapter),
+                            devplan.param_reference(adapter),
+                            system=devplan.SYSTEM, shape=devplan.SHAPE,
+                            schema=devplan.SCHEMA, validate=devplan.validate)
     # Issue #6: retrieval-on-demand over the full ~2,235-entry cab catalog,
     # scoped to THIS request only, rather than inlining it into the static
     # PARAM_REFERENCE every request pays for.
@@ -2983,6 +3062,35 @@ def validate_action(a: Action) -> tuple[list[str], list[str]]:
         scene = a.value if a.value is not None else a.instance
         if not isinstance(scene, (int, float)) or not 1 <= int(scene) <= 8:
             errors.append(f"scene must be 1..8, got {scene}")
+        return errors, warnings
+    if a.kind == "set_device_param":
+        # #198: validated against the DEVICE's own vocabulary, not the FM9
+        # registry. Refusing here means a bad value never reaches the wire,
+        # which matters on a pedal that clamps silently: a clamped write
+        # reads back as a successful one.
+        adapter = device_context().adapter
+        if not getattr(adapter, "capabilities", lambda: None)() or \
+                not adapter.capabilities().has_named_params:
+            errors.append(f"{device_context().label} has no named parameters")
+            return errors, warnings
+        rows = {p["name"]: p for p in adapter.named_params()}
+        name = (a.param or "").upper().replace(" ", "_").replace("-", "_")
+        spec = rows.get(name)
+        if spec is None:
+            errors.append(f"{device_context().label} has no parameter "
+                          f"{a.param!r}; it has {', '.join(sorted(rows))}")
+            return errors, warnings
+        if a.type_name is not None:
+            if not spec["options"]:
+                errors.append(f"{name} takes a number, not a name")
+            elif a.type_name.strip().upper() not in [o.upper() for o in spec["options"]]:
+                errors.append(f"{name} has no setting {a.type_name!r}; it has "
+                              f"{', '.join(spec['options'])}")
+        elif a.value is None:
+            errors.append(f"{name} needs a value")
+        elif not spec["lo"] <= float(a.value) <= spec["hi"]:
+            errors.append(f"{name} takes {spec['lo']} to {spec['hi']}, "
+                          f"got {a.value}")
         return errors, warnings
     if a.kind == "store":
         from fm9.device import get_store_slots
@@ -3533,6 +3641,19 @@ def run_action(fm9: DeviceAdapter, a: Action) -> dict:
     if a.kind == "set_tempo":
         fm9.set_tempo(int(a.value))
         return {"ok": False, "detail": f"tempo {int(a.value)} bpm sent (unverified; no read-back)"}
+    if a.kind == "set_device_param":
+        # #198: a named parameter and a WIRE value, for a device whose
+        # parameters are not addressed by block and which publishes no taper.
+        # The adapter validates the range before sending, because a device
+        # that clamps silently would read a clamped write back as a success.
+        # `type_name` carries an enum chosen by name ("BROWN"); `value`
+        # carries everything else.
+        want = a.type_name if a.type_name is not None else a.value
+        r = fm9.set_named_param(a.param or "", want)
+        label = r.get("label")
+        return {"ok": True,
+                "detail": f"{r['param']} = {label or r['value']}",
+                "after": label or r["value"]}
 
     fam, eid = reg.resolve_block(a.block or "", a.instance)
     if a.kind == "set_bypass":

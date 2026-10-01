@@ -4,6 +4,11 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+### Changed
+- Merge upstream TC 1.5.4 (3c97d6c), including the main-page JavaScript fix,
+  syntax regression guard and IR-2 capabilities. Preserve the separate AFX3
+  controller workspace, firmware gates and blocked general tone executor.
+
 ### Added
 - Axe-Fx III controller workspace at `/controllers`, linked from TC's shelf.
   Users choose External 1/2 for verified Wah/Volume targets, review the live
@@ -17,34 +22,32 @@ Notable changes to ToneCommand. Dates are UTC.
   level, global CC or curve writes. Wah mode round-trip passed hardware
   readback, as did existing Volume source reassignment. Native Volume binding
   recreation now also passed independent hardware readback and Axe-Edit UI
-  confirmation; physical pedal acceptance remains pending;
-  this is not yet registered in the application or general planner.
+  confirmation. Existing source/mode changes passed the real controller UI;
+  the owner confirmed Wah movement/auto-bypass and Volume movement without
+  auto-bypass. General tone planner integration remains gated.
 - Experimental, FW 32.06 native Wah modifier creation from Axe-Edit captures.
   The device initializes the curve; TC verifies all 32 modifier records before
   assigning External 1/2. Only Wah 1/2 Control is allowed, no global CC writes
   or synthetic curve fields. Direct hardware readback and Axe-Edit confirmed
-  a recreated Wah 2 binding; physical sweep and planner exposure remain gated.
+  a recreated Wah 2 binding; the owner confirmed its physical sweep and
+  auto-bypass. General planner exposure remains gated.
 - Experimental AFX3 cab-name imports, independent IR selection, bounded
   empty-grid construction, modifier inspection and reviewed-plan execution
   seam. These are not yet wired into the application. Fresh modifier curves
   are refused rather than filled with incomplete defaults. A separate
   explicit read-only inspection tool supports the next hardware checkpoint.
-- Experimental `devices.axefx3` adapter foundation, not yet registered in
-  device selection. It isolates captured FW 32.06 parameters/model rosters
+- Experimental `devices.axefx3` adapter foundation, exposed only through the
+  controller workspace. It isolates captured FW 32.06 parameter/model rosters
   from the FM9, requires an explicit muted edit session and target preset,
   independently verifies writes, and preserves cab mixer/channel boundaries.
   No storage, global routing restore, IR upload or audio-limiter capability
   is enabled. See `docs/AFX3-INTEGRATION.md` for outstanding integration and
   hardware gates; offline tests are not a sound-quality claim.
-- `docs/WINDOWS.md`, the step-by-step Windows guide, is its own page with its
-  own short link to share: **tonecommand.com/windows**. It was the Windows
-  section of `docs/SETUP.md`, which now points at it, so there is one place to
-  send someone who has never opened a terminal. It carries the
-  `UnicodeDecodeError` a user hit before 1.5.3, with both ways out (download
-  again, or `$env:PYTHONUTF8 = "1"` for that window), and it no longer calls
-  Windows untested: the suite runs there on every change.
 
 ### Fixed
+- Include the new IR-2 and existing ToneX packages in the distribution;
+  the explicit setuptools list previously omitted them. A regression test
+  covers every device package, not just the source checkout imports.
 - AFX3 modifier diagnostics distinguish observed Volume/Pan 1 control PID 0
   from a model selector and label captured Wah Auto Engage modes read-only.
   Observed labels do not authorize new writes. Parallel routing rejection is
@@ -58,6 +61,292 @@ Notable changes to ToneCommand. Dates are UTC.
 - The library symlink security test explicitly skips WinError 1314 when a
   Windows account cannot create symlinks. All other OS errors still fail;
   the production path containment rule is unchanged.
+
+## 1.5.4 (2026-09-30)
+
+**If you are on any version from 1.4.0 onward, update. The interface has been
+dead in a browser since 1.4.0: the page renders and nothing on it works.**
+
+### The BOSS IR-2, and what to say to it
+
+Plug it in by USB and it appears in the device picker. No setup, no port to
+choose, no environment variable.
+
+    a brown sound, tight, not much room
+    give me the cleanest thing this pedal does
+    more gain
+    back the bass off
+    what is it set to right now?
+
+Every change is listed for review before anything is sent, and every write is
+verified by reading the pedal back. An out-of-range value is refused before it
+reaches the wire, because this pedal clamps silently and a clamped write would
+otherwise read back as a success. Turn a knob by hand and ToneCommand notices:
+the IR-2 announces its own panel changes, which the FM9 cannot do.
+
+All eleven user IR slots are listed by name. Installing an IR is not supported
+yet; see below.
+
+### Coming next
+
+- **Your own IRs on the IR-2.** The transfer path is decoded and works in both
+  directions, and a complete IR moves in about fifteen seconds with every
+  chunk verified. What remains is a per-IR trailer that is not understood, and
+  a wrong guess there would sound wrong rather than fail, so install still
+  refuses.
+- A test console at `/admin/tests`: live suite progress, coverage and CI.
+- Sharded CI, to take a pull request from five minutes to one or two.
+- Axe-Fx III and VP4 adapters. Both want an owner with the hardware; the
+  protocol work is largely done for the Axe-Fx III, since the specification
+  this project's codec was built from is that device's.
+
+### Fixed
+- NO EM DASH REPO-WIDE, WHICH THE RULE ALREADY SAID. CLAUDE.md bans it
+  everywhere, but enforcement was seven separate guards each carrying a
+  hardcoded list of "the files this phase touched". Between them they never
+  covered `docs/UI-REDESIGN-SPEC.md` (17) or
+  `docs/CLAUDE-CODE-UI-IMPLEMENTATION-PROMPT.md` (5), and nothing would have
+  covered the next new file either. Both docs are rewritten: label separators
+  become colons, two parentheticals become parentheses, the stage rail becomes
+  an arrow, and the two table placeholders become `-` and `none`.
+- SOME OF THOSE ARE GLYPH CHANGES IN SPECIFIED ON-SCREEN TEXT, not only
+  punctuation in prose: the stage rail, the TARGET / SCOPE / DESTINATION /
+  RECOVERY rows and the Before/After placeholders all specify what a surface
+  shows. That surface is proposed rather than built, and the shipped
+  `ui/index.html` contains no em dash and renders an arrow between values, so
+  the change contradicts nothing in the build. It is still a change to
+  specified output and is recorded as one.
+- THREE GUARDS WERE THEMSELVES THE VIOLATION. `test_ai_settings.py`,
+  `test_site_build.py` and `test_splice_consent.py` asserted against a literal
+  `"em dash"` character, so each one contained the thing it banned and a
+  repo-wide check would flag the checks. They now spell it `chr(0x2014)`, as
+  the four other guards and the inline assertion in `test_capture_intent.py`
+  already did.
+
+### Fixed (the IR slot numbering did not match the pedal)
+- `list_captures()` reported twelve slots starting at zero. The vendor's own
+  configuration declares `numOfIrData = 11` and its editor addresses them
+  `IRDATA(1)` to `IRDATA(11)`. The extra region at `0x30000000` is a staging
+  area that appears in neither list and that nothing in BOSS's software
+  writes to, so it was being presented as an empty user slot while every real
+  slot's number ran out by one at the top. Confirmed on the unit: all eleven
+  are occupied, named USER 1 to USER 11. Asking for slot 0 is now refused and
+  says why, rather than quietly resolving to the staging region.
+- Roland addresses carry at 128 per byte, not 256. `addr_offset` does that
+  arithmetic; plain addition produced `0x313000F0`, whose low byte is above
+  0x7F, which `addr_bytes` refused rather than masking away. Found while
+  reading an IR in 240-nibble chunks. Checked against the vendor map: entry
+  3400 sits at `0x00015438`, which is 3399 * 8 in base 128 exactly.
+
+### Added (the IR transfer path, read and write, proven on hardware)
+- The IR-2's IR format is decoded, and it needed no MIDI capture: reading one
+  loaded slot gave all of it. `NAME` is 32 ASCII bytes, `SIZE` is the source
+  filename's length, `FILE` is that filename as nibble pairs, and `DATA` is
+  the samples as big-endian float32, eight nibbles each. Slot USER 1 read
+  back as `V-Type 112 C R-121 Balanced Celestion.wav` with samples
+  `0.005995, 0.017614, 0.052998, 0.105695`, matching the loader's own factory
+  IR 00 to five decimals.
+- A complete IR reads off in about 3 seconds and writes in about 15, every
+  240-nibble chunk read back and compared before the next is sent. Proven by
+  copying a whole IR between regions on the unit and confirming the
+  destination matched the source nibble for nibble.
+- A dropped SysEx reply must not be read as end-of-data: an early dump
+  truncated an IR at 690 of 3400 samples because a timeout ended the loop.
+  Reads retry.
+
+### Still not done
+- Words 3280 to 3353 of the sample array are a trailer that differs per IR
+  and ramps steeply. Until that is understood, ToneCommand can move an IR the
+  pedal produced but must not synthesise one, so `install_capture` still
+  refuses. Guessing it would most likely produce a wrong sound rather than a
+  refusal, which is worse.
+
+### Added (#198: a sentence now reaches the BOSS IR-2)
+- The IR-2 adapter could read and write every parameter and the product
+  still could not drive it. `run_action` resolved a block through the FM9
+  registry and then called `set_param_display`, and the pedal has no blocks
+  and publishes no curve behind its panel markings, so all three action
+  kinds raised. The refusals were correct; the loop was wrong.
+- `NamedParams` is a new capability sub-Protocol (gate `has_named_params`)
+  for a device whose parameters are named rather than addressed by block and
+  which publishes no taper. The FM9 declines it: its parameters live at
+  (block, instance, id) and its registry does publish a taper, so
+  `set_param_display` stays the honest path there.
+- A `set_device_param` action carries a parameter NAME and a WIRE value, or
+  `type_name` for an enum chosen by name. It is validated against the
+  device's own vocabulary, read from the device through `named_params()`, so
+  the planner is told exactly the names and ranges the apply path will check.
+  Out of range is refused before anything is sent, because the IR-2 clamps
+  silently and a clamped write would read back as a success.
+- `devices/ir2/planning.py` gives the pedal its own planner prompt, schema
+  and validator rather than a translation layer over the FM9's. The prompt
+  NAMES what the device does not have (no blocks, no scenes, no grid, no
+  drives, no modulation) instead of staying silent about it, because a model
+  told only what exists will still reach for a delay block. The eleven
+  voicings are listed with the factory cab IR each one ships with, verbatim,
+  since that is what says what a voicing is modelled on.
+- **No taper was invented to make this work.** `set_param_display` still
+  refuses on the IR-2. A made-up display number would land in front of the
+  player at the confirm step, which is the dishonesty the read-back
+  invariant exists to prevent. The wire-value action is what any device
+  without a published curve needs, the Axe-Fx III (#190) included.
+
+### Fixed
+- `GET /api/state` answered 500 with an IR-2 selected, so the page read
+  OFFLINE for a pedal that was plugged in and answering. `snapshot` reads a
+  preset, eight scenes and a block grid, and the IR-2 declines all three. It
+  now reports what the device actually has: named parameters, their values
+  and ranges, and the live patch number. It claims no scenes, because
+  claiming them would be inventing them.
+- The capability audit is nine gates and twenty-two methods, and the
+  `except Exception` audit is 88 blocks. The one added wraps the
+  named-parameter state read and answers 200 with the reason rather than
+  500: the page polls it every second, and a device that cannot be read is
+  an OFFLINE pill, not a broken page.
+
+### Fixed (the intermittent that failed two unrelated PRs today: #181)
+- `test_repoint_reads_back_after_the_settle_window_not_inside_it` raced the
+  wall clock. It sets the simulator's settle window to 0.4 s, writes, then
+  asserts the very next read still returns the OLD value, which holds only if
+  under 0.4 s of real time passes between two Python statements. On a loaded
+  `-n auto` worker it does not, the window closes, the simulator correctly
+  answers the new value, and the test fails for exactly the reason it exists
+  to catch. It passed alone and on an idle machine every time, which is how it
+  survived; CLAUDE.md is explicit that a test which passes on timing is not a
+  pass. Today it failed PR #192 (a two-file Handsoff config change with no
+  Python in it) and PR #194, on both Ubuntu and Windows.
+- `fm9/sim.py` now measures that window against `SETTLE_CLOCK`, defaulting to
+  `time.monotonic`. The product path is unchanged and nothing but a test ever
+  replaces it. The test injects a clock that advances one tick per simulator
+  message, so the product's own settle-and-retry crosses the window where it
+  would on hardware, and both `time.sleep(0.45)` calls are gone.
+- The tick is derived from the window rather than being a second magic
+  number, and the test ASSERTS the headroom it depends on. A first attempt
+  used `READ_BACK_SETTLE` as the tick and failed, because `set_param_ordinal`
+  sends six frames rather than one and leaves exactly two ticks before the
+  window shuts. That was measured, not reasoned about. If the frame count
+  ever changes, the test now fails on that assertion naming the reason
+  instead of further down looking like a behaviour change.
+- A second test proves an unsettled read still returns the old value, so a
+  deterministic clock cannot be quietly tuned until everything passes for the
+  wrong reason. Verified 20 of 20 under `-n auto` with the full suite running
+  alongside as load, which is what the issue asked for.
+- `tests/test_device_picker.py` pinned the exact source line
+  `const DEVICE_SHORT = { fm9: 'FM9', headrush: 'HEADRUSH' };`, which the
+  IR-2 entry changed. Caught by CI rather than locally: the targeted subset
+  run before pushing did not include the one test file named after the
+  feature being changed.
+
+### Fixed (CRITICAL: the whole UI was dead in a browser since 1.4.0)
+- **`ui/index.html`'s script did not parse, so nothing in the page ran.** On
+  2026-09-19, commit `03bc118` pasted `runAxeChange` inside
+  `runArtistInstall`'s `finally` block, leaving that block and its function
+  unclosed. A browser threw `SyntaxError: Unexpected end of input` at the
+  closing `</script>` and executed none of the 7,400 lines: no polling, no
+  link indicator, no buttons, no chat. The page still rendered, because HTML
+  and CSS do not care whether the script parsed, so it looked correct in a
+  screenshot and in the diff. It first shipped in v1.4.0 and every release
+  since carried it: v1.4.0, v1.4.1, v1.5.0, v1.5.1, v1.5.2 and v1.5.3, ten
+  days in all. A user reported it as "I can open it but cannot interact with
+  anything", which was an exact description and was not a platform-specific
+  or device-specific problem: it was every user, on every operating system,
+  since v1.4.0.
+- `tests/test_ui_syntax.py` parses the page script with node on every run and
+  fails loudly rather than skipping on CI. Every existing test read the file
+  as text or drove the server through TestClient, so a whole-file syntax
+  error was invisible to a fully green suite. A brace-counting fallback for
+  machines without node was written and then deleted: it reported an
+  imbalance in a file node parses cleanly, because telling a regex literal
+  from a division sign needs a real tokenizer, and a guard that cries wolf
+  gets muted.
+- The header overlapped once a second device was reachable. With four pills
+  in the row the preset field ran into GIG LOCK by 29px at 1280px wide,
+  measured in a real browser rather than read off the diff. The field now
+  narrows only while the device picker is showing, so a single-device rig
+  keeps the full 420px field and nothing moves for existing users.
+
+### Added (a fourth device: the BOSS IR-2, decoded on hardware)
+- **BOSS IR-2 support.** Plug the pedal in by USB and it appears in the device
+  picker. No environment variable, no port to choose. ToneCommand controls all
+  seven of its parameters: the amp voicing (one of CLEAN, TWN, TWEED, DIAMOND,
+  CRUNCH, BRIT, HI-GAIN, SLDN, BROWN, MODDED, RFIER) plus GAIN, BASS, MIDDLE,
+  TREBLE, LEVEL and AMBIENCE over 0 to 127. `devices/ir2/` carries the codec,
+  the parameter registry, the transport and a simulator; `docs/DEVICES.md` is
+  the new public page for what every supported device can actually do.
+- The protocol was decoded on the unit rather than guessed. Roland addressed
+  SysEx, device 0x10, model `01 05 09`, RQ1 `0x11` to read and DT1 `0x12` to
+  write, four-byte address and size, standard Roland checksum. The frame shape
+  came from BOSS's own IR-2 IR Loader captured with MIDI Monitor's
+  spy-on-destination mode, the same method `kb/HARDWARE_RULES.md` records for
+  FM9-Edit, and `tests/test_ir2_protocol.py` pins the codec against that
+  captured frame byte for byte. The spy was validated with a known-positive
+  control before any silence from it was believed.
+- The IR-2 declares `observes_foreign_writes=True`, which no other device here
+  does: it announces every knob turn and footswitch press unprompted, so
+  `observed_changes()` reports what the player did by hand without polling.
+  Reads were proven to match those pushes byte for byte before
+  `read_path=ReadPath.DEVICE` was claimed.
+- Three refusals earned on hardware rather than assumed. The pedal clamps an
+  out-of-range value silently instead of rejecting it (writing `0x0B` to AMP
+  reads back `0x0A`), which a naive read-back would report as a successful
+  write, so ranges are validated before anything is sent. Its identity reply
+  carries an all-zero revision field, so `firmware_label()` returns empty
+  rather than inventing a version. It publishes no taper behind its panel
+  markings, so `set_param_display` and `get_param_display` refuse instead of
+  converting.
+- Invariant 0 is structural here, not a habit: `devices/ir2/protocol.py`
+  refuses any command that is not RQ1 or DT1 before a frame exists, so no
+  firmware or bootloader operation has a code path out of the process. The
+  twelve IR slots are listed by name but the transfer path is undecoded, so
+  `install_capture` refuses in one line and sends nothing, as the ToneX
+  adapter's does.
+
+### Fixed
+- Device discovery probes the MIDI bus for an IR-2, which made
+  `available_devices()` depend on what is plugged into the machine: the
+  existing ToneX picker test passed in CI, where there is no pedal, and failed
+  on the maintainer's desk, where there is one. An autouse fixture in
+  `tests/conftest.py` now turns the probe off for every test, and the two
+  tests that care about it patch it back on explicitly, so a test opting into
+  hardware is visible and a test accidentally depending on it is impossible.
+- The `except Exception` audit is 87 blocks, 35 re-raising `CapabilityDeclined`
+  first and 52 stating why a decline cannot reach them. The one added block
+  wraps MIDI port enumeration only: a missing binding has to mean "no IR-2
+  here" rather than a failed device list, since discovery runs on every poll of
+  the header.
+
+### Added
+- `tests/test_no_em_dash.py`: one guard over every tracked text file, so a new
+  file is covered by existing rather than by somebody remembering to extend a
+  list. Verified by planting an em dash in a file none of the seven per-phase
+  guards covered.
+- IT FAILS RATHER THAN SKIPS ON ANYTHING IT CANNOT READ. A tracked file that
+  is not valid UTF-8, or is tracked but not a readable file, is reported
+  instead of passed over, because "we could not read it" and "it is clean" are
+  different answers. That immediately surfaced three `.bin` fixtures the
+  first, skipping version had been quietly dropping. Same reason `git` missing
+  raises instead of skipping.
+- THE THIRD-PARTY EXEMPTION IS THE QUOTED REGION, NOT THE FILE.
+  `THIRD_PARTY_NOTICES.md` is scanned; only the fenced block under
+  "Reproduction of that project's NOTICE (as required by Apache-2.0)" is
+  exempt, because Apache-2.0 section 4 requires that NOTICE be reproduced and
+  reproducing it means reproducing it. Excluding the whole file left this
+  project's own prose in it unguarded. A test fails if the heading or fence
+  moves, if the quoted block stops containing one, or if an em dash appears
+  outside it.
+- `config/fm9_catalog.json` is exempt whole, because it is copied verbatim
+  from mcp-midi-control and `config/README.md` says to refresh from upstream
+  rather than hand-edit. A test fails if that stops being true.
+- `docs/WINDOWS.md`, the step-by-step Windows guide, is its own page with its
+  own short link to share: **tonecommand.com/windows**. It was the Windows
+  section of `docs/SETUP.md`, which now points at it, so there is one place to
+  send someone who has never opened a terminal. It carries the
+  `UnicodeDecodeError` a user hit before 1.5.3, with both ways out (download
+  again, or `$env:PYTHONUTF8 = "1"` for that window), and it no longer calls
+  Windows untested: the suite runs there on every change.
+
+### Fixed
+
 - The site's `ROUTES` did not know about the new page, so the README's and
   SETUP.md's links to `docs/WINDOWS.md` rendered as
   `.../blob/main/WINDOWS.md`: a path that does not exist, on the two pages
