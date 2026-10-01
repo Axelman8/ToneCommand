@@ -607,3 +607,45 @@ Software verification for the Windows fix: planner/backend tests **46 passed**;
 mandatory device-handle/capability/UI-warning gates plus both planner suites
 **100 passed**, 212.04 seconds, in SIM mode. The earlier full-suite result
 above is historical, not a new full-suite run for this patch.
+
+### Autonomous offline follow-up: explicit Wah mode and readable review
+
+The text workspace now exposes the already captured Wah Auto Engage modes
+Off/Fast Pos and a preserve option. The choice is passed independently of
+the AI design, validated by the request schema/compiler, included in review
+metadata and sent only through the existing reviewed native binding. An
+omitted API field retains the previous Fast Pos behavior for compatibility.
+Without a selected controller, no binding or Auto Engage action is added.
+Preserve does not invent a mode: existing records are retained; a newly
+allocated modifier keeps the device's native default.
+
+Fast Pos has an explicit warning: all planned scenes share Wah A, and pedal
+movement may change bypass even in a scene designed with Wah off. Off leaves
+engagement to scene bypass while the pedal continues to control filter sweep.
+This is not new evidence about the physical behavior of preset 322. That
+preset and its current Fast Pos setting are not changed by this UI work.
+
+Review shows planned amp channel/gain/level, Wah, delay time/feedback/mix and
+reverb per scene. Cab names and display positions come from the imported
+catalogue, alongside internal addresses in the API metadata; the AI does not
+invent these labels. The request collapses only after a successful proposal
+and reopens with the original text intact. Changing mode/source/request
+invalidates the displayed review and both confirmations. New review text
+uses textContent, including imported names and warnings.
+
+No new MIDI operations, global mapping, Store permission, bank remapping,
+audio upload or web fetching is enabled. Larger User export banks remain
+blocked instead of being silently truncated/remapped. Acoustic and physical
+pedal acceptance remain separate from automated software tests.
+
+Verification: focused planning/pedal tests **85 passed**; mandatory and
+focused gates **139 passed**, 109.02 s; final full SIM suite **3004 passed,
+22 skipped**, 281.47 s (`wah-choice-full.xml`, eight workers). Real headless
+Chrome with local assets and mocked APIs passed mode selection, request
+retention, review invalidation, consent, safe text rendering, table and mobile
+layout checks. The test's former visible-button wait was corrected for the
+new collapsed request. Private desktop/mobile screenshots were inspected.
+The local live server was restarted via normal disconnect and SIGTERM,
+then reconnected with the same 512-name catalogue. Read-only before/after
+state confirms preset 322, scene 4, names and serial route unchanged. No
+hardware send or real AI request was made during this follow-up.

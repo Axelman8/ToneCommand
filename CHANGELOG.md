@@ -10,6 +10,11 @@ Notable changes to ToneCommand. Dates are UTC.
   controller workspace, firmware gates and blocked general tone executor.
 
 ### Added
+- Explicit Wah Auto Engage selection in the AFX3 text workspace: Off,
+  Fast Pos or preserve. The user's choice reaches the deterministic compiler,
+  review and captured executor; the AI cannot override it. Fast Pos warns
+  about shared-channel/scene bypass interaction. Add a scene-by-scene review
+  table, imported cab names/positions and a collapsible retained request.
 - Experimental Axe-Fx III text workspace at `/axefx3`: explicit selected AI,
   imported Factory/User cab names and deterministic 1-4 scene compilation.
   Separate amp/delay/reverb channels, final effect levels and explicit IR

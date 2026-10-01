@@ -20,6 +20,7 @@ class Request(BaseModel):
     expected_preset: StrictInt = Field(ge=0,le=511)
     scenes: StrictInt = Field(ge=1,le=4)
     wah_source: Literal['External 1','External 2'] | None = None
+    wah_auto_engage: Literal['Off','Fast Pos'] | None = 'Fast Pos'
 
 
 class CabImport(BaseModel):
@@ -105,9 +106,12 @@ def register(app, host):
             if not planner._env('PLANNER_BACKEND').strip() or len(planner.candidates()) != 1:
                 raise ValueError('Choose one explicit AI backend in TC settings first; no automatic or paid fallback.')
             def validate(raw):
-                return planning.compile_design(dev.reg,raw,route,body.scenes,body.wah_source)
+                return planning.compile_design(dev.reg,raw,route,body.scenes,body.wah_source,
+                                               body.wah_auto_engage)
             result = planner.plan(
-                f'Exactly {body.scenes} scenes. User-selected wah source: {body.wah_source or "preserve"}.\n{body.prompt}',
+                f'Exactly {body.scenes} scenes. User-selected wah source: {body.wah_source or "preserve"}. '
+                f'Wah Auto Engage: {body.wah_auto_engage if body.wah_source and body.wah_auto_engage else "preserve"}. '
+                'Do not override these controller choices.\n'+body.prompt,
                 state_text,reference,system=planning.SYSTEM,
                 shape=json.dumps(planning.Design.model_json_schema()),
                 schema=planning.Design.model_json_schema(),validate=validate)

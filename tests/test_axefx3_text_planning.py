@@ -61,6 +61,8 @@ def build_route(dev,route):
 def test_compilation_names_channels_final_levels_cab_mixer_and_user_controller(dev,design):
     plan=planning.compile_design(dev.reg,design,[],4,'External 2')
     assert plan['name']=='AI-Test'
+    assert plan['cab_choices']==[dict(side='IR1',name='Test Greenback',
+        position='USER 1 slot 28',wire_bank=2,wire_ordinal=27)]
     actions=plan['actions']
     assert [a['value'] for a in actions if a['kind']=='set_channel' and a['block']=='DISTORT']==[0,1,2,3]
     assert [a['value'] for a in actions if a.get('param')=='DISTORT_DRIVE']==[2,4,5.5,6.2]
@@ -97,6 +99,36 @@ def test_dual_ir_is_explicit_with_moderate_mix_levels(dev,design):
     assert all(a['value']==-6 for a in actions if a.get('param','').startswith('CABINET_LEVEL'))
 
 
+@pytest.mark.parametrize('mode', ['Off', 'Fast Pos', None])
+def test_user_controls_auto_engage_not_ai(dev,design,mode):
+    plan=planning.compile_design(dev.reg,design,[],4,'External 1',mode)
+    assert plan['actions'][-1]['auto_engage']==mode
+    assert plan['controller']==dict(source='External 1',auto_engage=mode)
+    if mode=='Fast Pos':
+        assert any('scene met Wah uit' in warning for warning in plan['warnings'])
+    elif mode is None:
+        assert any('niet door dit ontwerp vastgesteld' in warning for warning in plan['warnings'])
+    else:
+        assert not plan['warnings']
+    assert [a['bypassed'] for a in plan['actions'] if a['kind']=='set_bypass'
+            and a['block']=='WAH']==[True,False,True,True,False]
+    executor.prepare(dev,plan['actions'],plan['required_route'],324)
+    dev._write.assert_not_called()
+
+
+def test_no_source_preserves_binding_and_warns_instead_of_inventing_one(dev,design):
+    plan=planning.compile_design(dev.reg,design,[],4,None,'Off')
+    assert not any(a['kind']=='bind_controller' for a in plan['actions'])
+    assert plan['controller']==dict(source=None,auto_engage=None)
+    assert any('geen nieuwe Wah-controller' in warning for warning in plan['warnings'])
+
+
+def test_unknown_auto_engage_refused(dev,design):
+    with pytest.raises(ValueError,match='Auto Engage'):
+        planning.compile_design(dev.reg,design,[],4,'External 1','Slow Pos')
+    dev._write.assert_not_called()
+
+
 def test_existing_route_does_not_add_or_remove_blocks(dev,design):
     route=[37,95,58,62,70,66,42]
     plan=planning.compile_design(dev.reg,design,route,4,'External 1')
@@ -123,6 +155,29 @@ def api(dev,design,monkeypatch):
 
 
 BODY=dict(prompt='Four bluesrock scenes',expected_preset=324,scenes=4,wah_source='External 1')
+
+
+@pytest.mark.parametrize('mode', ['Off', 'Fast Pos', None])
+def test_auto_engage_api_choice_survives_review_and_execution(api,dev,mode):
+    client,ask=api
+    response=client.post('/api/axefx3/plan',json={**BODY,'wah_auto_engage':mode})
+    assert response.status_code==200,response.text
+    plan=response.json()
+    assert plan['controller']['auto_engage']==mode
+    assert plan['actions'][-1]['auto_engage']==mode
+    assert f'Wah Auto Engage: {mode or "preserve"}' in ask.call_args.args[0]
+    dev.bind_pedal_control.assert_not_called()
+    sent=client.post('/api/axefx3/send',json=dict(token=plan['token'],
+        target_confirmed=True,external_audio_muted=True))
+    assert sent.json()['ok']
+    assert dev.bind_pedal_control.call_args.args==(94,12,mode)
+    dev.store_preset.assert_not_called()
+
+
+def test_invalid_auto_engage_api_choice_never_calls_ai(api,dev):
+    client,ask=api
+    assert client.post('/api/axefx3/plan',json={**BODY,'wah_auto_engage':'invented'}).status_code==422
+    ask.assert_not_called();dev.edit_session.assert_not_called()
 
 
 def test_whole_text_review_send_route_uses_afx3_and_no_fm9_executor(api,dev,monkeypatch):

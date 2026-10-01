@@ -98,12 +98,15 @@ def reference(reg):
         safety=audio_safety.reference()), ensure_ascii=False)
 
 
-def compile_design(reg, raw, current_route, scene_count, wah_source=None):
+def compile_design(reg, raw, current_route, scene_count, wah_source=None,
+                   wah_auto_engage='Fast Pos'):
     design = Design.model_validate(raw)
     if len(design.scenes) != scene_count:
         raise ValueError('AI returned a different scene count; nothing sent.')
     if wah_source not in (None, 'External 1', 'External 2'):
         raise ValueError('Choose External 1/2 explicitly, or preserve the binding.')
+    if wah_auto_engage not in (None, 'Off', 'Fast Pos'):
+        raise ValueError('Choose captured Wah Auto Engage Off/Fast Pos, or preserve it.')
     models.target(reg, 'DISTORT', 58, design.amp_model)
     for cab in (design.cab_left, design.cab_right):
         if cab is not None and (cab.bank, cab.slot-1) not in reg.cab_catalog.names:
@@ -182,9 +185,28 @@ def compile_design(reg, raw, current_route, scene_count, wah_source=None):
             bypass('REVERB',not scene.reverb.active)
         emit('rename_scene',value=number,type_name=scene.name)
     if wah_source:
-        emit('bind_controller','WAH',source=wah_source,auto_engage='Fast Pos')
+        emit('bind_controller','WAH',source=wah_source,auto_engage=wah_auto_engage)
+    warnings = []
+    if 'WAH' in blocks:
+        if not wah_source or wah_auto_engage is None:
+            warnings.append('Wah Auto Engage blijft behouden als er al een koppeling is. '
+                            'Het bestaande gedrag is niet door dit ontwerp vastgesteld.')
+        elif wah_auto_engage == 'Fast Pos':
+            warnings.append('Wah Auto Engage Fast Pos reageert op het pedaal. Alle scenes '
+                            'delen Wah-kanaal A; pedaalbeweging kan ook de bypass van '
+                            'een scene met Wah uit veranderen. Controleer dit fysiek. '
+                            'Kies Off als de scene de aan/uit-stand moet bepalen.')
+        if not wah_source and any(s.wah for s in design.scenes):
+            warnings.append('Er wordt geen nieuwe Wah-controller toegewezen. Zonder '
+                            'bestaande koppeling is pedaalbediening niet ingericht.')
     # Static validate the whole compiled plan before any review or write.
     for action in actions: executor.resolve(reg,action)
+    cab_choices = [dict(side=side, name=reg.cab_catalog.names[cab.bank,cab.slot-1],
+                        position=reg.cab_catalog.position(cab.bank,cab.slot-1),
+                        wire_bank=cab.bank, wire_ordinal=cab.slot-1)
+                   for side,cab in (('IR1',design.cab_left),('IR2',design.cab_right)) if cab]
     return dict(summary=design.summary, name=executor.preset_name(design.name),
                 scenes=[s.name for s in design.scenes], required_route=route,
-                actions=actions, design=design.model_dump())
+                actions=actions, design=design.model_dump(), warnings=warnings,
+                controller=dict(source=wah_source, auto_engage=wah_auto_engage if wah_source else None),
+                cab_choices=cab_choices)
