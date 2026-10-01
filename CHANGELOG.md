@@ -10,6 +10,17 @@ Notable changes to ToneCommand. Dates are UTC.
   controller workspace, firmware gates and blocked general tone executor.
 
 ### Added
+- Experimental Axe-Fx III text workspace at `/axefx3`: explicit selected AI,
+  imported Factory/User cab names and deterministic 1-4 scene compilation.
+  Separate amp/delay/reverb channels, final effect levels and explicit IR
+  mixer settings avoid inherited silent/quiet defaults. Single-use reviews
+  recheck device state, require external mute and stop on readback failure.
+  Existing parallel/unsupported routes are refused, never erased. No Store,
+  audio/link analysis, automatic Undo or measured loudness guarantee.
+- Restore the explicit Codex CLI backend and UTF-8 subprocess handling from
+  the owner's fork; never auto-select it or fall back from that choice.
+  Device-specific OpenAI-compatible requests now use the device's system
+  instruction at the top level instead of the FM9 default.
 - Axe-Fx III controller workspace at `/controllers`, linked from TC's shelf.
   Users choose External 1/2 for verified Wah/Volume targets, review the live
   preset and confirm external mute before sending. Single-use state-bound

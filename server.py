@@ -7784,7 +7784,9 @@ def _apply_for(body: ApplyBody, on_step=None):
 
 import sys as _sys
 from devices.axefx3.controller_ui import register as _register_controller_ui
+from devices.axefx3.tone_ui import register as _register_afx3_tone_ui
 _controller_reviews = _register_controller_ui(app, _sys.modules[__name__])
+_afx3_tone_reviews = _register_afx3_tone_ui(app, _sys.modules[__name__])
 
 
 def main():

@@ -53,16 +53,16 @@ def register(app, host):
 
     @app.middleware('http')
     async def limit_afx3_workspace(request, call_next):
-        if request.method == 'POST' and request.url.path.startswith('/api/controllers/'):
+        if request.method == 'POST' and request.url.path.startswith(('/api/controllers/', '/api/axefx3/')):
             origin = request.headers.get('origin')
             if origin and origin != f'{request.url.scheme}://{request.url.netloc}':
                 return JSONResponse({'error': 'Cross-origin controller requests are not allowed.'}, status_code=403)
         if host.device_context().kind == 'axefx3':
-            allowed = {'/controllers', '/controllers.js', '/logo.png', '/api/device'}
+            allowed = {'/controllers', '/controllers.js', '/axefx3', '/axefx3.js', '/logo.png', '/api/device'}
             if request.url.path == '/':
                 return RedirectResponse('/controllers')
-            if request.url.path not in allowed and not request.url.path.startswith('/api/controllers/'):
-                return JSONResponse({'error': 'Axe-Fx III is currently enabled for the controller workspace only.',
+            if request.url.path not in allowed and not request.url.path.startswith(('/api/controllers/', '/api/axefx3/')):
+                return JSONResponse({'error': 'Use the dedicated Axe-Fx III text/controller workspace; FM9 execution is blocked.',
                                      'controller_workspace': '/controllers'}, status_code=409)
         return await call_next(request)
 

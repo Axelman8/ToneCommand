@@ -1,0 +1,89 @@
+"""Device-bound full-plan reviews. No AI response can authorize sending."""
+import secrets
+import time
+
+from . import executor, modifiers, route_guard
+from .controller_review import digest
+
+
+def snapshot(dev):
+    with dev._lock:
+        preset, scene, fw = dev.current_preset(), dev.current_scene(), dev.firmware_label()
+        if not preset or type(scene) is not int or fw != '32.06' or dev.reg.firmware != fw:
+            raise ValueError('Current preset/scene or verified firmware 32.06 is unavailable.')
+        blocks, grid = dev.status_dump(), dev.read_grid()
+        if blocks is None or grid is None:
+            raise ValueError('Block/grid read failed; nothing sent.')
+        entries = modifiers.inspect(dev)
+        if len(entries) != 32 or any(len(e['words']) != 25 for e in entries):
+            raise ValueError('All 32 complete modifier records are required.')
+        # 200/201 are captured system status records, not grid blocks with a
+        # four-channel parameter dump. Keep them in the fingerprint, not bulk.
+        bulk = {b.effect_id: dev.bulk_read(b.effect_id) for b in blocks
+                if b.effect_id not in (200,201)}
+        if any(not isinstance(words,list) or not words for words in bulk.values()):
+            raise ValueError('A block could not be read completely.')
+        names = [dev.scene_name(n) for n in range(1,9)]
+        if any(not name for name in names):
+            raise ValueError('Scene names could not be read.')
+        if dev.current_preset() != preset or dev.current_scene() != scene:
+            raise ValueError('Preset/scene changed during reading; refresh first.')
+        return dict(preset=preset, scene=scene, firmware=fw, blocks=blocks, grid=grid,
+                    modifiers=entries, bulk=bulk, scene_names=names,
+                    cabs=sorted((b,o,n) for (b,o),n in dev.reg.cab_catalog.names.items()))
+
+
+def public_state(state, reg):
+    try:
+        ids = route_guard.serial_route(state['grid'], state['blocks'], reg)
+        problem = None
+    except ValueError as exc:
+        ids, problem = None, str(exc)
+    return dict(preset=state['preset'][0], name=state['preset'][1], scene=state['scene'],
+        firmware=state['firmware'], route=route_guard.labels(ids,reg) if ids else [],
+        route_problem=problem, cab_count=len(state['cabs']),
+        scene_names=state['scene_names'],
+        warning='Scenes 5-8 can share edited channels. Their mappings are not inferred; '
+                'review all affected sounds. No Store, automatic Undo or measured limiter.')
+
+
+class Reviews:
+    def __init__(self, clock=time.monotonic):
+        self.clock, self.pending = clock, None
+
+    def clear(self):
+        self.pending = None
+
+    def prepare(self, dev, plan, initial):
+        self.clear()
+        with dev._lock:
+            now = snapshot(dev)
+            if digest(now) != digest(initial):
+                raise ValueError('Preset changed while the AI was planning. Nothing sent; regenerate.')
+            executor.prepare(dev,plan['actions'],plan['required_route'],now['preset'][0])
+            token = secrets.token_urlsafe(32)
+            self.pending = dict(token=token, device=dev, stamp=digest(now), plan=plan,
+                                preset=now['preset'][0], expires=self.clock()+600)
+            return dict(**plan, token=token, expires_in=600,
+                        target=public_state(now,dev.reg), stored=False)
+
+    def send(self, dev, token, *, target_confirmed, external_audio_muted):
+        if target_confirmed is not True or external_audio_muted is not True:
+            raise PermissionError('Confirm target and external audio mute first.')
+        pending = self.pending
+        if (not pending or not isinstance(token,str) or not token.isascii()
+                or not secrets.compare_digest(pending['token'],token)):
+            raise ValueError('Review missing, replaced or already used.')
+        self.clear()
+        if pending['device'] is not dev or self.clock() >= pending['expires']:
+            raise ValueError('Review expired or connection changed; regenerate.')
+        with dev._lock:
+            if digest(snapshot(dev)) != pending['stamp']:
+                raise ValueError('Device or cab catalogue changed since review. Nothing sent.')
+            plan = pending['plan']
+            result = executor.execute(dev,plan['actions'],plan['required_route'],
+                expected_preset=pending['preset'],external_audio_muted=True)
+            # All action results are already independently verified by the executor.
+            # No hidden scene switching for a final survey; that could itself alter
+            # state. Report exactly what was executed and what remains unmeasured.
+            return result

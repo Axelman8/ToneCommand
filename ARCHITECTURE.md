@@ -32,7 +32,8 @@ invariant this codebase is organised around.
 
 Experimental AFX3 work is isolated in `devices/axefx3`; the `/controllers`
 workspace explicitly connects its own device context for reviewed Wah/Volume
-bindings only. Generic API routes and the FM9 handle are refused while this
+bindings. `/axefx3` adds bounded text designs compiled by `planning.py`, with
+state-bound review/send in `tone_ui.py` and `tone_review.py`. Generic API routes and the FM9 handle are refused while this
 context is selected. It implements the adapter contract without FM9
 transport inheritance or FM9 global routing restore. Its own firmware-pinned
 registry and captured SET domains prevent a product-byte-only substitution.
@@ -41,7 +42,7 @@ preserves separate scene/channel intent, and stops at the first failed
 readback. Cab imports/selections and narrow grid/modifier operations remain
 behind this boundary; broad topology/modifier capabilities stay disabled.
 See `docs/AFX3-INTEGRATION.md` for the remaining
-server/UI and hardware gates. `server.py` has 7,723 lines in this stage.
+server/UI and hardware gates. `server.py` has 7,846 lines in this stage.
 Controller routes live in `controller_ui.py`; `controller_review.py` binds
 single-use, five-minute send tickets to a complete live state fingerprint.
 Read/choose/review do not write. The shared writer lock, GIG LOCK, explicit
@@ -84,7 +85,7 @@ locally, and the only way to catch a layout regression is a screenshot.
 **Fix:** split into `ui/index.html`, `ui/app.css`, and JavaScript modules by
 concern. Served as static files. No behaviour change, mechanical, testable.
 
-### 2. `server.py` is 7,844 lines; the application registers 117 routes
+### 2. `server.py` is 7,846 lines; the application registers 124 routes
 
 Every concern in one module: device polling, planning, applying, settings,
 recipes, sharing, snapshots, profiles, slot admin. Eight pieces of

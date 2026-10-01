@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ToneCommand | Axe-Fx III ontwerp</title><link rel="icon" href="/logo.png">
+<style>
+:root{color-scheme:dark;font:16px/1.5 system-ui,sans-serif;color:#e7f3fb;background:#09121b}
+*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}main{max-width:1200px;margin:auto;padding:24px}
+header,.bar{display:flex;gap:16px;align-items:center;flex-wrap:wrap}header{justify-content:space-between}
+h1{font-size:28px}h2{font-size:21px;margin-top:0}a{color:#40dfff}section,details{background:#101e2a;border:1px solid #304757;border-radius:10px;padding:20px;margin:18px 0}
+button,select,input,textarea{font:inherit;background:#091822;color:inherit;border:1px solid #527082;border-radius:5px;padding:10px}
+button{cursor:pointer;color:#40dfff}button:disabled{opacity:.45;cursor:not-allowed}textarea{width:100%;resize:vertical;min-height:150px;margin:12px 0}
+label{display:block}button:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid #ffbf69}
+small,.muted{color:#b1c3d1}#status,.warning{color:#ffbf69;white-space:pre-wrap}.columns{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px}
+.checks label{margin:14px 0}.checks input{width:20px;height:20px;vertical-align:middle}#actions{max-height:360px;overflow:auto;overflow-wrap:anywhere;padding-left:24px}
+#actions li{padding:7px;border-bottom:1px solid #304757}summary{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:760px){main{padding:14px}.columns{grid-template-columns:1fr}input[type=file]{max-width:100%}}
+</style></head><body><main>
+<header><h1>TONE // COMMAND</h1><nav><a href="/controllers">Verbinding &amp; controllers</a></nav></header>
+<p>Axe-Fx III · Tekst naar preset · Voorstel → controle → verzenden</p>
+<p id="status" role="status" aria-live="polite">Status ophalen...</p>
+<div class="bar"><strong id="target">Niet verbonden</strong><button id="refresh">Opnieuw uitlezen</button></div>
+<div class="columns"><div>
+<section><h2>1. Jouw geluid</h2>
+<p class="muted">Begin met een lege testpreset of een bestaande passende seriële keten. TC wist of laadt geen preset. Audio en weblinks volgen later; hier wordt uitsluitend tekst gebruikt.</p>
+<label for="prompt">Beschrijf het geluid en de rol van elke scène.</label>
+<textarea id="prompt" placeholder="Maak een bluesrockpreset met 4 scènes: open clean, strakke crunch, heavy riff en lead met delay."></textarea>
+<div class="bar"><label>Scènes <select id="scenes"><option>1</option><option>2</option><option>3</option><option selected>4</option></select></label>
+<label>Wah-controller <select id="wah"><option value="">Bestaande koppeling behouden</option><option>External 1</option><option>External 2</option></select></label></div>
+<p><small>Een gekozen controller wordt aan Wah Control gekoppeld, met Fast Pos. Globale CC-toewijzing verandert niet. Enter maakt een nieuwe regel; de knop maakt het voorstel.</small></p>
+<button id="generate">MAAK VOORSTEL</button>
+<p><small>Gebruikt de expliciet gekozen AI in TC-instellingen, zonder automatische overstap. Configureer die zo nodig in de hoofdinterface voordat je de Axe-Fx III verbindt.</small></p>
+</section>
+<section id="review" hidden tabindex="-1"><h2>2. Controleer het voorstel</h2><p id="summary"></p><p id="who" class="muted"></p>
+<strong id="planName"></strong><pre id="sceneNames"></pre><p id="route"></p>
+<details><summary id="actionCount">Wijzigingen</summary><ol id="actions"></ol></details>
+<p class="warning">Dit vervangt de voicing van de genoemde kanalen. Scènes 5–8 kunnen dezelfde kanalen gebruiken en daardoor ook anders klinken. IR1/IR2 zijn slots, geen stereokanalen. Lees ook de expliciete mixerwijzigingen.</p>
+<div class="checks"><label><input id="confirmed" type="checkbox"> Ik heb preset, scènes, kanalen en wijzigingen gecontroleerd.</label>
+<label><input id="muted" type="checkbox"> Mijn externe audio is gedempt en blijft gedempt tijdens de volledige bouw.</label></div>
+<p class="muted">Geen limiter of gemeten klankmatch. Stopt bij mislukte verificatie; gedeeltelijke wijzigingen kunnen achterblijven. Geen automatische Undo. Niets permanent opgeslagen.</p>
+<div class="bar"><button id="send" disabled>VERZEND NAAR AXE-FX III</button><button id="discard">Voorstel weggooien</button></div>
+</section>
+<section id="result" hidden tabindex="-1"><h2 id="resultTitle"></h2><pre id="resultText"></pre></section>
+</div><aside>
+<details><summary>Factory / User cabnamen</summary>
+<p>Upload een eigen export (.txt/.csv), bijvoorbeeld U1.0028 Naam of bank,slot,name. Dit importeert namen, geen IR-audio. Namen gelden voor deze verbinding.</p>
+<label>Bibliotheek <select id="cabKind"><option value="factory">Factory</option><option value="user">User</option></select></label>
+<input id="cabFile" type="file" accept=".txt,.csv"><button id="cabImport">Importeer namen</button><p id="cabCount"></p>
+</details>
+<section><h2>Werkwijze</h2><p>De AI kiest amp, cab en voicing. TC maakt de concrete acties, valideert het gehele voorstel en leest vóór verzenden de actuele toestand opnieuw.</p><p>Een andere preset, gewijzigde instellingen of een verlopen voorstel blokkeert verzending.</p></section>
+</aside></div></main><script src="/axefx3.js"></script></body></html>

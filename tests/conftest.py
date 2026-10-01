@@ -59,6 +59,8 @@ def isolated_env(tmp_path, monkeypatch):
     # is pinned here for every module whether the test asks or not.
     monkeypatch.setenv("TONECOMMAND_STORE_SLOTS_FILE",
                        str(tmp_path / "store_slots.json"))
+    # A persisted provider choice must never send a test to a real account.
+    monkeypatch.setenv("TONECOMMAND_AI_SETTINGS", str(tmp_path / "ai_settings.json"))
     # Fourth time, same lesson, and this one hangs rather than corrupts. Tests
     # reach get_fm9(), which opens the real MIDI port when one is there. With
     # the app running and holding that port, the whole suite blocks: it ran
@@ -84,7 +86,8 @@ def isolated_env(tmp_path, monkeypatch):
     for name in ("PLANNER_BACKEND", "PLANNER_BASE_URL", "PLANNER_MODEL",
                  "PLANNER_API_KEY", "PLANNER_TIMEOUT", "PLANNER_MAX_TOKENS",
                  "GROK_CLI_MODEL", "ANTHROPIC_API_KEY",
-                 "CLAUDE_CLI_MODEL", "CLAUDE_API_MODEL"):
+                 "CLAUDE_CLI_MODEL", "CLAUDE_API_MODEL", "CODEX_CLI_MODEL",
+                 "TONECOMMAND_CODEX_CLI"):
         monkeypatch.delenv(name, raising=False)
     return tmp_path / ".env"
 

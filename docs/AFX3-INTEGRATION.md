@@ -1,6 +1,6 @@
 # Axe-Fx III upstream integration
 
-## Status: controller workspace enabled; general AFX3 tone planning not enabled
+## Status: controllers accepted; bounded text workspace pending full hardware acceptance
 
 Worktree: `integration/axefx3-upstream-20260929`, based on upstream
 `3c97d6cff34c8b9ca842b79bed21154052411047` (1.5.4, merged 2026-10-01).
@@ -10,11 +10,13 @@ Source for the port: owner checkpoint
 This is a deliberate port, not a completed merge. The original installation,
 private settings, cab imports and presets remain separate and unchanged.
 The adapter can now be explicitly connected from the **controller workspace**
-at `/controllers`. Only reviewed Wah/Volume controller operations are exposed;
-the generic FM9 executor and other device API routes are blocked in this mode.
+at `/controllers`. Reviewed Wah/Volume controller operations and a bounded
+text-design workspace at `/axefx3` are exposed; the generic FM9 executor and
+other device API routes remain blocked in this mode.
 Installing this integration does not replace the owner's working application.
 No publication or paid AI request is part of this work. Separately authorized
-hardware checkpoints are recorded below; they do not enable general AFX3 builds.
+hardware checkpoints are recorded below. They do not prove full-preset tone
+quality, arbitrary parameter coverage, or audio-reference matching.
 
 The upstream gitignored knowledge base is absent. The owner explicitly
 authorized continuing offline with public source/docs and the earlier fork's
@@ -68,7 +70,7 @@ reference alone still does not prove that the produced preset sounds alike.
 | Batch | Validate all static values before the first write, stop after the first failed verification |
 | Cab lists/selections | Atomic Factory/User name imports with explicit bank/slot bounds; independent IR1/IR2 selection, preserving other slots and mixer state |
 | Grid | Empty-grid serial construction or exact existing-route reuse; no implicit overwrite, flattening, deletion, preset reload or flash store |
-| Modifiers | Inspect all 32 slots, refuse unassessed active targets/curves; preserve existing curves on source reassignment. Experimental native Wah 1/2 creation has a separate hardware checkpoint below and is not exposed to the planner yet |
+| Modifiers | Inspect all 32 slots, refuse unassessed active targets/curves; preserve existing curves on source reassignment. Captured native Wah creation is exposed only through explicit user controller choices, not arbitrary AI parameter bindings |
 | Execution seam | Preflight the whole action list and route before construction; explicit model channel/final level, first-failure stop, partial-edit recovery warning |
 | Transport cleanup | Release the input if opening the output fails on either backend; no FM9 invariant-guard change |
 
@@ -84,16 +86,16 @@ not mean stereo pan; a selected IR may still be muted or excluded by solo.
 
 1. Controller browser-to-hardware and physical acceptance passed on
    2026-10-01 (see checkpoint below). Acoustic acceptance remains separate.
-   The general tone executor still rejects fresh bindings before constructing
-   a rig; the reviewed controller workspace is distinct.
-2. Extend the controller-only device context through upstream capability gates,
-   planner reference, manual controls, send preflight, staging and recovery.
+   Complete text-generated rigs still need independent hardware acceptance.
+2. The bounded text workspace now connects planner reference, compilation and
+   reviewed execution. Broader manual controls, arbitrary routing and recovery
+   remain separate integration work.
    Do not expose FM9 reamp/capture or startup global-restore actions to AFX3.
 3. Deliberately reconcile the owner's audio-reference and conversation UI
    with upstream's newer sound-check/tone-match and amp/cab metadata features.
    Preserve provider choice, no paid fallback, and measured-vs-heard labels.
-4. Run focused and full offline regressions plus UI/package checks on that
-   integrated path, not just the independent adapter.
+4. Keep running focused/full offline regressions and UI/package checks on
+   the application path, not just the independent adapter.
 5. After the complete application path is verified offline, reconfirm external
    mute and use only authorized
    test slots 321-329. Compare with Axe-Edit and independently read all four
@@ -479,3 +481,72 @@ installed into an isolated target and imported with Python `-I`: AFX3
 registry/resources and controller module, IR-2 simulator and ToneX module
 all loaded from that installation. This is package/module verification,
 not a new hardware or frozen-application acceptance claim.
+
+### Bounded text design workspace (2026-10-01)
+
+`/axefx3`, linked from the main shelf and controller workspace, now connects
+the selected AI to the AFX3 reference/compiler/review/executor path. It does
+not route an Axe-Fx III through the FM9 executor. Connect explicitly in
+`/controllers`; no page opens MIDI automatically.
+
+The initial scope is text, 1-4 scenes, one amp model with independent voicing
+on A-D, one shared Cab channel, optional Wah, Delay and Reverb. Only a verified
+empty grid or an exact compatible serial route can be used. Existing
+parallel routes, extra effects or missing blocks on an existing route are
+refused without erasing or reloading that preset. In particular, reference
+preset 324's parallel controller test must not be flattened by this builder.
+
+The AI returns a strict musical design, not raw actions. TC compiles channel
+selection, model-before-voicing order, explicit final effect levels, IR mixer
+normal/mute/pan/level state and scene names. Each amp/delay/reverb scene uses
+its own channel; shared Cab/Wah and other scenes can still be affected.
+Controller source is the user's separate External 1/2 choice, not a guessed
+CC. The native Wah binding runs after model/voicing actions and verifies all
+modifier records; the existing controller workspace remains available for
+Volume. No new arbitrary controller parameter/range writes are exposed.
+
+Factory/User name imports are device-specific and connection-scoped. They
+upload names, not IR audio, and must correspond to the unit's actual slots.
+The planner cannot pick an address outside that imported catalogue. Amp
+facts are matched to the AFX3 roster by exact unique name, never FM9 ordinal.
+This is not automatic discovery or a claim that catalogue names prove IR
+contents or tonal resemblance.
+
+The user must choose one AI backend explicitly. The owner's direct Codex
+CLI choice is restored with UTF-8 input/output, optional model override,
+temporary final-message capture and no automatic provider fallback. CLI
+read-only/ephemeral flags are not a physical audio safety boundary. Other
+configured TC backends remain selectable. For OpenAI-compatible requests,
+the top-level system instruction now honors the device-specific instruction
+instead of always inserting the FM9 one. No real AI account was called by
+the automated tests.
+
+A review binds the device connection, preset/scene, complete grid, present
+block bulk reads, all 32 full modifier records, scene names and cab catalogue.
+System status records 200/201 are retained in the fingerprint but are not
+queried as parameter blocks. Reviews expire after ten minutes, are single-use
+and are invalidated by changed state. Both target and external-mute consent
+are required again before send. A verification failure stops execution;
+partial edits may remain, with no automatic Undo, Store or preset reload.
+
+This is an experimental source-worktree integration. Full text-preset
+hardware/physical/audio acceptance remains pending. Audio/web links,
+isolated-guitar extraction, measured tone matching, the old design
+conversation and broader manual controls are not yet integrated into this
+new workspace. Do not describe the controller checkpoint or mocked text
+tests as acceptance of those features or of arbitrary Fractal parameters.
+
+Verification: full SIM suite **2991 passed, 22 skipped**, 280.43 s,
+`text-workspace-full-final.xml`. Mandatory/focused gates **332 passed,
+1 skipped**, 238.34 s, plus subsequent text/native-pedal checks **76 passed**.
+Real headless Chrome passed the local-asset/mocked-API test covering Enter
+newline, explicit send, both consents, changed drafts, failed AI/readback,
+XSS-safe rendering and mobile layout. The test initially caught missing Wah
+option tags; fixed and rerun. The first full suite caught the stale measured
+server line count; fixed before the passing rerun. Source imports and the
+wheel module list were checked; no frozen/distributed GUI acceptance claimed.
+After persisting the owner's Codex choice locally, the global test fixture
+also isolates the AI settings file so tests cannot use that real account.
+The final mandatory/text/settings gates passed **218 tests, 1 skipped**,
+114.79 s, `text-final-isolation-gates.xml`. Runtime starts disconnected on
+loopback port 8910; no new hardware writes or actual AI calls were performed.

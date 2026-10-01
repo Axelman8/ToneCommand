@@ -11,11 +11,11 @@ import math
 from dataclasses import dataclass
 
 from fm9.device import SetResult
-from . import audio_safety, cab_selection, models, modifiers, protocol, route_guard
+from . import audio_safety, cab_selection, models, modifiers, pedal_control, protocol, route_guard
 
 
 KINDS = {"add_block", "set_param", "set_type", "set_cab", "set_scene", "set_channel",
-         "set_bypass", "rename_preset", "rename_scene", "bind_pedal"}
+         "set_bypass", "rename_preset", "rename_scene", "bind_pedal", "bind_controller"}
 
 
 def integer(value, low, high):
@@ -58,6 +58,14 @@ def resolve(reg, action):
         instance = integer(a.get("instance", 1), 1, 4)
         family, eid = reg.resolve_block(a.get("block", ""), instance)
         result.family, result.effect_id = family, eid
+        if kind == "bind_controller":
+            source = {"External 1":12, "External 2":13}.get(a.get("source"))
+            mode = a.get("auto_engage")
+            pedal_control.validate(eid, source, mode)
+            if set(a) - {"kind","block","instance","source","auto_engage","reason"}:
+                raise ValueError("Controller binding may not change arbitrary parameters or ranges")
+            result.value = (source, mode)
+            return result
         if kind in ("set_param", "bind_pedal"):
             base = reg.find_param(family, a.get("param") or "")
             if base is None:
@@ -117,7 +125,22 @@ def prepare(dev, actions, required_route, expected_preset):
     for item in resolved:
         if item.effect_id is not None and item.effect_id not in expected:
             raise ValueError("Action targets a block outside the reviewed route")
-    slots = modifiers.preflight(dev)
+    native = [i for i in resolved if i.action['kind'] == 'bind_controller']
+    slots = pedal_control.entries(dev) if native else modifiers.preflight(dev)
+    if native:
+        if len({i.effect_id for i in native}) != len(native):
+            raise ValueError('Duplicate controller binding in this plan')
+        needed = 0
+        for item in native:
+            matches = [s for s in slots if (s['effect_id'],s['param_id']) ==
+                       (item.effect_id,pedal_control.TARGETS[item.effect_id])]
+            if item.effect_id in actual:
+                pedal_control.preflight(dev,item.effect_id,*item.value)
+            elif matches:
+                raise ValueError('Absent block already has a modifier record; no automatic recreation')
+            needed += not matches
+        if needed > sum(s['source'] == s['effect_id'] == 0 for s in slots):
+            raise ValueError('Insufficient native modifier slots; nothing sent')
     for item in resolved:
         if item.action["kind"] == "bind_pedal":
             candidates = [s for s in slots if s["active"] and s["effect_id"] == item.effect_id and s["param_id"] == 5]
@@ -175,6 +198,8 @@ def execute(dev, actions, required_route, *, expected_preset, external_audio_mut
                     elif kind == "set_cab": result = dev.set_cab(eid, *item.value)
                     elif kind == "bind_pedal":
                         result = dev.assign_existing_modifier(a["modifier_slot"], eid, 5, item.value)
+                    elif kind == "bind_controller":
+                        result = dev.bind_pedal_control(eid, *item.value)
                     else:
                         if kind == "set_scene": actual_value = dev.set_scene(item.value)
                         elif kind == "set_channel": actual_value = dev.set_channel(eid, item.value)
