@@ -56,6 +56,12 @@ Notable changes to ToneCommand. Dates are UTC.
   hardware gates; offline tests are not a sound-quality claim.
 
 ### Fixed
+- Restore Windows runtime/profile paths in planner subprocess environments.
+  Dropping SystemRoot reproduced DNS error 11003 and made the selected Codex
+  backend time out. Keep the per-backend credential allowlist; no provider,
+  model, global Windows setting or safety gate is changed. A live FW 32.06
+  text build passed 163 actions and 193 later readback checks across four
+  scenes; physical pedal behavior and sound matching still require acceptance.
 - Include the new IR-2 and existing ToneX packages in the distribution;
   the explicit setuptools list previously omitted them. A regression test
   covers every device package, not just the source checkout imports.

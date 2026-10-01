@@ -575,8 +575,11 @@ def _validate(plan_obj: dict) -> dict:
     return plan_obj
 
 
-SHELL_ENV_KEYS = ("PATH", "HOME", "USER", "LOGNAME", "SHELL", "LANG",
-                  "LC_ALL", "TERM", "TMPDIR")
+# Windows needs SystemRoot for Winsock/DNS and its profile paths for CLI
+# configuration. Keep these runtime paths without forwarding foreign secrets.
+SHELL_ENV_KEYS = ("PATH", "HOME", "USER", "USERPROFILE", "APPDATA",
+                  "LOCALAPPDATA", "SystemRoot", "ComSpec", "LOGNAME",
+                  "SHELL", "LANG", "LC_ALL", "TERM", "TMPDIR")
 
 # How a machine reaches the network at all. Stripping these turns a working
 # planner into a backend_error on any host behind a proxy or a TLS-inspecting

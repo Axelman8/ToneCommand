@@ -9,6 +9,32 @@ import pytest
 from fm9 import ai_settings, planner
 
 
+@pytest.mark.parametrize('binary_keys', [planner.CODEX_ENV_KEYS,
+                                       planner.CLAUDE_ENV_KEYS,
+                                       planner.GROK_ENV_KEYS])
+def test_cli_environment_keeps_windows_runtime_paths(binary_keys):
+    runtime = {'PATH': 'C:/bin', 'SystemRoot': 'C:/Windows',
+               'ComSpec': 'C:/Windows/System32/cmd.exe',
+               'USERPROFILE': 'C:/Users/Player',
+               'APPDATA': 'C:/Users/Player/AppData/Roaming',
+               'LOCALAPPDATA': 'C:/Users/Player/AppData/Local'}
+    source = dict(runtime, UNRELATED_SECRET='must-not-travel')
+    assert planner.cli_env(binary_keys, source) == runtime
+
+
+def test_codex_environment_keeps_windows_paths_but_not_other_credentials(monkeypatch):
+    # os.environ on Windows is case insensitive; exercise the real mapping too.
+    monkeypatch.setenv('SystemRoot', 'C:/Windows')
+    monkeypatch.setenv('USERPROFILE', 'C:/Users/Player')
+    monkeypatch.setenv('ANTHROPIC_API_KEY', 'private-anthropic')
+    monkeypatch.setenv('OPENAI_API_KEY', 'private-api-not-cli-login')
+    monkeypatch.setenv('AWS_SECRET_ACCESS_KEY', 'private-aws')
+    env = planner.cli_env(planner.CODEX_ENV_KEYS)
+    assert env['SystemRoot'] == 'C:/Windows'
+    assert env['USERPROFILE'] == 'C:/Users/Player'
+    assert not {'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'AWS_SECRET_ACCESS_KEY'} & env.keys()
+
+
 def test_explicit_codex_never_falls_back(monkeypatch):
     monkeypatch.setenv('PLANNER_BACKEND','codex')
     assert planner.candidates()==['codex']

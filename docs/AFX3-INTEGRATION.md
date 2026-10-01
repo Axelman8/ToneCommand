@@ -550,3 +550,60 @@ also isolates the AI settings file so tests cannot use that real account.
 The final mandatory/text/settings gates passed **218 tests, 1 skipped**,
 114.79 s, `text-final-isolation-gates.xml`. Runtime starts disconnected on
 loopback port 8910; no new hardware writes or actual AI calls were performed.
+
+### First full text build hardware readback (2026-10-01)
+
+The owner authorized disposable preset 322 and confirmed external audio mute.
+The original server released MIDI before the integration server connected;
+only one MIDI owner was active. Preset 324 was not selected or modified.
+
+Initial real Codex requests timed out because the imported upstream CLI
+environment omitted Windows runtime paths. A bounded subprocess DNS test
+reproduced error 11003 with that environment and succeeded with SystemRoot
+and the original profile paths restored. The same selected Codex CLI then
+answered a small diagnostic in 5.7 seconds and produced the full text design.
+No model, reasoning setting, login, DNS configuration or provider was changed.
+The temporary timeout override was removed. Unit tests preserve credential
+isolation while covering Windows runtime paths for all three CLI backends.
+
+The owner's cab text file contains larger User banks than this importer's
+verified address mapping. Only nonempty User 1 slots 1-512 were imported for
+this acceptance pass. Do not infer that User 2/3 or the entire file is
+supported, and do not remap the remaining slots without protocol evidence.
+
+The real `/api/axefx3/plan` and single-use `/send` path built an initially empty
+preset, named AI-Whole Lotta Love: Input 1 -> Wah 1 -> Amp 1 -> Cab 1 ->
+Delay 1 -> Reverb 1 -> Output 1. All **163 actions succeeded**, none skipped.
+After disconnecting the server, a separate MIDI session visited scenes 1-4
+and passed **193 independent comparisons** against the reviewed plan.
+These were new device reads, not copies of the send acknowledgements.
+
+| Scene | Amp channel | Input drive | Delay | Amp level |
+| --- | --- | --- | --- | --- |
+| Intro Wah | A | 5.8 | 115 ms, 14% feedback, 10% mix | -16.5 dB |
+| Main Riff | B | 6.7 | Bypassed | -16 dB |
+| Heavy Riff | C | 8.3 | Bypassed | -17 dB |
+| Lead Wah | D | 8.8 | 285 ms, 23% feedback, 16% mix | -14.5 dB |
+
+All four amp channels independently retained Plexi 50W High 1 and their own
+EQ/master values after scene changes. Cab A IR1 uses wire bank 2/ordinal 27
+(imported User 1 slot 28, Brit Black GB25 57+421 MPT), normal/in mix, 0 dB,
+center; IR2-4 remain muted. Delay/reverb use independent A-D channels with
+final block levels 0 dB; Output 1 A reads -6 dB. Wah A reads Cry Babe and
+0 dB, with one full-range native External 1 modifier and Fast Pos Auto Engage.
+The audit deliberately does not assert static Wah bypass: Auto Engage can
+follow the physical pedal, including on scenes intended to bypass it.
+Scene-specific Wah behavior requires the physical acceptance test.
+
+The device was left on scene 4 of the unsaved edit buffer. No Store, preset
+reload, global MIDI mapping, unrelated preset edit or automatic rollback was
+performed. Raw captures and plan/result files remain private. This verifies
+the bounded text-to-hardware path, not acoustic gain, physical pedal sweep,
+equal scene loudness, bypass transparency, a recording match or audio/web
+analysis. Those acceptance steps remain outstanding; no audio was supplied
+or heard during this build.
+
+Software verification for the Windows fix: planner/backend tests **46 passed**;
+mandatory device-handle/capability/UI-warning gates plus both planner suites
+**100 passed**, 212.04 seconds, in SIM mode. The earlier full-suite result
+above is historical, not a new full-suite run for this patch.
