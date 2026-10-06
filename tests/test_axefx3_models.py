@@ -23,7 +23,7 @@ def rig(monkeypatch):
         names = models.roster(Registry("32.06"), family)
         words = [0] * (stride * 4)
         for c in range(4):
-            words[c * stride] = 1 if family == "DISTORT" else 0
+            words[c * stride] = 1 if family == "DISTORT" else 3 if family == 'CHORUS' else 0
             words[c * stride + 1] = 12345
         dev = Mock()
         dev.reg = Registry("32.06")
@@ -51,10 +51,12 @@ def rig(monkeypatch):
 
 
 @pytest.mark.parametrize("family,name", [("DISTORT", "Brit 800 2204 High"),
-    ("WAH", "Cry Babe"), ("DELAY", "Analog Mono"), ("REVERB", "Plate: Small Plate")])
+    ("WAH", "Cry Babe"), ("DELAY", "Analog Mono"), ("REVERB", "Plate: Small Plate"),
+    ("CHORUS", "Analog Stereo")])
 @pytest.mark.parametrize("channel", range(4))
 def test_model_resets_only_target_channel_and_stays_bypassed(rig, family, name, channel):
     dev, words, eid, stride, _ = rig(family, channel)
+    if family == 'CHORUS': words[channel*stride]=1
     before = words.copy()
     result = dev.set_model(family, eid, name)
     assert result.ok, result.detail
@@ -81,7 +83,7 @@ def test_selecting_same_model_never_resets_voicing_or_bypass(rig, family):
 
 @pytest.mark.parametrize("family,name", [("DISTORT", "59 Bassguy Bright"),
     ("WAH", "VX846"), ("DELAY", "Dual Delay"), ("REVERB", "Huge: Cavern"),
-    ("PITCH", "Whammy")])
+    ("PITCH", "Whammy"), ("CHORUS", "Digital Stereo")])
 def test_read_inventory_does_not_authorize_uncaptured_models(rig, family, name):
     dev, _, eid, _, _ = rig("DISTORT" if family == "PITCH" else family)
     with pytest.raises(ValueError):

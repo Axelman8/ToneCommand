@@ -4,6 +4,23 @@
   "firmware": "32.06",
   "purpose": "Read-only model names; not a writable model allowlist",
   "families": {
+    "CHORUS": {
+      "section": 16,
+      "stride": 32,
+      "source": "Axe-Edit III 32p6 metadata; Chorus1 bulk and Analog Stereo SET captured 2026-10-06",
+      "sha256": "bb6add466ae0bafa1fb3ee80f1ee221a2795889f149b28aa56013deac633b498",
+      "models": {
+        "0": "Digital Mono", "1": "Digital Stereo", "2": "Analog Mono",
+        "3": "Analog Stereo", "4": "Japan CE-2", "5": "Warm Stereo",
+        "6": "80'S Style", "7": "Triangle Chorus", "8": "8-Voice Stereo",
+        "9": "Tape Chorus", "10": "Dimension 1", "11": "Dimension 2",
+        "12": "Dimension 3", "13": "4-Voice Analog", "14": "8-Voice Analog",
+        "15": "Stereo Tri-Chorus", "16": "Dual Chorus", "17": "Tape Flanger",
+        "18": "Japan CE-1 Chorus", "19": "Japan CE-1 Vibrato", "20": "Japan CH-1",
+        "21": "MX234", "22": "Small Copy", "23": "Japan CE-2 Bass",
+        "24": "Vibrato", "25": "Rockguy", "26": "MX134 Stereo"
+      }
+    },
     "WAH": {
       "section": 20,
       "stride": 25,

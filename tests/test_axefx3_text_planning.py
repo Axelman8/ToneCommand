@@ -1,4 +1,5 @@
 import copy
+import json
 import threading
 from contextlib import nullcontext
 from unittest.mock import Mock
@@ -184,6 +185,139 @@ def test_active_ambience_delay_before_cab_is_refused_without_moving_blocks(dev,d
     assert plan['required_route']==['Input 1','Wah 1','Delay 1','Amp 1','Cab 1','Reverb 1','Output 1']
     assert not any(a['kind']=='add_block' for a in plan['actions'])
     assert all(a['bypassed'] for a in plan['actions'] if a['kind']=='set_bypass' and a['block']=='DELAY')
+    dev._write.assert_not_called()
+
+
+@pytest.fixture
+def chorus_support(monkeypatch):
+    # Only the delegated, verified model/control facts are mocked. The real
+    # executor still resolves every non-Chorus action. No device I/O occurs.
+    original_target = planning.models.target
+    original_roster = planning.models.roster
+    original_resolve = executor.resolve
+    def target(reg, family, eid, name):
+        if family == 'CHORUS':
+            if reg.firmware != '32.06' or eid not in range(78,82) or name != 'Analog Stereo':
+                raise ValueError('Unverified Chorus model')
+            return 3
+        return original_target(reg,family,eid,name)
+    def roster(reg, family, *, selectable=False):
+        if family == 'CHORUS':
+            return {'3':'Analog Stereo'} if reg.firmware == '32.06' else {}
+        return original_roster(reg,family,selectable=selectable)
+    def resolve(reg, action):
+        if action.get('block') != 'CHORUS':
+            return original_resolve(reg,action)
+        family,eid = reg.resolve_block('CHORUS',action['instance'])
+        if action['kind'] == 'set_type':
+            target(reg,family,eid,action['type_name'])
+        if action['kind'] == 'set_param':
+            bounds = {'CHORUS_RATE':(.1,10), 'CHORUS_DEPTH':(0,100),
+                      'CHORUS_MIX':(0,100), 'CHORUS_LEVEL':(0,0)}
+            lo,hi = bounds[action['param']]
+            assert lo <= action['value'] <= hi
+        return executor.Resolved(action,family,eid)
+    monkeypatch.setattr(planning.models,'target',target)
+    monkeypatch.setattr(planning.models,'roster',roster)
+    monkeypatch.setattr(executor,'resolve',resolve)
+
+
+def test_chorus_full_design_channels_voicing_and_serial_insertion(dev,design,chorus_support):
+    for i,scene in enumerate(design['scenes']):
+        scene['chorus']=dict(active=i != 1,rate_hz=.8+i,depth=40+i,mix=20+i)
+    for current in ([],[37,94,58,62,70,66,42]):
+        plan=planning.compile_design(dev.reg,design,current,4)
+        assert plan['required_route']==[
+            'Input 1','Wah 1','Amp 1','Cab 1','Chorus 1','Delay 1','Reverb 1','Output 1']
+        chorus=[a for a in plan['actions'] if a.get('block')=='CHORUS']
+        assert chorus[0]==dict(kind='add_block',block='CHORUS',instance=1)
+        assert sum(a['kind']=='add_block' for a in chorus)==1
+        for i,scene in enumerate(design['scenes']):
+            config=scene['chorus']
+            assert chorus[1+i*8:1+(i+1)*8]==[
+                dict(kind='set_channel',block='CHORUS',instance=1,value=i),
+                dict(kind='set_bypass',block='CHORUS',instance=1,bypassed=True),
+                dict(kind='set_type',block='CHORUS',instance=1,type_name='Analog Stereo'),
+                *[dict(kind='set_param',block='CHORUS',instance=1,param='CHORUS_'+key,value=value)
+                  for key,value in [('RATE',config['rate_hz']),('DEPTH',config['depth']),
+                                    ('MIX',config['mix']),('LEVEL',0)]],
+                dict(kind='set_bypass',block='CHORUS',instance=1,bypassed=not config['active'])]
+        assert not any(a['kind']=='clear' for a in plan['actions'])
+    dev._write.assert_not_called()
+
+
+def test_omitted_chorus_preserves_existing_instance_without_actions(dev,design):
+    design['scenes'][0]['chorus']=None
+    plan=planning.compile_design(dev.reg,design,[37,94,58,62,79,70,66,42],4)
+    assert 'Chorus 2' in plan['required_route']
+    assert not any(a.get('block')=='CHORUS' for a in plan['actions'])
+
+
+def test_existing_chorus_is_reused_only_for_configured_scenes(dev,design,chorus_support):
+    design['scenes'][2]['chorus']=dict(active=False,rate_hz=1,depth=30,mix=10)
+    plan=planning.compile_design(dev.reg,design,[37,94,58,62,78,70,66,42],4)
+    chorus=[a for a in plan['actions'] if a.get('block')=='CHORUS']
+    assert len(chorus)==8 and all(a['instance']==1 for a in chorus)
+    assert chorus[0]['value']==2 and chorus[-1]['bypassed'] is True
+    assert not any(a['kind']=='add_block' for a in plan['actions'])
+
+
+def test_new_chorus_is_bypassed_in_unrequested_scenes(dev,design,chorus_support):
+    design['scenes'][2]['chorus']=dict(active=True,rate_hz=.3,depth=25,mix=20)
+    for route in ([],[37,94,58,62,70,66,42]):
+        plan=planning.compile_design(dev.reg,design,route,4)
+        chorus=[a for a in plan['actions'] if a.get('block')=='CHORUS']
+        assert len(chorus)==15
+        assert chorus[1:3]==[
+            dict(kind='set_channel',block='CHORUS',instance=1,value=0),
+            dict(kind='set_bypass',block='CHORUS',instance=1,bypassed=True)]
+        assert chorus[-2:]==[
+            dict(kind='set_channel',block='CHORUS',instance=1,value=3),
+            dict(kind='set_bypass',block='CHORUS',instance=1,bypassed=True)]
+        assert sum(a['kind']=='set_type' for a in chorus)==1
+
+
+@pytest.mark.parametrize('field,value',[
+    ('rate_hz',0),('rate_hz',10.1),('depth',-1),('depth',101),
+    ('mix',-1),('mix',101),('rate_hz',float('nan')),('depth',float('inf')),
+    ('mix',True),('rate_hz','1'),('active',1)])
+def test_unsafe_chorus_config_refused(dev,design,field,value):
+    config=dict(active=True,rate_hz=1,depth=40,mix=20)
+    config[field]=value
+    design['scenes'][0]['chorus']=config
+    with pytest.raises(ValueError):
+        planning.compile_design(dev.reg,design,[],4)
+    dev._write.assert_not_called()
+
+
+def test_chorus_model_and_pre_delay_order_fail_closed(dev,design,chorus_support):
+    design['scenes'][0]['chorus']=dict(active=True,rate_hz=1,depth=40,mix=20)
+    for route in ([37,94,70,58,62,66,42],[37,94,58,70,62,66,42],
+                  [37,94,58,62,70,78,66,42]):
+        with pytest.raises(ValueError,match='no block is moved'):
+            planning.compile_design(dev.reg,design,route,4)
+    design['chorus_model']='Invented Chorus'
+    with pytest.raises(ValueError):
+        planning.compile_design(dev.reg,design,[],4)
+
+
+def test_reference_exposes_only_available_chorus_facts(dev,chorus_support):
+    ref=json.loads(planning.reference(dev.reg))
+    assert ref['chorus']['models']==['Analog Stereo']
+    assert 'rate_hz' in planning.SYSTEM and 'percent' in planning.SYSTEM
+    unsupported=Registry('unknown')
+    assert json.loads(planning.reference(unsupported))['chorus']==dict(models=[],controls=[])
+
+
+def test_chorus_design_resolves_against_native_dependencies(dev,design):
+    if not planning.models.roster(dev.reg,'CHORUS',selectable=True):
+        pytest.skip('Main-agent verified Chorus model dependency is not available yet')
+    design['scenes'][0]['chorus']=dict(active=True,rate_hz=.8,depth=40,mix=20)
+    plan=planning.compile_design(dev.reg,design,[],4)
+    executor.prepare(dev,plan['actions'],plan['required_route'],324)
+    controls=json.loads(planning.reference(dev.reg))['chorus']['controls']
+    assert [(c['name'],c['pid']) for c in controls]==[
+        ('CHORUS_RATE',2),('CHORUS_DEPTH',4),('CHORUS_MIX',10),('CHORUS_LEVEL',11)]
     dev._write.assert_not_called()
 
 

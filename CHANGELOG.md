@@ -17,6 +17,17 @@ Notable changes to ToneCommand. Dates are UTC.
   controller workspace, firmware gates and blocked general tone executor.
 
 ### Added
+- Captured FW32.06 Chorus 1 Analog Stereo control: rate, depth, mix and level,
+  typed zero writes and a scene-by-scene review column. Optional text designs
+  configure independent chorus channels; omission preserves an existing
+  Chorus, while unrequested scenes bypass a newly added Chorus.
+- Reviewed Chorus 1 insertion directly after Cab 1 in a contiguous serial
+  row 3 with empty right-hand space. Reuses FM9's read-only splice geometry
+  and cable builders, not its parameter catalog or destructive fallback.
+  Captured rightward moves independently preserve all original block data,
+  modifiers and names. Real TC execution on muted preset 323 passed 13/13
+  actions with complete routing readback. No Store or topology Undo; stops
+  on partial failure. Other layouts/effect insertions remain unsupported.
 - Explicit Wah Auto Engage selection in the AFX3 text workspace: Off,
   Fast Pos or preserve. The user's choice reaches the deterministic compiler,
   review and captured executor; the AI cannot override it. Fast Pos warns

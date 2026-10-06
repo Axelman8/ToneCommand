@@ -8,6 +8,27 @@ See docs/AFX3-PARITY-2026-09-19.md for provenance and limits.
 from fm9.protocol import normalized_to_display
 
 AXE_FX_III_PARAM_DEFINITIONS = {
+    # Axe-Edit III + independent FW32.06 display/bulk reads on test 323,
+    # 2026-10-06. SET floats are Hz, fractional depth/mix and literal dB.
+    "CHORUS": {
+        "CHORUS_RATE": {"pid": 2, "label": "Rate", "unit": "Hz",
+                        "min": .1, "max": 10.0, "scale": "log10",
+                        "set_opcode": "09", "set_divisor": 1.0,
+                        "display_tolerance": .00051, "tempo_param_id": 3,
+                        "firmware_versions": ("32.06",)},
+        "CHORUS_DEPTH": {"pid": 4, "label": "Depth", "unit": "%",
+                         "min": 0.0, "max": 100.0, "set_opcode": "09",
+                         "set_divisor": 100.0, "display_tolerance": .051,
+                         "firmware_versions": ("32.06",)},
+        "CHORUS_MIX": {"pid": 10, "label": "Mix", "unit": "%",
+                       "min": 0.0, "max": 100.0, "set_opcode": "09",
+                       "set_divisor": 100.0, "display_tolerance": .051,
+                       "firmware_versions": ("32.06",)},
+        "CHORUS_LEVEL": {"pid": 11, "label": "Level", "unit": "dB",
+                         "min": -80.0, "max": 20.0, "set_opcode": "09",
+                         "set_divisor": 1.0, "display_tolerance": .051,
+                         "firmware_versions": ("32.06",)},
+    },
     "DISTORT": {
         "DISTORT_DRIVE": {"pid": 1, "label": "Gain", "unit": "0-10",
                            "min": 0.0, "max": 10.0, "set_opcode": "09"},
@@ -181,10 +202,12 @@ AXE_FX_III_32_06_ZERO_NORMALIZED = {
     "WAH_RESONANCE": 0.0, "WAH_DRIVE": 0.0,
 }
 
-# Actual typed-zero SETs from Axe-Edit, independently confirmed 2026-09-19.
+# Actual typed-zero SETs from Axe-Edit: Wah confirmed 2026-09-19,
+# Chorus confirmed 2026-10-06. See docs/AFX3-CHORUS-INSERTION.md.
 # Distinct from the normalized alternate setters above; no general fallback.
 AXE_FX_III_32_06_ZERO_TYPED = frozenset({
     'WAH_INDUCTOR_BIAS', 'WAH_QTRACKING', 'WAH_FAT',
+    'CHORUS_DEPTH', 'CHORUS_MIX', 'CHORUS_LEVEL',
 })
 
 
@@ -199,15 +222,17 @@ def afx3_zero_set_supported(spec, firmware: str) -> bool:
     return (getattr(spec, 'set_divisor', None) is None
             or (firmware == '32.06' and spec.family == 'CABINET'
                 and spec.name in AXE_FX_III_CAB_MIX_PARAMS)
-            or (firmware == '32.06' and spec.family == 'WAH'
+            or (firmware == '32.06' and spec.family in ('WAH', 'CHORUS')
                 and spec.name in AXE_FX_III_32_06_ZERO_TYPED)
             or (firmware == '32.06' and spec.name in AXE_FX_III_32_06_ZERO_NORMALIZED))
 
 
 AXE_FX_III_32_06_LEVEL_BULK = frozenset({
     "DISTORT_LEVEL", "DELAY_LEVEL", "REVERB_LEVEL", "PITCH_LEVEL", "OUTPUT_LEVEL",
+    "CHORUS_LEVEL",
 })
 AXE_FX_III_32_06_TESTED_CONTROLS = frozenset({
+    "CHORUS_RATE", "CHORUS_DEPTH", "CHORUS_MIX", "CHORUS_LEVEL",
     "DISTORT_DRIVE", "DISTORT_BASS", "DISTORT_MID", "DISTORT_TREBLE",
     "DISTORT_MASTER", "DISTORT_DEPTH", "DISTORT_PRESENCE", "DISTORT_LEVEL",
     "REVERB_TIME", "REVERB_MIX", "REVERB_LEVEL", "DELAY_TIME", "DELAY_FEED",

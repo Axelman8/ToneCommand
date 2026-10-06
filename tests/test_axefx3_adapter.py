@@ -294,3 +294,18 @@ def test_transport_rejects_invalid_cab_selection_and_modifier_curve_writes(rig, 
         with pytest.raises((PermissionError, ValueError)):
             dev._write(protocol.param_frame(eid, pid, value, opcode=opcode))
     assert not ports.writes()
+
+
+@pytest.mark.parametrize('fault', [None,'synced','display','length','channel'])
+def test_chorus_rate_requires_independent_tempo_none_without_tempo_writes(rig,monkeypatch,fault):
+    dev, ports = rig
+    spec=dev.reg.spec('CHORUS',2)
+    words=[0]*128
+    if fault=='synced': words[3]=7
+    if fault=='length': words.pop()
+    monkeypatch.setattr(dev,'bulk_read',lambda eid:words)
+    monkeypatch.setattr(dev,'read_display_text',lambda eid,pid:'1/4' if fault=='display' else 'NONE')
+    monkeypatch.setattr(dev,'get_channel',lambda eid:1 if fault=='channel' else 0)
+    result=dev._prepare_delay_milliseconds(spec,0)
+    assert (result is None)==(fault is None)
+    assert not ports.writes()

@@ -12,7 +12,7 @@ label{display:block}button:focus-visible,textarea:focus-visible,select:focus-vis
 small,.muted{color:#b1c3d1}#status,.warning{color:#ffbf69;white-space:pre-wrap}.columns{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px}
 .checks label{margin:14px 0}.checks input{width:20px;height:20px;vertical-align:middle}#actions{max-height:360px;overflow:auto;overflow-wrap:anywhere;padding-left:24px}
 #actions li{padding:7px;border-bottom:1px solid #304757}summary{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere}
-.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;padding:10px;border-bottom:1px solid #304757;vertical-align:top}caption{text-align:left;color:#b1c3d1;margin:10px 0}#requestPreview{font-weight:normal;color:#b1c3d1;display:block;overflow-wrap:anywhere;margin-top:6px}#controllerHint{min-height:3em}.warnings:empty{display:none}
+.columns>div,.columns>aside{min-width:0}.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;padding:10px;border-bottom:1px solid #304757;vertical-align:top}caption{text-align:left;color:#b1c3d1;margin:10px 0}#requestPreview{font-weight:normal;color:#b1c3d1;display:block;overflow-wrap:anywhere;margin-top:6px}#controllerHint{min-height:3em}.warnings:empty{display:none}
 @media(max-width:760px){main{padding:14px}.columns{grid-template-columns:1fr}input[type=file]{max-width:100%}}
 </style></head><body><main>
 <header><h1>TONE // COMMAND</h1><nav><a href="/controllers">Verbinding &amp; controllers</a></nav></header>
@@ -30,13 +30,14 @@ small,.muted{color:#b1c3d1}#status,.warning{color:#ffbf69;white-space:pre-wrap}.
 <p id="controllerHint" class="warning"></p>
 <p><small>Een gekozen controller wordt aan Wah Control gekoppeld. Globale CC-toewijzing verandert niet. Enter maakt een nieuwe regel; de knop maakt het voorstel.</small></p>
 <button id="generate">MAAK VOORSTEL</button>
+<p class="muted">Chorus 1: vraag Analog Stereo met rate, depth en mix. TC kan dit blok direct na Cab 1 invoegen in een aaneengesloten keten op rij 3 met een lege kolom rechts, op FW 32.06. Bestaande instellingen blijven bij het invoegen behouden. Andere invoegingen en parallelle routes zijn nog niet ondersteund. Chorus Rate vereist Tempo NONE; TC verandert een bestaande temposynchronisatie niet automatisch.</p>
 <p class="muted">Nieuwe lege presets krijgen alvast Delay 1. Zonder gevraagde delay blijft dit blok uit; later kun je het via een nieuw voorstel inschakelen. Bestaande presets worden niet automatisch herbouwd.</p>
 <p><small>Gebruikt de expliciet gekozen AI in TC-instellingen, zonder automatische overstap. Configureer die zo nodig in de hoofdinterface voordat je de Axe-Fx III verbindt.</small></p>
 </details>
 <section id="review" hidden tabindex="-1"><h2>2. Controleer het voorstel</h2><p id="summary"></p><p id="who" class="muted"></p>
 <strong id="planName"></strong><pre id="sceneNames"></pre><p id="route"></p>
 <p id="toneChoice"></p><p id="controllerChoice"></p><ul id="planWarnings" class="warning warnings"></ul>
-<div class="table-wrap"><table id="sceneTable" hidden><caption>Geplande instellingen, geen meting van het hoorbare resultaat. Wah aan/uit is onder voorbehoud van Auto Engage.</caption><thead><tr><th>Scene / kanaal</th><th>Gain / amp level</th><th>Wah</th><th>Delay</th><th>Reverb</th></tr></thead><tbody id="sceneRows"></tbody></table></div>
+<div class="table-wrap"><table id="sceneTable" hidden><caption>Geplande instellingen, geen meting van het hoorbare resultaat. Wah aan/uit is onder voorbehoud van Auto Engage.</caption><thead><tr><th>Scene / kanaal</th><th>Gain / amp level</th><th>Wah</th><th>Chorus</th><th>Delay</th><th>Reverb</th></tr></thead><tbody id="sceneRows"></tbody></table></div>
 <details><summary id="actionCount">Wijzigingen</summary><ol id="actions"></ol></details>
 <p class="warning">Dit vervangt de voicing van de genoemde kanalen. Scènes 5–8 kunnen dezelfde kanalen gebruiken en daardoor ook anders klinken. IR1/IR2 zijn slots, geen stereokanalen. Lees ook de expliciete mixerwijzigingen.</p>
 <div class="checks"><label><input id="confirmed" type="checkbox"> Ik heb preset, scènes, kanalen en wijzigingen gecontroleerd.</label>

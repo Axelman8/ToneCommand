@@ -19,10 +19,12 @@ from . import protocol
 # The amp layout is checked from the reported four-channel block, as in the
 # historical validated path. The narrower effect layouts were captured.
 LAYOUTS = {"DISTORT": (58, 2, None, 21), "WAH": (94, 4, 25, 6),
-           "DELAY": (70, 4, 89, 18), "REVERB": (66, 4, 71, 14)}
+           "DELAY": (70, 4, 89, 18), "REVERB": (66, 4, 71, 14),
+           "CHORUS": (78, 1, 32, 11)}
 CAPTURED = {"WAH": {"0": "FAS Wah", "1": "Clyde", "2": "Cry Babe"},
             "DELAY": {"0": "Digital Mono", "2": "Analog Mono"},
-            "REVERB": {"0": "Room: Small Room", "9": "Plate: Small Plate"}}
+            "REVERB": {"0": "Room: Small Room", "9": "Plate: Small Plate"},
+            "CHORUS": {"3": "Analog Stereo"}}
 
 
 def roster(reg, family, *, selectable=False):

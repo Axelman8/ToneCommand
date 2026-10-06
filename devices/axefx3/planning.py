@@ -5,7 +5,7 @@ controller sources. Deterministic compilation makes every scene/channel
 explicit and includes final effect levels after model selection.
 """
 import json
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 
@@ -44,12 +44,20 @@ class Reverb(Shape):
     mix: Annotated[float, Field(ge=0, le=40, allow_inf_nan=False, strict=True)]
 
 
+class Chorus(Shape):
+    active: StrictBool
+    rate_hz: Annotated[float, Field(ge=.1, le=10, allow_inf_nan=False, strict=True)]
+    depth: Annotated[float, Field(ge=0, le=100, allow_inf_nan=False, strict=True)]
+    mix: Annotated[float, Field(ge=0, le=100, allow_inf_nan=False, strict=True)]
+
+
 class Scene(Shape):
     name: Text
     amp: Amp
     wah: StrictBool
     delay: Delay
     reverb: Reverb
+    chorus: Chorus | None = None
 
 
 class Cab(Shape):
@@ -61,6 +69,7 @@ class Design(Shape):
     name: Text
     summary: Annotated[str, Field(min_length=1, max_length=4000)]
     amp_model: Annotated[str, Field(min_length=1, max_length=120)]
+    chorus_model: Literal['Analog Stereo'] = 'Analog Stereo'
     cab_left: Cab
     cab_right: Cab | None
     scenes: Annotated[list[Scene], Field(min_length=1, max_length=4)]
@@ -76,6 +85,13 @@ routine tone decisions; the UI provides review and explicit send consent.
 Preserve the requested scene roles, including solo BACKING versus solo LEAD.
 Use distinct voicing where the request calls for distinct sounds, not four
 identical scenes. Each scene receives independent amp/delay/reverb channels.
+Optional chorus uses only a selectable model in the reference: Analog Stereo.
+Chorus controls are rate_hz in Hz (.1..10), depth and mix in percent (0..100).
+Each supplied chorus config has active, rate_hz, depth, mix and its own scene
+channel; final Chorus level is 0 dB. Omit chorus (or use null) to preserve an
+existing Chorus unchanged. Requested Chorus is placed after Cab, before
+Delay/Reverb/Output. Existing single-row routes may require reviewed rightward
+block moves into empty cells; existing effect settings must be preserved.
 Amp levels are provisional dB balances, usually -18 to -12; output is -6 dB.
 Delay/reverb final block levels are 0 dB, with moderate mix/feedback. A wah
 does not transpose pitch. Wah source is the USER's separate controller choice,
@@ -90,9 +106,18 @@ Explain unavoidable musical limitations briefly in the user's language.
 
 
 def reference(reg):
+    chorus_controls = []
+    for name in ('CHORUS_RATE', 'CHORUS_DEPTH', 'CHORUS_MIX', 'CHORUS_LEVEL'):
+        base = reg.find_param('CHORUS', name)
+        if base is not None:
+            spec = reg.spec('CHORUS', base.param_id)
+            chorus_controls.append(dict(name=name, pid=spec.param_id, unit=spec.unit,
+                                        min=spec.dmin, max=spec.dmax))
     return json.dumps(dict(device='Axe-Fx III', firmware=reg.firmware,
         amps=[dict(name=n, facts=reg.amp_models.get(k, {}))
               for k, n in reg.selectable_amp_models().items()],
+        chorus=dict(models=list(models.roster(reg, 'CHORUS', selectable=True).values()),
+                    controls=chorus_controls),
         cabs=[dict(bank=b, slot=o+1, name=n, position=reg.cab_catalog.position(b,o))
               for (b,o),n in sorted(reg.cab_catalog.names.items())],
         safety=audio_safety.reference()), ensure_ascii=False)
@@ -114,9 +139,11 @@ def compile_design(reg, raw, current_route, scene_count, wah_source=None,
     # Reuse only one amp/cab and the supported serial effects, with their actual
     # instances. Never flatten a parallel route or discard other existing blocks.
     ids = list(current_route)
+    chorus_requested = any(s.chorus is not None for s in design.scenes)
+    chorus_added = False
     if ids:
         families = [reg.family_of_effect_id(e)[0] for e in ids]
-        allowed = {'INPUT','OUTPUT','DISTORT','CABINET','WAH','DELAY','REVERB'}
+        allowed = {'INPUT','OUTPUT','DISTORT','CABINET','WAH','DELAY','REVERB','CHORUS'}
         if set(families)-allowed or len(families) != len(set(families)) or ids[0] != 37 or ids[-1] != 42:
             raise ValueError('This builder needs an empty preset or one compatible serial amp/cab route.')
     else:
@@ -130,6 +157,21 @@ def compile_design(reg, raw, current_route, scene_count, wah_source=None,
     blocks = {reg.family_of_effect_id(e)[0]:reg.family_of_effect_id(e)[1] for e in ids}
     if not {'DISTORT','CABINET'} <= blocks.keys():
         raise ValueError('Existing route has no complete Amp/Cab chain; use an empty test preset.')
+    if chorus_requested:
+        cab_id = reg.resolve_block('CABINET', blocks['CABINET'])[1]
+        cab_pos = ids.index(cab_id)
+        if any(ids.index(reg.resolve_block(f, blocks[f])[1]) < cab_pos
+               for f in ('DELAY', 'REVERB') if f in blocks):
+            raise ValueError('Chorus needs Cab before Delay/Reverb; no block is moved or overwritten.')
+        if 'CHORUS' not in blocks:
+            chorus_id = reg.resolve_block('CHORUS', 1)[1]
+            ids.insert(cab_pos + 1, chorus_id)
+            blocks['CHORUS'] = 1
+            chorus_added = True
+        chorus_id = reg.resolve_block('CHORUS', blocks['CHORUS'])[1]
+        if ids.index(chorus_id) != cab_pos + 1:
+            raise ValueError('Requested Chorus must immediately follow Cab; no block is moved or overwritten.')
+        models.target(reg, 'CHORUS', chorus_id, design.chorus_model)
     for needed, family in ((wah_source or any(s.wah for s in design.scenes),'WAH'),
                            (any(s.delay.active for s in design.scenes),'DELAY'),
                            (any(s.reverb.active for s in design.scenes),'REVERB')):
@@ -152,6 +194,8 @@ def compile_design(reg, raw, current_route, scene_count, wah_source=None,
     if not current_route:
         for family in blocks:
             if family not in ('INPUT','OUTPUT'): emit('add_block',family)
+    elif chorus_added:
+        emit('add_block','CHORUS')
     emit('rename_preset',type_name=design.name)
     for number,scene in enumerate(design.scenes,1):
         emit('set_scene',value=number)
@@ -171,6 +215,16 @@ def compile_design(reg, raw, current_route, scene_count, wah_source=None,
                 param('CABINET',f'CABINET_LEVEL{ir}',-6 if design.cab_right else 0)
                 param('CABINET',f'CABINET_PAN{ir}',0)
         bypass('CABINET',False)
+        if scene.chorus is not None:
+            channel('CHORUS',number-1); bypass('CHORUS',True)
+            emit('set_type','CHORUS',type_name=design.chorus_model)
+            for name,value in [('RATE',scene.chorus.rate_hz),('DEPTH',scene.chorus.depth),
+                               ('MIX',scene.chorus.mix),('LEVEL',0)]:
+                param('CHORUS','CHORUS_'+name,value)
+            bypass('CHORUS',not scene.chorus.active)
+        elif chorus_added:
+            # A new block must not affect scenes that did not request it.
+            channel('CHORUS',number-1); bypass('CHORUS',True)
         if 'WAH' in blocks:
             channel('WAH',0)
             if number==1:

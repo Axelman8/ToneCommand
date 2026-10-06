@@ -11,7 +11,7 @@ import math
 from dataclasses import dataclass
 
 from fm9.device import SetResult
-from . import audio_safety, cab_selection, models, modifiers, pedal_control, protocol, route_guard
+from . import audio_safety, cab_selection, models, modifiers, pedal_control, protocol, route_guard, insertion
 
 
 KINDS = {"add_block", "set_param", "set_type", "set_cab", "set_scene", "set_channel",
@@ -121,7 +121,7 @@ def prepare(dev, actions, required_route, expected_preset):
         raise ValueError("Target preset changed or could not be read")
     expected, actual = route_guard.planned_route(dev, dev.reg, required_route, actions)
     if actual and actual != expected:
-        raise ValueError("Existing route needs a separately reviewed insertion; no automatic overwrite")
+        insertion.plan(dev, required_route, actions)
     for item in resolved:
         if item.effect_id is not None and item.effect_id not in expected:
             raise ValueError("Action targets a block outside the reviewed route")
@@ -179,7 +179,7 @@ def execute(dev, actions, required_route, *, expected_preset, external_audio_mut
         resolved, expected, actual = prepare(dev, actions, required_route, expected_preset)
         results = []
         with dev.edit_session(external_audio_muted=True, expected_preset=expected_preset):
-            if not actual:
+            if actual != expected:
                 try:
                     built = dev.build_route(required_route, actions)
                 except (OSError, RuntimeError, ValueError, KeyError) as exc:

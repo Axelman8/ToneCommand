@@ -33,9 +33,10 @@ const path=require('node:path');
         result.controller={source:req.postDataJSON().wah_source,auto_engage:req.postDataJSON().wah_auto_engage};
         result.warnings=['<img src=x onerror=alert(1)> Wah bypass warning'];
         result.cab_choices=[{side:'IR1',name:'Test Greenback',position:'USER 1 slot 28'}];
-        result.design={amp_model:'Test Plexi',cab_left:{bank:2,slot:28},cab_right:null,
+        result.design={amp_model:'Test Plexi',chorus_model:'Analog Stereo',cab_left:{bank:2,slot:28},cab_right:null,
           scenes:['Intro','Main','Heavy','Lead'].map((name,i)=>({name,amp:{gain:i+3,level:-15},wah:i===0||i===3,
-            delay:{active:i===0||i===3,time_ms:280+i*30,feedback:20,mix:15},reverb:{active:true,time_s:1.2,mix:8}}))};
+            delay:{active:i===0||i===3,time_ms:280+i*30,feedback:20,mix:15},reverb:{active:true,time_s:1.2,mix:8},
+            chorus:i===2?null:{active:i!==1,rate_hz:.3,depth:25,mix:20}}))};
         if(failPlan){status=409;result={detail:'AI output refused'};}
       }
       if(name==='send'){
@@ -60,6 +61,9 @@ const path=require('node:path');
     assert.equal(plans[0].wah_auto_engage,'Off');
     assert.equal(await page.locator('#sceneRows tr').count(),4);
     assert.match(await page.textContent('#sceneRows'),/280 ms/);
+    assert.match(await page.textContent('#sceneRows'),/Analog Stereo \| 0.3 Hz \| depth 25% \| mix 20%/);
+    assert.equal(await page.locator('#sceneRows tr').first().locator('td').count(),6);
+    assert.match(await page.textContent('#sceneRows tr:nth-child(3)'),/Bestaand behouden/);
     assert.match(await page.textContent('#controllerChoice'),/Auto Engage: Off/);
     assert.match(await page.textContent('#toneChoice'),/Test Greenback \(USER 1 slot 28\)/);
     if(process.env.TC_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.TC_SCREENSHOT_DIR,'wah-review-desktop.png'),fullPage:true});

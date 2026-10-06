@@ -43,7 +43,9 @@ function showDesign(plan){
     const tr=document.createElement('tr');
     const delay=scene.delay.active?`${scene.delay.time_ms} ms | feedback ${scene.delay.feedback}% | mix ${scene.delay.mix}%`:'Uit';
     const reverb=scene.reverb.active?`${scene.reverb.time_s} s | mix ${scene.reverb.mix}%`:'Uit';
-    for(const value of [`${i+1}. ${scene.name} / ${'ABCD'[i]}`,`${scene.amp.gain} / ${scene.amp.level} dB`,scene.wah?'Aan':'Uit',delay,reverb]){
+    const chorus=scene.chorus?(scene.chorus.active?`${design.chorus_model||'Analog Stereo'} | ${scene.chorus.rate_hz} Hz | depth ${scene.chorus.depth}% | mix ${scene.chorus.mix}%`:'Uit'):
+      plan.actions.some(a=>a.kind==='add_block'&&String(a.block).toUpperCase()==='CHORUS')?'Uit (niet gevraagd)':'Bestaand behouden';
+    for(const value of [`${i+1}. ${scene.name} / ${'ABCD'[i]}`,`${scene.amp.gain} / ${scene.amp.level} dB`,scene.wah?'Aan':'Uit',chorus,delay,reverb]){
       const td=document.createElement('td');td.textContent=value;tr.append(td);
     }
     el('sceneRows').append(tr);

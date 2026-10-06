@@ -41,6 +41,7 @@ class AxeFxIII:
         self._edit_target = None
         self._edit_owner = None
         self._approved_frame = None
+        self._grid_move_permit = None
         self._channels = {}
         self._current_channel = {}
         self.reg = Registry()
@@ -131,6 +132,11 @@ class AxeFxIII:
                 elif payload[:2] == [0x3A, 0]:
                     if len(payload) != 15 or frame != pedal_control.allocation_frame(shared.decode14(*payload[2:4])):
                         raise PermissionError("Unverified modifier allocation frame")
+                elif payload[:2] == [0x36, 0]:
+                    from .insertion import move_right_frame
+                    if (frame != move_right_frame()
+                            or self._grid_move_permit != tuple(frame)):
+                        raise PermissionError('Grid move must belong to the checked insertion transaction')
                 elif payload[:2] in ([0x30, 0], [0x32, 0], [0x35, 0]):
                     if not grid.valid_write(frame, self.reg):
                         raise PermissionError("Unverified/destructive grid frame")
@@ -401,6 +407,15 @@ class AxeFxIII:
     def _prepare_delay_milliseconds(self, spec, channel):
         if spec.tempo_param_id is None:
             return None
+        if spec.family == 'CHORUS':
+            words = self.bulk_read(spec.effect_id)
+            shown = self.read_display_text(spec.effect_id, spec.tempo_param_id)
+            if (words is not None and len(words) == 128
+                    and words[channel * 32 + 3] == 0
+                    and str(shown).strip().upper() == 'NONE'
+                    and self.get_channel(spec.effect_id) == channel):
+                return None
+            return 'Chorus Rate requires independently verified Tempo NONE; nothing written'
         shown = self.read_display_text(spec.effect_id, spec.tempo_param_id)
         word = self._delay_tempo_word(spec, channel)
         if word == 0 and str(shown).strip().upper() == "NONE":

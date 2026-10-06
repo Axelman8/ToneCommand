@@ -71,6 +71,8 @@ class Registry(BaseRegistry):
         definition = AXE_FX_III_PARAM_DEFINITIONS[family][entry["name"]]
         if family == "DISTORT" and instance not in (1, 2):
             raise ValueError("Axe-Fx III has Amp 1 and Amp 2 only")
+        if family == "CHORUS" and instance != 1:
+            raise ValueError("Only Chorus 1 has independent hardware evidence")
         effect_id = self.effect_id(family, instance)
         return ParamSpec(
             family=family, instance=instance, effect_id=effect_id,
@@ -107,6 +109,8 @@ class Registry(BaseRegistry):
             raise ValueError("Not a writable Axe-Fx III block address")
         if family == "DISTORT" and instance not in (1, 2):
             raise ValueError("Axe-Fx III has Amp 1 and Amp 2 only")
+        if family == "CHORUS" and instance != 1:
+            raise ValueError("Only Chorus 1 has independent hardware evidence")
         return super().effect_id(family, instance)
 
     def family_of_effect_id(self, eid: int):

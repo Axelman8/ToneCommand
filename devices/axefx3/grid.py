@@ -113,7 +113,8 @@ def build(dev, required_route, actions):
     if actual == expected:
         return SetResult(True, "Existing complete route verified; reused without writes", actual, actual)
     if actual:
-        return SetResult(False, "Existing route requires a separately reviewed insertion; not overwritten", actual, None)
+        from . import insertion
+        return insertion.build(dev, required_route, actions)
     # Only the historical Input 1 to Output 1 empty-grid build, no destructive
     # preset load or clear to make a nonempty preset appear to be empty.
     for col, eid in enumerate(expected, 1):

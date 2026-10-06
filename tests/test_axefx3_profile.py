@@ -20,7 +20,7 @@ def test_the_registry_is_not_an_fm9_catalog_with_a_new_product_byte(monkeypatch)
     monkeypatch.setenv("TONECOMMAND_DEVICE", "axe-fx-iii")
     fm9 = FM9Registry()
     axe = Registry("32.06")
-    assert len(axe.params) == 39
+    assert len(axe.params) == 43
     assert axe.model_byte == 0x10
     assert fm9.model_byte == 0x12
     assert axe.find_param("DISTORT", "DISTORT_MID").param_id == 3
@@ -54,6 +54,13 @@ def test_unverified_firmware_does_not_inherit_any_writes(firmware):
     ("CABINET", "CABINET_PAN2", -100, 0x09, -1),
     ("CABINET", "CABINET_MUTE2", 1, 0x09, 1),
     ("CABINET", "CABINET_LEVEL1", 0, 0x09, 0),
+    ("CHORUS", "CHORUS_RATE", .3, 0x09, .3),
+    ("CHORUS", "CHORUS_DEPTH", 25, 0x09, .25),
+    ("CHORUS", "CHORUS_DEPTH", 0, 0x09, 0),
+    ("CHORUS", "CHORUS_MIX", 20, 0x09, .2),
+    ("CHORUS", "CHORUS_MIX", 0, 0x09, 0),
+    ("CHORUS", "CHORUS_LEVEL", -12, 0x09, -12),
+    ("CHORUS", "CHORUS_LEVEL", 0, 0x09, 0),
 ])
 def test_captured_display_units_are_not_fm9_normalized_knobs(family, name, value, opcode, wire):
     reg = Registry("32.06")
@@ -90,6 +97,7 @@ def test_no_silent_clamp_or_nonfinite_parameter(value):
     ("DELAY", "DELAY_FEED", 61), ("DELAY", "DELAY_FEED", -61),
     ("DISTORT", "DISTORT_LEVEL", 1), ("OUTPUT", "OUTPUT_LEVEL", 6),
     ("CABINET", "CABINET_MUTE1", .5),
+    ("CHORUS", "CHORUS_LEVEL", 1),
 ])
 def test_static_audio_limits_are_not_bypassed_by_valid_device_ranges(family, name, value):
     reg = Registry("32.06")
@@ -122,3 +130,5 @@ def test_fm9_spec_and_unknown_controls_cannot_enter_the_axe_writer():
     assert reg.find_param("DISTORT", "unknown") is None
     with pytest.raises(ValueError):
         reg.spec("DISTORT", 3, 3)
+    with pytest.raises(ValueError):
+        reg.spec("CHORUS", 2, 2)
