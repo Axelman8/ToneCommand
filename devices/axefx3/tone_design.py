@@ -51,10 +51,11 @@ class ParametricEQ(Shape):
 
 
 FIELDS={'drive':'FUZZ','compressor':'COMP','geq':'GEQ','peq':'PEQ'}
+NEW_MODELS={'FUZZ':'T808 OD','COMP':'Modern VCA Compressor'}
 
 
 def reference(reg):
-    return dict(existing_blocks_only=True,
+    return dict(existing_blocks_only=['geq','peq'],automatic_insertion=['drive','compressor'],
         modes={'FUZZ':['Rat Distortion','T808 OD','T808 Mod'],
                'COMP':['Modern VCA Compressor','Classic VCA Compressor'],
                'GEQ':'10 Band Variable Q','PEQ':'Shelving/Peaking/Peaking/Peaking/Shelving'},
@@ -68,22 +69,41 @@ def reference(reg):
 
 
 def validate_route(design,blocks,ids,reg):
+    added=[]
     for attr,family in FIELDS.items():
         if any(getattr(s,attr) is not None for s in design.scenes):
-            if family not in blocks or blocks[family]!=1:
-                raise ValueError(f'{attr}: an existing first block is required; automatic insertion/model choice is not verified.')
+            if family not in blocks:
+                if family not in NEW_MODELS:
+                    raise ValueError(f'{attr}: an existing first EQ block is required; automatic EQ insertion is not verified.')
+                eid=reg.resolve_block(family,1)[1]
+                amp=reg.resolve_block('DISTORT',blocks['DISTORT'])[1]
+                anchor=amp
+                if family=='FUZZ' and 'COMP' in blocks:
+                    comp=reg.resolve_block('COMP',blocks['COMP'])[1]
+                    if ids.index(comp)<ids.index(amp):anchor=comp
+                ids.insert(ids.index(anchor),eid);blocks[family]=1;added.append(family)
+                for scene in design.scenes:
+                    config=getattr(scene,attr)
+                    if config is not None and config.model is None:config.model=NEW_MODELS[family]
+            if blocks[family]!=1:
+                raise ValueError(f'{attr}: only the captured first instance is supported.')
             eid=reg.resolve_block(family,1)[1]
             cab=reg.resolve_block('CABINET',blocks['CABINET'])[1]
             amp=reg.resolve_block('DISTORT',blocks['DISTORT'])[1]
             if ((family in ('FUZZ','COMP') and ids.index(eid)>ids.index(amp))
                     or (family in ('GEQ','PEQ') and ids.index(eid)<ids.index(cab))):
                 raise ValueError('Requested Drive/Compressor must precede Amp; EQ must follow Cab. No automatic moves.')
+    return added
 
 
-def compile_scene(scene,number,emit):
+def compile_scene(scene,number,emit,added=()):
     for attr,family in FIELDS.items():
         config=getattr(scene,attr)
-        if config is None:continue
+        if config is None:
+            if family in added:
+                emit('set_channel',family,value=number-1)
+                emit('set_bypass',family,bypassed=True)
+            continue
         values=[]
         if family=='FUZZ':
             values=[('DRIVE',config.drive),('TONE',config.tone),('MIX',config.mix)]

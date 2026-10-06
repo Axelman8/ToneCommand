@@ -42,6 +42,8 @@ class AxeFxIII:
         self._edit_owner = None
         self._approved_frame = None
         self._grid_move_permit = None
+        # Developer fixture setup only, never an executor action or API route.
+        self._grid_fixture_permit = None
         self._channels = {}
         self._current_channel = {}
         self.reg = Registry()
@@ -138,9 +140,21 @@ class AxeFxIII:
                         raise PermissionError("Unverified modifier allocation frame")
                 elif payload[:2] == [0x36, 0]:
                     from .insertion import move_right_frame
-                    if (frame != move_right_frame()
+                    fixture = (getattr(self, '_edit_target', None) == 323 and self.reg.firmware == '32.06'
+                               and getattr(self, '_grid_fixture_permit', None) == tuple(frame)
+                               and frame == grid.fixture_left_frame())
+                    if ((frame != move_right_frame() and not fixture)
                             or self._grid_move_permit != tuple(frame)):
                         raise PermissionError('Grid move must belong to the checked insertion transaction')
+                elif payload[:2] == [0x33, 0]:
+                    if (getattr(self, '_edit_target', None) != 323 or self.reg.firmware != '32.06'
+                            or getattr(self, '_grid_fixture_permit', None) != tuple(frame)
+                            or frame not in (grid.fixture_remove_frame(2), grid.fixture_remove_frame(3))):
+                        raise PermissionError('Removal is limited to the explicitly approved developer fixture')
+                    col = 2 if frame == grid.fixture_remove_frame(2) else 3
+                    cell = grid.snapshot(self.read_grid()).get((3,col))
+                    if not cell or cell[1] or cell[0] not in (118,46):
+                        raise PermissionError('Only test Drive1 or Compressor1 may be removed')
                 elif payload[:2] in ([0x30, 0], [0x32, 0], [0x35, 0]):
                     if not grid.valid_write(frame, self.reg):
                         raise PermissionError("Unverified/destructive grid frame")

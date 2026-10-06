@@ -90,10 +90,12 @@ Preserve the requested scene roles, including solo BACKING versus solo LEAD.
 Use distinct voicing where the request calls for distinct sounds, not four
 identical scenes. Each scene receives independent amp/delay/reverb channels.
 Optional chorus uses only a selectable model in the reference: Analog Stereo.
-Optional drive/compressor/geq/peq configure EXISTING first blocks only in
-the exact listed modes. Optional Drive/Compressor model may select only a
-captured model in the reference. Omit model to preserve it. Do not insert
-these blocks. Preserve EQ filter types. Omission preserves them unchanged. Supply
+Optional drive/compressor can place a missing first block before Amp on a
+compatible serial route with real empty right-hand space, preserving shunts
+and existing settings. Choose a captured model from the reference. Omit model
+to preserve an existing model; new Drive defaults to T808 OD, new Compressor
+to Modern VCA. Optional geq/peq require EXISTING first blocks in the listed
+modes. Preserve EQ filter types. Omission preserves existing blocks. Supply
 distinct scene configs/channels only when requested. Drive drive/tone/level
 are 0-10 knobs, but level is capped at 5, not dB. Compressor attack/release
 are ms. GEQ has exactly ten gains in the listed band order. PEQ has five
@@ -171,7 +173,7 @@ def compile_design(reg, raw, current_route, scene_count, wah_source=None,
     blocks = {reg.family_of_effect_id(e)[0]:reg.family_of_effect_id(e)[1] for e in ids}
     if not {'DISTORT','CABINET'} <= blocks.keys():
         raise ValueError('Existing route has no complete Amp/Cab chain; use an empty test preset.')
-    tone_design.validate_route(design,blocks,ids,reg)
+    extra_added=tone_design.validate_route(design,blocks,ids,reg)
     if chorus_requested:
         cab_id = reg.resolve_block('CABINET', blocks['CABINET'])[1]
         cab_pos = ids.index(cab_id)
@@ -209,8 +211,9 @@ def compile_design(reg, raw, current_route, scene_count, wah_source=None,
     if not current_route:
         for family in blocks:
             if family not in ('INPUT','OUTPUT'): emit('add_block',family)
-    elif chorus_added:
-        emit('add_block','CHORUS')
+    else:
+        for family in extra_added:emit('add_block',family,position='pre')
+        if chorus_added:emit('add_block','CHORUS')
     emit('rename_preset',type_name=design.name)
     for number,scene in enumerate(design.scenes,1):
         emit('set_scene',value=number)
@@ -230,7 +233,7 @@ def compile_design(reg, raw, current_route, scene_count, wah_source=None,
                 param('CABINET',f'CABINET_LEVEL{ir}',-6 if design.cab_right else 0)
                 param('CABINET',f'CABINET_PAN{ir}',0)
         bypass('CABINET',False)
-        tone_design.compile_scene(scene,number,emit)
+        tone_design.compile_scene(scene,number,emit,extra_added)
         if scene.chorus is not None:
             channel('CHORUS',number-1); bypass('CHORUS',True)
             emit('set_type','CHORUS',type_name=design.chorus_model)

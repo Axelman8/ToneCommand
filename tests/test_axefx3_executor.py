@@ -35,6 +35,27 @@ def test_extra_effect_future_channels_are_preflighted_before_amp_write(dev,bad):
     dev.set_scene.assert_not_called()
 
 
+@pytest.mark.parametrize('bad',['missing_model','missing_channel','orphan_modifier','unsupported_model'])
+def test_new_drive_requires_complete_static_preflight_before_routing(dev,bad):
+    from devices.axefx3 import modifiers
+    from unittest.mock import patch
+    ids=[37,58,62,42]
+    dev.read_grid.side_effect=lambda:[GridCell(2,i,e,False,8 if i else 0) for i,e in enumerate(ids)]
+    dev.status_dump.side_effect=lambda:[BlockStatus(e,True,0,4) for e in ids]
+    actions=[dict(kind='add_block',block='FUZZ',position='pre'),
+             dict(kind='set_channel',block='FUZZ',value=0),
+             dict(kind='set_type',block='FUZZ',type_name='T808 OD'),
+             dict(kind='set_param',block='FUZZ',param='FUZZ_LEVEL',value=2)]
+    if bad=='missing_model':actions.pop(2)
+    if bad=='missing_channel':actions.pop(1)
+    if bad=='unsupported_model':actions[2]['type_name']='FAS Boost'
+    slots=[dict(effect_id=118 if bad=='orphan_modifier' else 0,source=0)]
+    with patch.object(modifiers,'preflight',return_value=slots):
+        with pytest.raises(ValueError):prepare(dev,actions,['Input 1','Drive 1','Amp 1','Cab 1','Output 1'],322)
+    dev.build_route.assert_not_called()
+    dev.set_param_display.assert_not_called()
+
+
 @pytest.fixture
 def dev():
     rig = Mock()

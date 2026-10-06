@@ -10,10 +10,13 @@ builders. It does not copy the FM9 parameter catalogue by replacing a
 product byte. Display-unit SET laws, bulk layouts and parameter addresses
 remain independently calibrated for the Axe-Fx III.
 
-Only one Chorus 1 can be inserted immediately after Cab 1. An existing
+Chorus 1 can be inserted immediately after Cab 1. An existing
 route must be complete, contiguous, serial, on display row 3, with an
-empty column immediately to its right. Downstream shunts, parallel routes,
-other missing blocks, other firmware and a full grid are refused.
+empty column immediately to its right. The later Drive/Compressor insertion
+checkpoint also verifies moving and preserving downstream shunts, not using
+them as disposable slack. Parallel routes, unsupported missing blocks,
+other firmware and a full grid are refused. Multiple bounded additions are
+performed sequentially; combined Drive/Compressor has native acceptance.
 
 The captured rightward move preserves block data, unlike clear/reinsert.
 TC moves rightmost blocks first, validates the entire grid after every

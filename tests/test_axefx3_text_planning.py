@@ -64,12 +64,32 @@ def test_optional_captured_model_choices_precede_voicing_and_explicit_final_leve
     dev._write.assert_not_called()
 
 
+@pytest.mark.parametrize('existing',[True,False])
+def test_new_drive_comp_compile_adds_models_and_bypasses_unrequested_scenes(dev,design,existing):
+    route=[37,58,62,70,66,42] if existing else []
+    for s in design['scenes']:s['wah']=False
+    configs=extra_config()
+    design['scenes'][0].update({k:configs[k] for k in ('drive','compressor')})
+    plan=planning.compile_design(dev.reg,design,route,4)
+    assert plan['required_route'][:4]==['Input 1','Drive 1','Compressor 1','Amp 1']
+    for family,name in [('FUZZ','T808 OD'),('COMP','Modern VCA Compressor')]:
+        actions=[a for a in plan['actions'] if a.get('block')==family]
+        assert len([a for a in actions if a['kind']=='add_block'])==1
+        assert [a['type_name'] for a in actions if a['kind']=='set_type']==[name]
+        assert [a['value'] for a in actions if a['kind']=='set_channel']==[0,1,2,3]
+        assert [a['bypassed'] for a in actions if a['kind']=='set_bypass']==[True,False,True,True,True]
+    assert plan['design']['scenes'][0]['drive']['model']=='T808 OD'
+    assert plan['design']['scenes'][0]['compressor']['model']=='Modern VCA Compressor'
+    assert not any(a['kind']=='add_block' and a.get('block') in ('GEQ','PEQ') for a in plan['actions'])
+    if not existing:executor.prepare(dev,plan['actions'],plan['required_route'],324)
+
+
 @pytest.mark.parametrize('bad',['missing','post_drive','pre_eq','boost','drive_level','bands','q','nan','bool'])
 def test_optional_effects_fail_closed_without_write(dev,design,bad):
     route=[37,118,46,58,62,50,54,70,66,42]
     for s in design['scenes']:s['wah']=False
     design['scenes'][0].update(extra_config())
-    if bad=='missing':route.remove(118)
+    if bad=='missing':route.remove(50)
     if bad=='post_drive':route.remove(118);route.insert(4,118)
     if bad=='pre_eq':route.remove(50);route.insert(1,50)
     if bad=='boost':design['scenes'][0]['geq']['gains'][0]=1

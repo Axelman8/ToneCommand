@@ -16,6 +16,26 @@ def reframe(frame):
     return protocol.envelope(frame[5], frame[6:-2])
 
 
+def fixture_remove_frame(col):
+    """Captured Axe-Edit DELETE 01 33, only two owner-approved test cells.
+
+    This is not public block deletion, shunt replacement or an AI action.
+    The adapter additionally requires preset323, an exact scoped permit and
+    a live Drive1/Compressor1 at the addressed cell. No Store.
+    """
+    if type(col) is not int or col not in (2,3):
+        raise ValueError('Only developer test columns2/3')
+    payload = shared.build_select_grid_cell(3,col)[6:-2]
+    payload[0] = 0x33
+    return protocol.envelope(1,payload)
+
+
+def fixture_left_frame():
+    # Exact 01 36 leftward drag captured during Chorus fixture restoration.
+    # It has no executor action and requires a second fixture-only permit.
+    return protocol.envelope(1,[0x36,0,0,0,0,0,0,0,0,0,0,0,0,0,0])
+
+
 def valid_write(frame, reg):
     payload = frame[6:-2]
     sub = payload[:2]

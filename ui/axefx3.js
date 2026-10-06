@@ -47,7 +47,12 @@ function showDesign(plan){
       plan.actions.some(a=>a.kind==='add_block'&&String(a.block).toUpperCase()==='CHORUS')?'Uit (niet gevraagd)':'Bestaand behouden';
     const extras=[];
     for(const [key,label] of [['drive','Drive'],['compressor','Compressor'],['geq','GEQ'],['peq','PEQ']]){
-      const config=scene[key];if(!config)continue;
+      const config=scene[key];
+      if(!config){
+        const family={drive:'FUZZ',compressor:'COMP',geq:'GEQ',peq:'PEQ'}[key];
+        if(plan.actions.some(a=>a.kind==='add_block'&&String(a.block).toUpperCase()===family))extras.push(`${label}: uit (niet gevraagd)`);
+        continue;
+      }
       const model=config.model?` | ${config.model}`:'';
       if(!config.active){extras.push(`${label}: uit${model}`);continue;}
       const value=key==='drive'?`gain ${config.drive}, tone ${config.tone}, level ${config.level}/10, mix ${config.mix}%`:

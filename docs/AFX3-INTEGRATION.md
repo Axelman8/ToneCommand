@@ -63,8 +63,11 @@ for exact first-block mode gates, units, preservation checks and limits.
 The follow-up verified 81/81 native model/control actions: Drive 1 Rat,
 T808 OD/T808 Mod and Compressor 1 Modern/Classic VCA can now be explicitly
 selected by a per-scene design. Omitted model choices preserve the model.
-This is not complete FM9 effect parity: automatic insertion of these
-families is still gated; PEQ Q/types remain unchanged. Hardware acceptance
+The next owner-approved test verified automatic Drive/Compressor insertion,
+including 20/20 combined insertion/configuration actions on323 with original
+settings and shunts preserved. See the same evidence document for bounds.
+This is not complete FM9 effect parity: automatic EQ insertion is still
+gated; PEQ Q/types remain unchanged. Hardware acceptance
 is first-instance channel A, with other channels preserved, not a claim
 of every model/channel or acoustic match.
 

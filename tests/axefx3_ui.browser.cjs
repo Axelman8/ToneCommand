@@ -11,7 +11,7 @@ const path=require('node:path');
     const page=await browser.newPage({viewport:{width:1440,height:1000}});
     const errors=[],plans=[],sends=[];
     page.on('pageerror',e=>errors.push(e.message));
-    let failPlan=false,failSend=false,failRead=false;
+    let failPlan=false,failSend=false,failRead=false,addedExtras=false;
     await page.route('**/*',async route=>{
       const req=route.request(),url=new URL(req.url()),name=url.pathname.split('/').pop();
       if(url.pathname==='/axefx3'||url.pathname==='/axefx3.js'){
@@ -41,6 +41,10 @@ const path=require('node:path');
             compressor:i===1?{model:'Classic VCA Compressor',active:true,threshold:-30,ratio:4,attack_ms:5,release_ms:250,mix:75,level:-12}:null,
             geq:i===2?{active:true,gains:Array(10).fill(-3),level:-6}:null,
             peq:i===3?{active:true,bands:[200,400,800,1600,3200].map(frequency_hz=>({frequency_hz,gain:-3})),level:-6}:null}))};
+        if(addedExtras){
+          result.actions.push({kind:'add_block',block:'FUZZ'},{kind:'add_block',block:'COMP'});
+          result.required_route=['Input 1','Wah 1','Drive 1','Compressor 1','Amp 1','Cab 1','Output 1'];
+        }
         if(failPlan){status=409;result={detail:'AI output refused'};}
       }
       if(name==='send'){
@@ -89,9 +93,12 @@ const path=require('node:path');
     assert(await page.locator('#send').isDisabled());
     await page.check('#confirmed');assert(await page.locator('#send').isDisabled());
     await page.check('#muted');assert(await page.locator('#send').isEnabled());
+    addedExtras=true;
     await page.fill('#prompt','Different sound');
     assert(await page.locator('#review').isHidden());assert.equal(sends.length,0);
     await page.click('#generate');await page.locator('#review:not([hidden])').waitFor();
+    assert.match(await page.textContent('#sceneRows tr:nth-child(1)'),/Compressor: uit \(niet gevraagd\)/);
+    assert.match(await page.textContent('#sceneRows tr:nth-child(2)'),/Drive: uit \(niet gevraagd\)/);
     assert(!(await page.isChecked('#confirmed')));
     await page.check('#confirmed');await page.check('#muted');await page.click('#send');
     await page.locator('#result:not([hidden])').waitFor();await page.locator('#refresh:not([disabled])').waitFor();

@@ -52,13 +52,14 @@ channel, bypasses while voicing, writes the final level and applies the
 requested final bypass state. Omission preserves existing settings.
 The browser review shows the extra voicing, optional model and units per scene.
 
-These four blocks must already exist, with Drive/Compressor before Amp and
-EQ after Cab. Omitted Drive/Compressor model choices preserve their models;
+Drive/Compressor can now be inserted before Amp in the bounded topology
+described below; GEQ/PEQ must already exist after Cab.
+Omitted Drive/Compressor model choices preserve existing models;
 EQ filter types, Q and modifiers are always preserved. A complete
 bulk layout and the mode on every addressed future channel are validated
 before the first plan write, and rechecked in each display setter. A failure
 stops the batch; partial edits can remain. No guessed fallback opcode,
-automatic rebuilding, extra insertion or global controller setup is enabled.
+automatic destructive rebuilding or global controller setup is enabled.
 
 Drive Level is a 0-10 knob, **not dB and not calibrated unity gain**. Only
 the pinned captured AFX3 Drive profiles have a 0..5 automation allowance. FM9 generic
@@ -67,8 +68,8 @@ levels remain <= 0. Compressor attack/release in the design are milliseconds.
 External mute is still mandatory; none of these limits measures loudness,
 feedback stability or prevents damage independently of the physical setup.
 No audio comparison, positive EQ boost, raw restoration or acoustic match
-has been proven by this test. Automatic insertion of these families remains
-a separate evidence gate.
+has been proven by this test. The later insertion checkpoint below is separate
+from the original existing-block control evidence.
 
 ## Captured model-selection follow-up, 2026-10-06
 
@@ -106,9 +107,8 @@ pid 0. Model 13 must never be sent to that threshold address.
 Model changes leave the block bypassed and restage its level afterwards.
 Drive uses captured Level knob 0, Compressor uses at most -12 dB. This is
 not calibrated unity or a limiter. External mute and physical audition are
-still necessary. Existing Drive/Compressor placement remains required.
-Testing automatic insertion requires a separately approved structural test;
-no existing block or shunt was removed in this follow-up.
+still necessary. No existing block or shunt was removed in the model-selection
+follow-up; the later insertion test received separate removal permission.
 
 Final software gates passed **714 tests**, 114.71 seconds, six workers,
 including all AFX3 tests and mandatory device-handle/capability/UI-warning
@@ -117,6 +117,74 @@ Installed headless Chrome passed the existing workspace checks and new
 model-name rendering. TC was restarted disconnected via SIGTERM, then
 reconnected to323 with the512-name User1 names-only catalogue restored.
 No paid AI generation, Store or acoustic comparison was performed.
+
+## Automatic insertion acceptance, 2026-10-06
+
+The owner explicitly authorized temporary removal/recreation of Drive1 and
+Compressor1 on muted TestPreset323. No permanent Store was authorized.
+Previously recorded Axe-Edit DELETE/left-drag frames were reused only for
+developer fixture setup. The application and AI have no delete action.
+Fixture permissions require FW32.06, target323, exact transaction frames,
+test columns2/3 and live Drive1/Compressor1. Leftward fixture moves require
+an additional scoped permit; normal insertion permits only rightward moves.
+
+A readback stop exposed two DELETE/leftward-drag details: deleting a block
+also clears the following cell's incoming cable, as does moving its source
+left. Fresh independent grid/bulk reads confirmed all protected settings
+held. Only that exact observed partial state was resumed; no blind retry or
+automatic routing rollback was attempted. Fixture compaction then repaired
+the known adjacent span and independently verified a complete serial route.
+
+Native `insertion-shunt_probe-*.json` verifies a shunt/output round trip,
+including exact restoration of all original bulk, grid, names and modifiers.
+Each individual missing Drive/Compressor was then inserted by TC's normal
+single-use review/executor path: **3/3 actions each**. Fresh defaults read as
+Rat/Modern VCA with complete four-channel layouts. Both original shunts and
+all protected state were preserved, and the new blocks were bypassed.
+
+Both blocks were removed again for the combined test. One normal review
+then verified **20/20 actions**, none skipped: automatic placement, explicit
+channelA, T808 OD and Modern VCA selection, ten numeric control writes and
+final bypass. Independent reads confirmed Drive6/Tone4/Mix100/Level2;
+Compressor threshold-30dB/ratio4/attack5ms/release249.99ms/mix75/level-12dB.
+Other channels of the newly placed blocks match the immediately post-build
+snapshot. These are not claims that deletion retained their previous data.
+Input/Amp/Cab/GEQ/PEQ/Output bulk, names and every modifier stayed unchanged.
+Final grid equals the original ten-cell grid, including both shunts.
+Private acceptance files: `insertion-combined-{review,result,final}-20261006.json`.
+
+Production insertion is limited to contiguous, fully verified serial display
+row3 with Amp1/Cab1 and enough actual empty columns at the right edge.
+Only Drive1, Compressor1 and the previously verified Chorus1 may be added.
+Drive/Compressor precede Amp; Chorus immediately follows Cab. Existing effect
+order is preserved. Every displaced block/shunt, every cable and all original
+settings are independently checked. The FM9 read-only splice planner is
+reused when it would not spend a shunt. Otherwise TC displaces the entire
+span to real empty slack, retaining each shunt. No shunt is overwritten.
+Parallel layouts, full grids, unsupported additions and ambiguous aliases
+are refused before writes. Partial failure stops and remains an unsaved edit.
+
+The text compiler exposes optional missing Drive/Compressor as ADD actions,
+using the requested captured model or T808 OD/Modern VCA defaults. Newly
+added blocks are bypassed in configured scenes that omit them. Omission
+still preserves an existing effect. Missing GEQ/PEQ remains unsupported.
+New numeric writes require ADD, explicit channel and captured model first;
+orphan modifier records targeting an absent new block refuse the whole plan.
+Physical mute is mandatory; there is no calibrated limiter or acoustic match.
+This insertion-only test preserved amp/cab voicing; a new full text design
+may intentionally change those sounds, so review the entire proposal.
+Hardware insertion/configuration acceptance is scene1/channelA. A-D design
+and other geometries are covered offline, not asserted as heard presets.
+
+Final SIM regression run: **750 passed**, 116.32 seconds, six workers.
+Includes all AFX3 tests, mandatory device-handle/capability/UI-warning,
+invariant safety and unchanged FM9 splice/consent regressions. Report:
+`insertion-final-gates-20261006.xml`. Real installed headless Chrome passed
+the workspace and new unrequested-added-effect bypass summaries. The live
+server was SIGTERM-restarted disconnected, then reconnected to323 with the
+512-name User1 catalogue restored. No paid AI generation or sound audition
+was used as evidence; this is protocol/application acceptance, not full FM9
+effect parity or a proven recording reproduction.
 
 ## Offline and browser verification
 

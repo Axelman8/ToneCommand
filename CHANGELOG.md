@@ -17,6 +17,13 @@ Notable changes to ToneCommand. Dates are UTC.
   controller workspace, firmware gates and blocked general tone executor.
 
 ### Added
+- Reviewed FW32.06 Drive 1 and Compressor 1 insertion before Amp 1 in
+  compatible serial row-3 routes, including multiple additions and exact
+  preservation of downstream shunts. New text designs select captured models,
+  voice explicit channels/final levels and bypass unrequested configured scenes.
+  Muted TestPreset323 tests verified both individual insertions and 20/20
+  combined insertion/configuration actions, preserving amp, cab, EQ, routing
+  and controllers. No AI deletion, destructive rebuild, Store or topology Undo.
 - FW32.06 Drive 1 model selection: Rat Distortion, T808 OD and T808 Mod;
   Compressor 1: Modern VCA and Classic VCA. Captured model selectors are
   respectively pid 0 and pid 12, never conflated with Compressor threshold.

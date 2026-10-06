@@ -68,10 +68,10 @@ def dev(monkeypatch):
             eid = shared.decode14(*payload[2:4])
             pos = shared.decode14(*payload[6:8])
             col, row = divmod(pos, 6)
-            assert eid == 78
+            assert eid in (78,118,46)
             state['grid'].append(GridCell(row, col, eid, False, 0))
             state['blocks'].append(BlockStatus(eid, True, 0, 4))
-            state['bulk'][eid] = [78] * 128
+            state['bulk'][eid] = [eid] * 128
             if d.fault == 'placement_state':
                 state['bulk'][58][1] += 1
         elif payload[:2] == [0x35, 0]:
@@ -138,7 +138,7 @@ def test_success_preserves_shunts_and_full_original_state(dev, monkeypatch):
     assert dev._grid_move_permit is None
 
 
-@pytest.mark.parametrize('bad', ['row', 'branch', 'downstream_shunt', 'missing_cab',
+@pytest.mark.parametrize('bad', ['row', 'branch', 'missing_cab',
                                 'no_slack', 'full_grid', 'gap', 'firmware'])
 def test_invalid_complete_grid_refused_without_writes(dev, bad):
     cells = dev.state['grid']
@@ -208,6 +208,30 @@ def test_move_permit_cleared_after_exception(dev):
     assert dev.move_count == 1
     dev.place_block.assert_not_called()
     dev.connect_cells.assert_not_called()
+
+
+@pytest.mark.parametrize('family,eid',[('FUZZ',118),('COMP',46)])
+def test_preamp_insertion_preserves_downstream_shunts_and_settings(dev,family,eid):
+    before=copy.deepcopy(dev.state)
+    route=['Input 1', ('Drive 1' if eid==118 else 'Compressor 1'),
+           'Amp 1','Cab 1','Delay 1','Reverb 1','Output 1']
+    result=insertion.build(dev,route,[dict(kind='add_block',block=family)])
+    assert result.ok,result.detail
+    assert insertion._held(before,dev.state)
+    assert result.display_after==[37,eid,58,62,70,66,42]
+    assert sum(c.is_shunt for c in dev.state['grid'])==2
+    assert dev._grid_move_permit is None
+
+
+def test_combined_drive_comp_insertions_preserve_shunts_without_clearing(dev):
+    before=copy.deepcopy(dev.state)
+    route=['Input 1','Drive 1','Compressor 1','Amp 1','Cab 1','Delay 1','Reverb 1','Output 1']
+    result=insertion.build(dev,route,[dict(kind='add_block',block=f) for f in ('FUZZ','COMP')])
+    assert result.ok,result.detail
+    assert insertion._held(before,dev.state)
+    assert result.display_after==[37,118,46,58,62,70,66,42]
+    assert sum(c.is_shunt for c in dev.state['grid'])==2
+    assert not any(f[6:8]==[51,0] for f in dev.writes)
 
 
 @pytest.mark.parametrize('approved', [False, True])
