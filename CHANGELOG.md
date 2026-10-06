@@ -5,6 +5,9 @@ Notable changes to ToneCommand. Dates are UTC.
 ## Unreleased
 
 ### Changed
+- Keep bypassed signal-chain block and model names readable in white, with
+  a white channel letter inside a solid red badge. Active channel styling
+  and dashed bypassed block outlines remain unchanged, including expanded views.
 - New empty AFX3 text builds reserve and voice Delay 1 even when every scene
   requests dry sound. It remains bypassed until requested, so later delay
   adjustments reuse the existing block without manual insertion. Existing

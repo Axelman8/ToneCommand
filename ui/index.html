@@ -867,20 +867,19 @@
   svg.grid .cell.byp > rect { stroke-dasharray: 4 3; fill: #0b0e12; }
   svg.grid .cell:hover > rect { stroke: var(--cyan); fill: #101c22; }
   svg.grid .cell.busy > rect { stroke: var(--amber); }
-  svg.grid .nm { fill: var(--text); font-size: 12.5px; letter-spacing: 0.01em;
+  svg.grid .nm { fill: #fff; font-size: 12.5px; letter-spacing: 0.01em;
                  pointer-events: none; }
-  svg.grid .cell.byp .nm { fill: var(--dim); }
   /* The loaded model, under the block name. Dim on purpose: the block name and
      the live path are what you scan for, this is what you check. */
   svg.grid .cell .sub { font-size: 6.5px; fill: var(--muted); }
   svg.grid .cell.live .sub { fill: var(--cyan-dim); }
-  svg.grid .cell.byp .sub { fill: var(--dim); opacity: 0.6; }
+  svg.grid .cell.byp .sub { fill: #fff; }
   svg.grid .ch { fill: var(--cyan-dim); font-size: 10.5px; letter-spacing: .06em; }
   svg.grid .chbox { fill: rgba(47,230,255,0.10); stroke: rgba(47,230,255,0.30);
                     stroke-width: 1; rx: 2; }
-  svg.grid .cell.byp .ch { fill: var(--muted); }
-  svg.grid .cell.byp .chbox { fill: rgba(255,255,255,0.04);
-                              stroke: rgba(255,255,255,0.16); }
+  svg.grid .cell.byp .ch { fill: #fff; }
+  svg.grid .cell.byp > .chbox { fill: rgba(255,84,112,0.10);
+                               stroke: var(--red); stroke-dasharray: none; }
   .gridnote { display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
               margin-top: 10px; }
   .gridnote .k { display: inline-flex; align-items: center; gap: 5px;
