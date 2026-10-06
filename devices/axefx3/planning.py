@@ -9,7 +9,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 
-from . import audio_safety, executor, models, route_guard
+from . import audio_safety, executor, models, route_guard,tone_design
 
 Knob = Annotated[float, Field(ge=0, le=10, allow_inf_nan=False, strict=True)]
 Level = Annotated[float, Field(ge=-60, le=0, allow_inf_nan=False, strict=True)]
@@ -58,6 +58,10 @@ class Scene(Shape):
     delay: Delay
     reverb: Reverb
     chorus: Chorus | None = None
+    drive: tone_design.Drive | None = None
+    compressor: tone_design.Compressor | None = None
+    geq: tone_design.GraphicEQ | None = None
+    peq: tone_design.ParametricEQ | None = None
 
 
 class Cab(Shape):
@@ -86,6 +90,14 @@ Preserve the requested scene roles, including solo BACKING versus solo LEAD.
 Use distinct voicing where the request calls for distinct sounds, not four
 identical scenes. Each scene receives independent amp/delay/reverb channels.
 Optional chorus uses only a selectable model in the reference: Analog Stereo.
+Optional drive/compressor/geq/peq configure EXISTING first blocks only in
+the exact listed modes. Preserve their model/filter types; do not select
+models or insert these blocks. Omission preserves them unchanged. Supply
+distinct scene configs/channels only when requested. Drive drive/tone/level
+are 0-10 knobs, but level is capped at 5, not dB. Compressor attack/release
+are ms. GEQ has exactly ten gains in the listed band order. PEQ has five
+frequency_hz/gain bands, preserving existing Q and filter types. EQ gains and
+dB effect levels must be nonpositive. These are static limits, not a limiter.
 Chorus controls are rate_hz in Hz (.1..10), depth and mix in percent (0..100).
 Each supplied chorus config has active, rate_hz, depth, mix and its own scene
 channel; final Chorus level is 0 dB. Omit chorus (or use null) to preserve an
@@ -118,6 +130,7 @@ def reference(reg):
               for k, n in reg.selectable_amp_models().items()],
         chorus=dict(models=list(models.roster(reg, 'CHORUS', selectable=True).values()),
                     controls=chorus_controls),
+        existing_effects=tone_design.reference(reg),
         cabs=[dict(bank=b, slot=o+1, name=n, position=reg.cab_catalog.position(b,o))
               for (b,o),n in sorted(reg.cab_catalog.names.items())],
         safety=audio_safety.reference()), ensure_ascii=False)
@@ -143,7 +156,7 @@ def compile_design(reg, raw, current_route, scene_count, wah_source=None,
     chorus_added = False
     if ids:
         families = [reg.family_of_effect_id(e)[0] for e in ids]
-        allowed = {'INPUT','OUTPUT','DISTORT','CABINET','WAH','DELAY','REVERB','CHORUS'}
+        allowed = {'INPUT','OUTPUT','DISTORT','CABINET','WAH','DELAY','REVERB','CHORUS','FUZZ','COMP','GEQ','PEQ'}
         if set(families)-allowed or len(families) != len(set(families)) or ids[0] != 37 or ids[-1] != 42:
             raise ValueError('This builder needs an empty preset or one compatible serial amp/cab route.')
     else:
@@ -157,6 +170,7 @@ def compile_design(reg, raw, current_route, scene_count, wah_source=None,
     blocks = {reg.family_of_effect_id(e)[0]:reg.family_of_effect_id(e)[1] for e in ids}
     if not {'DISTORT','CABINET'} <= blocks.keys():
         raise ValueError('Existing route has no complete Amp/Cab chain; use an empty test preset.')
+    tone_design.validate_route(design,blocks,ids,reg)
     if chorus_requested:
         cab_id = reg.resolve_block('CABINET', blocks['CABINET'])[1]
         cab_pos = ids.index(cab_id)
@@ -215,6 +229,7 @@ def compile_design(reg, raw, current_route, scene_count, wah_source=None,
                 param('CABINET',f'CABINET_LEVEL{ir}',-6 if design.cab_right else 0)
                 param('CABINET',f'CABINET_PAN{ir}',0)
         bypass('CABINET',False)
+        tone_design.compile_scene(scene,number,emit)
         if scene.chorus is not None:
             channel('CHORUS',number-1); bypass('CHORUS',True)
             emit('set_type','CHORUS',type_name=design.chorus_model)

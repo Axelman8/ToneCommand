@@ -6,6 +6,7 @@ requires its own hardware acceptance. Metadata is not acoustic proof.
 See docs/AFX3-PARITY-2026-09-19.md for provenance and limits.
 """
 from fm9.protocol import normalized_to_display
+from .tone_controls import DEFINITIONS as EXTRA_CONTROLS, ZERO_TYPED as EXTRA_ZERO_TYPED
 
 AXE_FX_III_PARAM_DEFINITIONS = {
     # Axe-Edit III + independent FW32.06 display/bulk reads on test 323,
@@ -186,6 +187,7 @@ AXE_FX_III_CAB_MIX_PARAMS = {
         "display_tolerance": 0, "firmware_versions": ("32.06",)} for i in range(1, 5)},
 }
 AXE_FX_III_PARAM_DEFINITIONS["CABINET"] = AXE_FX_III_CAB_MIX_PARAMS
+AXE_FX_III_PARAM_DEFINITIONS.update(EXTRA_CONTROLS)
 
 AXE_FX_III_VERIFIED_PARAMS = frozenset(
     name for params in AXE_FX_III_PARAM_DEFINITIONS.values()
@@ -208,7 +210,7 @@ AXE_FX_III_32_06_ZERO_NORMALIZED = {
 AXE_FX_III_32_06_ZERO_TYPED = frozenset({
     'WAH_INDUCTOR_BIAS', 'WAH_QTRACKING', 'WAH_FAT',
     'CHORUS_DEPTH', 'CHORUS_MIX', 'CHORUS_LEVEL',
-})
+}) | EXTRA_ZERO_TYPED
 
 
 def afx3_zero_set_supported(spec, firmware: str) -> bool:
@@ -222,7 +224,7 @@ def afx3_zero_set_supported(spec, firmware: str) -> bool:
     return (getattr(spec, 'set_divisor', None) is None
             or (firmware == '32.06' and spec.family == 'CABINET'
                 and spec.name in AXE_FX_III_CAB_MIX_PARAMS)
-            or (firmware == '32.06' and spec.family in ('WAH', 'CHORUS')
+            or (firmware == '32.06' and spec.family in ('WAH', 'CHORUS', *EXTRA_CONTROLS)
                 and spec.name in AXE_FX_III_32_06_ZERO_TYPED)
             or (firmware == '32.06' and spec.name in AXE_FX_III_32_06_ZERO_NORMALIZED))
 
@@ -239,7 +241,7 @@ AXE_FX_III_32_06_TESTED_CONTROLS = frozenset({
     "DELAY_MIX", "DELAY_LEVEL", "PITCH_LEVEL", "OUTPUT_LEVEL", "WAH_CONTROL", "WAH_LEVEL",
     "WAH_FREQMIN", "WAH_FREQMAX", "WAH_RESONANCE", "WAH_QTRACKING", "WAH_FAT",
     "WAH_DRIVE", "WAH_INDUCTOR_BIAS", "WAH_LOWCUT",
-})
+}) | frozenset(name for definitions in EXTRA_CONTROLS.values() for name in definitions)
 
 
 def afx3_bulk_restore_supported(spec, firmware: str) -> bool:

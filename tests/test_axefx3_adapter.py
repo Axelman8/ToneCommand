@@ -107,6 +107,16 @@ def test_no_write_without_explicit_session_and_no_automatic_store(rig):
     assert ports.writes() == []
 
 
+@pytest.mark.parametrize('family,name,value,eid',[
+    ('COMP','COMP_THRESH',-30,46),('GEQ','GEQ_GAIN1',-3,50),('PEQ','PEQ_FREQ1',300,54)])
+def test_numeric_pid_zero_passes_canonical_parameter_gate_not_model_gate(rig,family,name,value,eid):
+    dev,ports=rig
+    frame=protocol.set_parameter(dev.reg,dev.reg.find_param(family,name),value)
+    with dev.edit_session(external_audio_muted=True,expected_preset=322):
+        dev._write(frame)
+    assert ports.writes()[-1][5:11]==[9,0,eid,0,0,0]
+
+
 def test_native_modifier_allocator_requires_exact_frame_and_edit_session(rig):
     from devices.axefx3 import modifiers
     dev, ports = rig

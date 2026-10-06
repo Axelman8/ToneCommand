@@ -73,6 +73,8 @@ class Registry(BaseRegistry):
             raise ValueError("Axe-Fx III has Amp 1 and Amp 2 only")
         if family == "CHORUS" and instance != 1:
             raise ValueError("Only Chorus 1 has independent hardware evidence")
+        if family in ('FUZZ','COMP','GEQ','PEQ') and instance != 1:
+            raise ValueError('Only the first Drive/Compressor/EQ instance has hardware evidence')
         effect_id = self.effect_id(family, instance)
         return ParamSpec(
             family=family, instance=instance, effect_id=effect_id,
@@ -111,6 +113,8 @@ class Registry(BaseRegistry):
             raise ValueError("Axe-Fx III has Amp 1 and Amp 2 only")
         if family == "CHORUS" and instance != 1:
             raise ValueError("Only Chorus 1 has independent hardware evidence")
+        if family in ('FUZZ','COMP','GEQ','PEQ') and instance != 1:
+            raise ValueError('Only the first Drive/Compressor/EQ instance has hardware evidence')
         return super().effect_id(family, instance)
 
     def family_of_effect_id(self, eid: int):

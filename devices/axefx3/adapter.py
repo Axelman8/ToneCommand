@@ -88,7 +88,9 @@ class AxeFxIII:
                     or (fn == 0x0C and payload == [127])
                     or (fn in (0x0A, 0x0B) and len(payload) == 3 and payload[2] == 127)
                     or (fn == 1 and len(payload) == 6 and payload[:2] == [0x10, 0]
-                        and shared.decode14(payload[4], payload[5]) != 0)
+                        and (shared.decode14(payload[4], payload[5]) != 0
+                             or (self.reg.firmware=='32.06' and
+                                 shared.decode14(payload[2],payload[3]) in protocol.NUMERIC_ZERO_EFFECTS)))
                     or frame == grid.reframe(shared.build_request_grid_layout()))
         if not readonly:
             if self._approved_frame != tuple(frame):
@@ -118,7 +120,7 @@ class AxeFxIII:
                         if (not math.isfinite(value) or value != int(value) or
                                 frame != cab_selection.frame(effect_id, pid, int(value))):
                             raise PermissionError("Cab selector is not a verified discrete frame")
-                    elif pid == 0:
+                    elif pid == 0 and effect_id not in protocol.NUMERIC_ZERO_EFFECTS:
                         ordinal = shared.decode_f32_septets(payload[6:11])
                         names = models.roster(self.reg, family[0], selectable=True)
                         if (not math.isfinite(ordinal) or ordinal != int(ordinal)
@@ -448,6 +450,10 @@ class AxeFxIII:
             before = self.get_param_display(spec)
             if before is None:
                 return SetResult(False, "Display unreadable; nothing written", None, None)
+            from .tone_controls import domain_error
+            control_error=domain_error(self,spec,channel)
+            if control_error:
+                return SetResult(False,control_error,before,None)
             tempo_error = self._prepare_delay_milliseconds(spec, channel)
             if tempo_error:
                 return SetResult(False, tempo_error, before, None)

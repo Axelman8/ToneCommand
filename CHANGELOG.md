@@ -17,6 +17,16 @@ Notable changes to ToneCommand. Dates are UTC.
   controller workspace, firmware gates and blocked general tone executor.
 
 ### Added
+- FW32.06 existing Drive 1 Rat Distortion, Compressor 1 Modern VCA, GEQ 1
+  10 Band Variable Q and PEQ 1 core voicing: 32 captured numeric controls,
+  explicit typed zeros, per-scene design fields and review summaries.
+  Numeric parameter 0 is handled separately from model selectors.
+  Muted native TC review/execution on TestPreset 323 verified 88/88 writes
+  plus 8/8 engage/bypass round trips, while preserving amp, cab, routing,
+  modifiers, names and other channels.
+  Future selected channels are mode/layout-preflighted before any write.
+  No new model selection, insertion, PEQ Q/type edits, raw Undo or Store;
+  positive EQ boosts are refused and the Drive level knob is capped at 5.
 - Captured FW32.06 Chorus 1 Analog Stereo control: rate, depth, mix and level,
   typed zero writes and a scene-by-scene review column. Optional text designs
   configure independent chorus channels; omission preserves an existing

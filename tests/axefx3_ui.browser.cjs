@@ -36,7 +36,11 @@ const path=require('node:path');
         result.design={amp_model:'Test Plexi',chorus_model:'Analog Stereo',cab_left:{bank:2,slot:28},cab_right:null,
           scenes:['Intro','Main','Heavy','Lead'].map((name,i)=>({name,amp:{gain:i+3,level:-15},wah:i===0||i===3,
             delay:{active:i===0||i===3,time_ms:280+i*30,feedback:20,mix:15},reverb:{active:true,time_s:1.2,mix:8},
-            chorus:i===2?null:{active:i!==1,rate_hz:.3,depth:25,mix:20}}))};
+            chorus:i===2?null:{active:i!==1,rate_hz:.3,depth:25,mix:20},
+            drive:i===0?{active:true,drive:6,tone:4,level:2,mix:100}:null,
+            compressor:i===1?{active:true,threshold:-30,ratio:4,attack_ms:5,release_ms:250,mix:75,level:-12}:null,
+            geq:i===2?{active:true,gains:Array(10).fill(-3),level:-6}:null,
+            peq:i===3?{active:true,bands:[200,400,800,1600,3200].map(frequency_hz=>({frequency_hz,gain:-3})),level:-6}:null}))};
         if(failPlan){status=409;result={detail:'AI output refused'};}
       }
       if(name==='send'){
@@ -62,7 +66,11 @@ const path=require('node:path');
     assert.equal(await page.locator('#sceneRows tr').count(),4);
     assert.match(await page.textContent('#sceneRows'),/280 ms/);
     assert.match(await page.textContent('#sceneRows'),/Analog Stereo \| 0.3 Hz \| depth 25% \| mix 20%/);
-    assert.equal(await page.locator('#sceneRows tr').first().locator('td').count(),6);
+    assert.equal(await page.locator('#sceneRows tr').first().locator('td').count(),7);
+    assert.match(await page.textContent('#sceneRows'),/Drive: gain 6, tone 4, level 2\/10/);
+    assert.match(await page.textContent('#sceneRows'),/Compressor: threshold -30 dB/);
+    assert.match(await page.textContent('#sceneRows'),/GEQ: 10 banden/);
+    assert.match(await page.textContent('#sceneRows'),/Q behouden/);
     assert.match(await page.textContent('#sceneRows tr:nth-child(3)'),/Bestaand behouden/);
     assert.match(await page.textContent('#controllerChoice'),/Auto Engage: Off/);
     assert.match(await page.textContent('#toneChoice'),/Test Greenback \(USER 1 slot 28\)/);

@@ -17,6 +17,7 @@ from .registry import ParamSpec, Registry
 
 
 MODEL = 0x10
+NUMERIC_ZERO_EFFECTS = frozenset({46,50,54})
 
 
 def envelope(fn: int, payload: list[int]) -> list[int]:
@@ -73,9 +74,14 @@ def set_parameter(registry: Registry, spec: ParamSpec, value: float) -> list[int
 
 
 def display_query(effect_id: int, param_id: int) -> list[int]:
-    """Passive 01 10 query. A model selector must only be read through bulk."""
+    """Passive 01 10 query, never an active zero SET used as a GET.
+
+    Model selectors are bulk-only. Numeric pid 0 is separately captured for
+    Compressor threshold, GEQ band 1 and PEQ frequency 1, first blocks only.
+    """
     if (type(effect_id) is not int or type(param_id) is not int
-            or not 0 <= effect_id < 16384 or not 1 <= param_id < 16384):
+            or not 0 <= effect_id < 16384 or not 0 <= param_id < 16384
+            or (param_id==0 and effect_id not in NUMERIC_ZERO_EFFECTS)):
         raise ValueError("Model selector display queries are not permitted")
     return envelope(shared.FN_PARAM, [0x10, 0, *shared.encode14(effect_id),
                     *shared.encode14(param_id)])

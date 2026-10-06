@@ -56,6 +56,13 @@ global routing/restore path is FM9-specific. Device-specific verification
 must precede AFX3 audio capture or automatic level corrections. An analysed
 reference alone still does not prove that the produced preset sounds alike.
 
+The 2026-10-06 existing-effect checkpoint adds 32 Drive/Compressor/GEQ/PEQ
+controls to the bounded text workspace, with 88/88 muted native TC writes
+verified on TestPreset 323. See [core control evidence](AFX3-DRIVE-COMP-EQ.md)
+for exact first-block mode gates, units, preservation checks and limits.
+This is not complete FM9 effect parity: these families do not yet support
+automatic insertion or model selection; PEQ Q/types remain unchanged.
+
 ## Implemented and tested offline
 
 | Component | Boundary retained in the port |

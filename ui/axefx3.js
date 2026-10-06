@@ -45,7 +45,17 @@ function showDesign(plan){
     const reverb=scene.reverb.active?`${scene.reverb.time_s} s | mix ${scene.reverb.mix}%`:'Uit';
     const chorus=scene.chorus?(scene.chorus.active?`${design.chorus_model||'Analog Stereo'} | ${scene.chorus.rate_hz} Hz | depth ${scene.chorus.depth}% | mix ${scene.chorus.mix}%`:'Uit'):
       plan.actions.some(a=>a.kind==='add_block'&&String(a.block).toUpperCase()==='CHORUS')?'Uit (niet gevraagd)':'Bestaand behouden';
-    for(const value of [`${i+1}. ${scene.name} / ${'ABCD'[i]}`,`${scene.amp.gain} / ${scene.amp.level} dB`,scene.wah?'Aan':'Uit',chorus,delay,reverb]){
+    const extras=[];
+    for(const [key,label] of [['drive','Drive'],['compressor','Compressor'],['geq','GEQ'],['peq','PEQ']]){
+      const config=scene[key];if(!config)continue;
+      if(!config.active){extras.push(`${label}: uit`);continue;}
+      const value=key==='drive'?`gain ${config.drive}, tone ${config.tone}, level ${config.level}/10, mix ${config.mix}%`:
+        key==='compressor'?`threshold ${config.threshold} dB, ratio ${config.ratio}, attack ${config.attack_ms} ms, release ${config.release_ms} ms, mix ${config.mix}%, level ${config.level} dB`:
+        key==='geq'?`10 banden ${config.gains.join('/')} dB, level ${config.level} dB`:
+        `banden ${config.bands.map(b=>`${b.frequency_hz} Hz/${b.gain} dB`).join(', ')}, Q behouden, level ${config.level} dB`;
+      extras.push(`${label}: ${value}`);
+    }
+    for(const value of [`${i+1}. ${scene.name} / ${'ABCD'[i]}`,`${scene.amp.gain} / ${scene.amp.level} dB`,scene.wah?'Aan':'Uit',chorus,delay,reverb,extras.join('\n')||'Bestaand behouden']){
       const td=document.createElement('td');td.textContent=value;tr.append(td);
     }
     el('sceneRows').append(tr);

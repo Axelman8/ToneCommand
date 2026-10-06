@@ -20,7 +20,7 @@ def test_the_registry_is_not_an_fm9_catalog_with_a_new_product_byte(monkeypatch)
     monkeypatch.setenv("TONECOMMAND_DEVICE", "axe-fx-iii")
     fm9 = FM9Registry()
     axe = Registry("32.06")
-    assert len(axe.params) == 43
+    assert len(axe.params) == 75
     assert axe.model_byte == 0x10
     assert fm9.model_byte == 0x12
     assert axe.find_param("DISTORT", "DISTORT_MID").param_id == 3

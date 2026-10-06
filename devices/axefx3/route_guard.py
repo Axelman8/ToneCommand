@@ -125,7 +125,8 @@ def serial_route(cells, status, reg) -> list[int]:
 
 
 def labels(ids, reg) -> list[str]:
-    friendly = {"DISTORT": "Amp", "CABINET": "Cab"}
+    friendly = {"DISTORT": "Amp", "CABINET": "Cab", "FUZZ": "Drive",
+                "COMP": "Compressor", "GEQ": "GEQ", "PEQ": "PEQ"}
     return [f"{friendly.get(f, f.title())} {i}" for f, i in
             (reg.family_of_effect_id(e) for e in ids)]
 

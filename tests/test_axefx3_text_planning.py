@@ -16,6 +16,49 @@ from fm9.protocol import GridCell, BlockStatus
 REAL_PLAN = server.planner.plan
 
 
+def extra_config():
+    return dict(drive=dict(active=True,drive=6,tone=4,mix=100,level=2),
+        compressor=dict(active=True,threshold=-30,ratio=4,attack_ms=5,release_ms=250,mix=75,level=-12),
+        geq=dict(active=True,gains=[-3]*10,level=-6),
+        peq=dict(active=True,bands=[dict(frequency_hz=v,gain=-3) for v in (200,400,800,1600,3200)],level=-6))
+
+
+def test_optional_existing_effects_compile_without_model_reset_or_insertion(dev,design):
+    route=[37,118,46,58,62,50,54,70,66,42]
+    for scene in design['scenes']:
+        scene['wah']=False;scene.update(extra_config())
+    plan=planning.compile_design(dev.reg,design,route,4)
+    extras=[a for a in plan['actions'] if a.get('block') in ('FUZZ','COMP','GEQ','PEQ')]
+    assert not any(a['kind'] in ('set_type','add_block') for a in extras)
+    for f in ('FUZZ','COMP','GEQ','PEQ'):
+        assert [a['value'] for a in extras if a['kind']=='set_channel' and a['block']==f]==[0,1,2,3]
+        assert [a['bypassed'] for a in extras if a['kind']=='set_bypass' and a['block']==f]==[True,False]*4
+    assert len([a for a in extras if a['kind']=='set_param'])==32*4
+    for scene in design['scenes']:
+        for key in extra_config():scene.pop(key)
+    preserved=planning.compile_design(dev.reg,design,route,4)
+    assert preserved['required_route']==plan['required_route']
+    assert not any(a.get('block') in ('FUZZ','COMP','GEQ','PEQ') for a in preserved['actions'])
+
+
+@pytest.mark.parametrize('bad',['missing','post_drive','pre_eq','boost','drive_level','bands','q','nan','bool'])
+def test_optional_effects_fail_closed_without_write(dev,design,bad):
+    route=[37,118,46,58,62,50,54,70,66,42]
+    for s in design['scenes']:s['wah']=False
+    design['scenes'][0].update(extra_config())
+    if bad=='missing':route.remove(118)
+    if bad=='post_drive':route.remove(118);route.insert(4,118)
+    if bad=='pre_eq':route.remove(50);route.insert(1,50)
+    if bad=='boost':design['scenes'][0]['geq']['gains'][0]=1
+    if bad=='drive_level':design['scenes'][0]['drive']['level']=6
+    if bad=='bands':design['scenes'][0]['peq']['bands'].pop()
+    if bad=='q':design['scenes'][0]['peq']['bands'][0]['q']=1
+    if bad=='nan':design['scenes'][0]['compressor']['ratio']=float('nan')
+    if bad=='bool':design['scenes'][0]['drive']['drive']=True
+    with pytest.raises(ValueError):planning.compile_design(dev.reg,design,route,4)
+    dev._write.assert_not_called()
+
+
 @pytest.fixture
 def design():
     return dict(name='AI-Test',summary='Four distinct scenes',amp_model='Brit 800 2204 High',
@@ -338,6 +381,32 @@ def api(dev,design,monkeypatch):
 
 
 BODY=dict(prompt='Four bluesrock scenes',expected_preset=324,scenes=4,wah_source='External 1')
+
+
+def test_existing_core_effects_reach_http_review_and_executor(api,dev,design):
+    from devices.axefx3 import tone_controls
+    client,ask=api
+    route=['Input 1','Drive 1','Compressor 1','Amp 1','Cab 1','GEQ 1','PEQ 1','Delay 1','Reverb 1','Output 1']
+    build_route(dev,route)
+    for s in design['scenes']:
+        s['wah']=False;s.update(extra_config())
+    by_eid={eid:[0]*(4*stride) for eid,stride in tone_controls.LAYOUTS.values()}
+    for c in range(4):by_eid[50][c*20+15]=4
+    dev.bulk_read.side_effect=lambda eid:by_eid.get(eid,[1]*100)
+    proposal=client.post('/api/axefx3/plan',json={**BODY,'wah_source':None})
+    assert proposal.status_code==200,proposal.text
+    data=proposal.json()
+    assert data['required_route']==route
+    assert data['design']['scenes'][0]['drive']['level']==2
+    reference=json.loads(ask.call_args.args[2])
+    assert reference['existing_effects']['existing_blocks_only']
+    assert len(reference['existing_effects']['controls']['GEQ'])==11
+    dev.set_param_display.assert_not_called()
+    result=client.post('/api/axefx3/send',json=dict(token=data['token'],target_confirmed=True,external_audio_muted=True))
+    assert result.status_code==200,result.text
+    assert result.json()['ok'] and not result.json()['stored']
+    assert sum(c.args[0].family in tone_controls.LAYOUTS for c in dev.set_param_display.call_args_list)==128
+    dev.store_preset.assert_not_called()
 
 
 @pytest.mark.parametrize('mode', ['Off', 'Fast Pos', None])

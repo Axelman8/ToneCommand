@@ -125,6 +125,25 @@ def prepare(dev, actions, required_route, expected_preset):
     for item in resolved:
         if item.effect_id is not None and item.effect_id not in expected:
             raise ValueError("Action targets a block outside the reviewed route")
+    # Preflight every future explicitly selected extra-effect channel using
+    # passive bulk data. Do not discover an unsupported mode halfway through.
+    from . import tone_controls
+    channels,extra_bulk={},{}
+    scene_changed=False
+    for item in resolved:
+        kind=item.action['kind']
+        if kind=='set_scene':channels.clear();scene_changed=True
+        if item.family not in tone_controls.LAYOUTS:continue
+        if kind=='set_channel':channels[item.effect_id]=item.value
+        if kind=='set_param':
+            if item.effect_id not in actual:
+                raise ValueError('Drive/Compressor/EQ writes require an existing block')
+            if item.effect_id not in channels:
+                if scene_changed:raise ValueError('Extra-effect channel must be explicit after scene selection')
+                channels[item.effect_id]=dev.get_channel(item.effect_id)
+            if item.effect_id not in extra_bulk:extra_bulk[item.effect_id]=dev.bulk_read(item.effect_id)
+            error=tone_controls.profile_error(item.spec,extra_bulk[item.effect_id],channels[item.effect_id])
+            if error:raise ValueError(error)
     native = [i for i in resolved if i.action['kind'] == 'bind_controller']
     slots = pedal_control.entries(dev) if native else modifiers.preflight(dev)
     if native:

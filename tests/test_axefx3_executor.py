@@ -13,6 +13,28 @@ ROUTE = ["Input 1", "Wah 1", "Amp 1", "Cab 1", "Delay 1", "Reverb 1", "Output 1"
 IDS = [37, 94, 58, 62, 70, 66, 42]
 
 
+@pytest.mark.parametrize('bad',['future_mode','layout','implicit_channel'])
+def test_extra_effect_future_channels_are_preflighted_before_amp_write(dev,bad):
+    ids=[37,46,58,62,42]
+    route=['Input 1','Compressor 1','Amp 1','Cab 1','Output 1']
+    dev.read_grid.side_effect=lambda:[GridCell(2,i,e,False,8 if i else 0) for i,e in enumerate(ids)]
+    dev.status_dump.side_effect=lambda:[BlockStatus(e,True,0,4) for e in ids]
+    data=[0]*(4*37)
+    if bad=='future_mode':data[37+12]=1
+    if bad=='layout':data.pop()
+    dev.bulk_read.return_value=data
+    actions=[dict(kind='set_param',block='amp',param='DISTORT_MID',value=6),
+             dict(kind='set_scene',value=2),
+             dict(kind='set_channel',block='COMP',value=1),
+             dict(kind='set_param',block='COMP',param='COMP_THRESH',value=-30)]
+    if bad=='implicit_channel':actions.pop(2)
+    with pytest.raises(ValueError):
+        execute(dev,actions,route,expected_preset=322,external_audio_muted=True)
+    dev.edit_session.assert_not_called()
+    dev.set_param_display.assert_not_called()
+    dev.set_scene.assert_not_called()
+
+
 @pytest.fixture
 def dev():
     rig = Mock()
