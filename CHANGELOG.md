@@ -5,6 +5,13 @@ Notable changes to ToneCommand. Dates are UTC.
 ## Unreleased
 
 ### Changed
+- New empty AFX3 text builds reserve and voice Delay 1 even when every scene
+  requests dry sound. It remains bypassed until requested, so later delay
+  adjustments reuse the existing block without manual insertion. Existing
+  presets are never cleared or rebuilt implicitly; no insertion gate widened.
+- Reject an active ambience delay before Cab in the bounded AFX3 text
+  builder rather than silently accepting a route that changes the intended
+  sound. Existing inactive delays can retain their location without moves.
 - Merge upstream TC 1.5.4 (3c97d6c), including the main-page JavaScript fix,
   syntax regression guard and IR-2 capabilities. Preserve the separate AFX3
   controller workspace, firmware gates and blocked general tone executor.

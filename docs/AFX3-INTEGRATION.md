@@ -649,3 +649,25 @@ The local live server was restarted via normal disconnect and SIGTERM,
 then reconnected with the same 512-name catalogue. Read-only before/after
 state confirms preset 322, scene 4, names and serial route unchanged. No
 hardware send or real AI request was made during this follow-up.
+
+### Delay-ready new presets (2026-10-06)
+
+New empty text builds always allocate Delay 1 after Cab, even if the design
+requests no audible delay. TC explicitly voices its channel and final level,
+then leaves it bypassed in dry scenes. A later request can enable that block
+through the existing reviewed executor, without moving blocks or rebuilding.
+This does not enable arbitrary insertion or destructive reconstruction of an
+existing preset. Such routes still require separately verified placement.
+
+The bounded ambience builder rejects an active delay before Cab instead of
+silently sending a tone through an unsuitable route. An inactive delay can
+retain its existing location; no move, clear or cable replacement is enabled.
+Stereo delay selection, Spread and L/R Ratio are still unported. The presence
+of a mono delay is not evidence of adjustable stereo width or exact recording
+timing. Independent readback and physical listening remain separate checks.
+
+Verification for this change: mandatory device/capability/UI gates plus text
+planning, grid and executor tests passed **120 tests**, 112.79 seconds in SIM.
+The real headless Chrome local-asset/mocked-API browser test also passed. No
+new preset construction or audible delay acceptance was performed for this
+change; the running TC was restarted disconnected without reloading the unit.

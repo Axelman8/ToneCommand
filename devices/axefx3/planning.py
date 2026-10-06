@@ -122,8 +122,9 @@ def compile_design(reg, raw, current_route, scene_count, wah_source=None,
     else:
         ids = [37]
         if wah_source or any(s.wah for s in design.scenes): ids.append(94)
-        ids += [58,62]
-        if any(s.delay.active for s in design.scenes): ids.append(70)
+        # Reserve the verified delay even for dry designs. Later adjustments
+        # can enable it without destructive rebuilding or moving live blocks.
+        ids += [58,62,70]
         if any(s.reverb.active for s in design.scenes): ids.append(66)
         ids.append(42)
     blocks = {reg.family_of_effect_id(e)[0]:reg.family_of_effect_id(e)[1] for e in ids}
@@ -134,6 +135,12 @@ def compile_design(reg, raw, current_route, scene_count, wah_source=None,
                            (any(s.reverb.active for s in design.scenes),'REVERB')):
         if needed and family not in blocks:
             raise ValueError(f'{family} missing from the existing route. Automatic insertion is not verified.')
+    if any(s.delay.active for s in design.scenes):
+        delay_id = reg.resolve_block('DELAY',blocks['DELAY'])[1]
+        cab_id = reg.resolve_block('CABINET',blocks['CABINET'])[1]
+        if ids.index(delay_id) < ids.index(cab_id):
+            raise ValueError('An active ambience delay must follow Cab in this builder. '
+                             'Correct the route first; no block is moved or overwritten.')
     route = route_guard.labels(ids,reg)
     actions = []
     def emit(kind, family=None, **kw):

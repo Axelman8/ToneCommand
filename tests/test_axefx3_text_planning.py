@@ -138,6 +138,55 @@ def test_existing_route_does_not_add_or_remove_blocks(dev,design):
         planning.compile_design(dev.reg,design,[37,58,62,102,42],4)
 
 
+def test_dry_empty_build_reserves_voiced_bypassed_delay_for_later_adjustments(dev,design):
+    design['scenes']=design['scenes'][:1]
+    design['scenes'][0]['wah']=False
+    design['scenes'][0]['delay']['active']=False
+    plan=planning.compile_design(dev.reg,design,[],1)
+    assert plan['required_route']==['Input 1','Amp 1','Cab 1','Delay 1','Reverb 1','Output 1']
+    delay=[a for a in plan['actions'] if a.get('block')=='DELAY']
+    assert delay[0]==dict(kind='add_block',block='DELAY',instance=1)
+    assert [a['bypassed'] for a in delay if a['kind']=='set_bypass']==[True,True]
+    assert [a['value'] for a in delay if a.get('param')=='DELAY_LEVEL']==[0]
+    assert {a['param'] for a in delay if a['kind']=='set_param'}=={
+        'DELAY_TIME','DELAY_FEED','DELAY_MIX','DELAY_LEVEL'}
+    result=executor.execute(dev,plan['actions'],plan['required_route'],
+        expected_preset=324,external_audio_muted=True)
+    assert result['ok'] and not result['stored']
+    dev.store_preset.assert_not_called()
+    # A later request can activate the existing reserve, without another ADD.
+    design['scenes'][0]['delay']['active']=True
+    later=planning.compile_design(dev.reg,design,[37,58,62,70,66,42],1)
+    assert not any(a['kind']=='add_block' for a in later['actions'])
+    assert [a['bypassed'] for a in later['actions'] if a['kind']=='set_bypass'
+            and a['block']=='DELAY']==[True,False]
+    executor.prepare(dev,later['actions'],later['required_route'],324)
+
+
+def test_reserving_delay_does_not_rebuild_existing_dry_routes(dev,design):
+    design['scenes']=design['scenes'][:1]
+    design['scenes'][0]['delay']['active']=False
+    plan=planning.compile_design(dev.reg,design,[37,94,58,62,66,42],1,'External 1')
+    assert not any(a.get('block')=='DELAY' or a['kind']=='add_block' for a in plan['actions'])
+    design['scenes'][0]['delay']['active']=True
+    with pytest.raises(ValueError,match='Automatic insertion is not verified'):
+        planning.compile_design(dev.reg,design,[37,94,58,62,66,42],1,'External 1')
+    dev._write.assert_not_called()
+
+
+def test_active_ambience_delay_before_cab_is_refused_without_moving_blocks(dev,design):
+    for route in ([37,94,70,58,62,66,42], [37,94,58,70,62,66,42]):
+        with pytest.raises(ValueError,match='ambience delay must follow Cab'):
+            planning.compile_design(dev.reg,design,route,4,'External 1')
+    for scene in design['scenes']:
+        scene['delay']['active']=False
+    plan=planning.compile_design(dev.reg,design,[37,94,70,58,62,66,42],4,'External 1')
+    assert plan['required_route']==['Input 1','Wah 1','Delay 1','Amp 1','Cab 1','Reverb 1','Output 1']
+    assert not any(a['kind']=='add_block' for a in plan['actions'])
+    assert all(a['bypassed'] for a in plan['actions'] if a['kind']=='set_bypass' and a['block']=='DELAY')
+    dev._write.assert_not_called()
+
+
 @pytest.fixture
 def api(dev,design,monkeypatch):
     monkeypatch.setattr(server,'_context',server.DeviceContext('axefx3',dev.reg,dev,'Axe-Fx III'))
