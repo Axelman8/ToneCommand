@@ -20,6 +20,10 @@ Notable changes to ToneCommand. Dates are UTC.
   controller workspace, firmware gates and blocked general tone executor.
 
 ### Added
+- Always-visible NEW DESIGN button on the request screen. It clears the
+  conversation, draft, agreed scene preview and current plan with confirmation,
+  disarms sending and returns focus to an empty input without device writes.
+  CLEAR and post-send NEW REQUEST use the same reset; in-flight work blocks reset.
 - Reviewed FW32.06 Drive 1 and Compressor 1 insertion before Amp 1 in
   compatible serial row-3 routes, including multiple additions and exact
   preservation of downstream shunts. New text designs select captured models,
