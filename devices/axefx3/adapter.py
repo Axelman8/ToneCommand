@@ -120,15 +120,17 @@ class AxeFxIII:
                         if (not math.isfinite(value) or value != int(value) or
                                 frame != cab_selection.frame(effect_id, pid, int(value))):
                             raise PermissionError("Cab selector is not a verified discrete frame")
-                    elif pid == 0 and effect_id not in protocol.NUMERIC_ZERO_EFFECTS:
+                    elif pid == models.SELECTORS.get(family[0]):
                         ordinal = shared.decode_f32_septets(payload[6:11])
                         names = models.roster(self.reg, family[0], selectable=True)
                         if (not math.isfinite(ordinal) or ordinal != int(ordinal)
                                 or str(int(ordinal)) not in names):
                             raise PermissionError("Model ordinal has not been enabled")
                         models.target(self.reg, family[0], effect_id, names[str(int(ordinal))])
-                        if frame != protocol.param_frame(effect_id, 0, ordinal, opcode=9):
+                        if frame != protocol.param_frame(effect_id, pid, ordinal, opcode=9):
                             raise PermissionError("Model SET is not the captured frame")
+                    elif pid == 0 and effect_id not in protocol.NUMERIC_ZERO_EFFECTS:
+                        raise PermissionError("Parameter zero has no verified numeric or model selector")
                     elif not tempo_none:
                         self.reg.spec(family[0], pid, family[1])
                 elif payload[:2] == [0x3A, 0]:

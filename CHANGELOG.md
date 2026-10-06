@@ -17,6 +17,14 @@ Notable changes to ToneCommand. Dates are UTC.
   controller workspace, firmware gates and blocked general tone executor.
 
 ### Added
+- FW32.06 Drive 1 model selection: Rat Distortion, T808 OD and T808 Mod;
+  Compressor 1: Modern VCA and Classic VCA. Captured model selectors are
+  respectively pid 0 and pid 12, never conflated with Compressor threshold.
+  Optional per-scene model choices precede voicing and an explicit final
+  level. Omitted choices preserve the model. Drive stages at knob zero,
+  not a negative dB value. Native muted review/send verified 81/81 actions
+  on TestPreset323 with independent preservation checks. Automatic insertion
+  of these families is not yet enabled.
 - FW32.06 existing Drive 1 Rat Distortion, Compressor 1 Modern VCA, GEQ 1
   10 Band Variable Q and PEQ 1 core voicing: 32 captured numeric controls,
   explicit typed zeros, per-scene design fields and review summaries.

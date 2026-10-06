@@ -91,8 +91,9 @@ Use distinct voicing where the request calls for distinct sounds, not four
 identical scenes. Each scene receives independent amp/delay/reverb channels.
 Optional chorus uses only a selectable model in the reference: Analog Stereo.
 Optional drive/compressor/geq/peq configure EXISTING first blocks only in
-the exact listed modes. Preserve their model/filter types; do not select
-models or insert these blocks. Omission preserves them unchanged. Supply
+the exact listed modes. Optional Drive/Compressor model may select only a
+captured model in the reference. Omit model to preserve it. Do not insert
+these blocks. Preserve EQ filter types. Omission preserves them unchanged. Supply
 distinct scene configs/channels only when requested. Drive drive/tone/level
 are 0-10 knobs, but level is capped at 5, not dB. Compressor attack/release
 are ms. GEQ has exactly ten gains in the listed band order. PEQ has five

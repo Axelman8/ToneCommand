@@ -1,7 +1,8 @@
 """Firmware-pinned model selection, read through passive bulk only.
 
 Based on the original fork's amp_catalog/effect_catalog and independently
-checked Axe-Edit captures, 2026-09-18. This port still needs a hardware pass.
+checked Axe-Edit captures. Individual hardware passes are recorded in docs;
+Drive/Compressor first-instance channel A was replayed on 2026-10-06.
 Inventory names are not blanket permission to write every model.
 """
 from __future__ import annotations
@@ -20,11 +21,16 @@ from . import protocol
 # historical validated path. The narrower effect layouts were captured.
 LAYOUTS = {"DISTORT": (58, 2, None, 21), "WAH": (94, 4, 25, 6),
            "DELAY": (70, 4, 89, 18), "REVERB": (66, 4, 71, 14),
-           "CHORUS": (78, 1, 32, 11)}
+           "CHORUS": (78, 1, 32, 11), "FUZZ": (118, 1, 44, 3),
+           "COMP": (46, 1, 37, 4)}
+# Compressor threshold is numeric pid 0, not its model selector.
+SELECTORS = {family: (12 if family == 'COMP' else 0) for family in LAYOUTS}
 CAPTURED = {"WAH": {"0": "FAS Wah", "1": "Clyde", "2": "Cry Babe"},
             "DELAY": {"0": "Digital Mono", "2": "Analog Mono"},
             "REVERB": {"0": "Room: Small Room", "9": "Plate: Small Plate"},
-            "CHORUS": {"3": "Analog Stereo"}}
+            "CHORUS": {"3": "Analog Stereo"},
+            "FUZZ": {"0": "Rat Distortion", "6": "T808 OD", "8": "T808 Mod"},
+            "COMP": {"0": "Modern VCA Compressor", "13": "Classic VCA Compressor"}}
 
 
 def roster(reg, family, *, selectable=False):
@@ -74,7 +80,7 @@ def read(dev, family, effect_id):
             or dev.get_channel(effect_id) != channel):
         return None
     stride = len(words) // 4
-    ordinal = words[channel * stride]
+    ordinal = words[channel * stride + SELECTORS[family]]
     if type(ordinal) is not int or str(ordinal) not in roster(dev.reg, family):
         return None
     return {"channel": channel, "stride": stride, "words": words,
@@ -104,7 +110,10 @@ def select(dev, family, effect_id, name):
         return fail("Level unreadable; model not changed")
     if dev.set_bypass(effect_id, True) is not True or dev.get_bypass(effect_id) is not True:
         return fail("Bypass unverified; model not changed")
-    staged = dev.set_param_display(level_spec, min(level, -12.0))
+    # Drive Level is a 0..10 knob, not dB. Its captured zero is the quiet
+    # staging value; never encode a negative dB value into that knob.
+    quiet = 0 if family == 'FUZZ' else min(level, -12.0)
+    staged = dev.set_param_display(level_spec, quiet)
     if not staged.ok or dev.get_channel(effect_id) != channel:
         return fail("Quiet staging/channel unverified; model not changed, block left bypassed")
     # Compare against state AFTER our explicitly verified level staging.
@@ -113,7 +122,7 @@ def select(dev, family, effect_id, name):
         return fail("State changed during staging; model not changed")
     if staged_state["ordinal"] != before["ordinal"]:
         return fail("Model changed outside this request; stopped")
-    dev._write(protocol.param_frame(effect_id, 0, ordinal, opcode=0x09))
+    dev._write(protocol.param_frame(effect_id, SELECTORS[family], ordinal, opcode=0x09))
     for _ in range(4):
         time.sleep(.15)
         after = read(dev, family, effect_id)
@@ -128,7 +137,7 @@ def select(dev, family, effect_id, name):
         if after["ordinal"] == ordinal:
             if dev.get_bypass(effect_id) is not True:
                 return fail("Model changed bypass state; external mute must remain on")
-            result = dev.set_param_display(level_spec, min(level, -12.0))
+            result = dev.set_param_display(level_spec, quiet)
             if not result.ok or dev.get_channel(effect_id) != channel:
                 return fail("Model changed but quiet level did not verify; left bypassed")
             return SetResult(True, "Model and quiet level verified; left bypassed. "

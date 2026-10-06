@@ -1,5 +1,6 @@
-"""Optional existing-block voicing, never inferred model or routing changes."""
+"""Optional existing-block voicing and explicit captured model choices."""
 from typing import Annotated
+from typing import Literal
 from pydantic import BaseModel,ConfigDict,Field,StrictBool
 from . import tone_controls
 
@@ -13,6 +14,7 @@ class Shape(BaseModel):
 
 
 class Drive(Shape):
+    model:Literal['Rat Distortion','T808 OD','T808 Mod'] | None = None
     active:StrictBool
     drive:number(0,10)
     tone:number(0,10)
@@ -21,6 +23,7 @@ class Drive(Shape):
 
 
 class Compressor(Shape):
+    model:Literal['Modern VCA Compressor','Classic VCA Compressor'] | None = None
     active:StrictBool
     threshold:number(-60,0)
     ratio:number(1,20)
@@ -52,14 +55,16 @@ FIELDS={'drive':'FUZZ','compressor':'COMP','geq':'GEQ','peq':'PEQ'}
 
 def reference(reg):
     return dict(existing_blocks_only=True,
-        modes={'FUZZ':'Rat Distortion','COMP':'Modern VCA Compressor',
+        modes={'FUZZ':['Rat Distortion','T808 OD','T808 Mod'],
+               'COMP':['Modern VCA Compressor','Classic VCA Compressor'],
                'GEQ':'10 Band Variable Q','PEQ':'Shelving/Peaking/Peaking/Peaking/Shelving'},
         geq_band_hz=[31,63,125,250,500,1000,2000,4000,8000,16000],
         controls={f:[dict(name=n,pid=d['pid'],unit=d['unit'],min=d['min'],max=d['max'])
                       for n,d in defs.items()] for f,defs in tone_controls.DEFINITIONS.items()
                   if reg.find_param(f,next(iter(defs))) is not None},
         limits='No positive EQ gain or dB effect level; Drive level knob 0..5. '
-               'Models, PEQ Q/filter types and modifiers are preserved, not changed.')
+               'Optional Drive/Compressor model uses only the listed captured choices; '
+               'omitted model preserves voicing. PEQ Q/filter types and modifiers are preserved.')
 
 
 def validate_route(design,blocks,ids,reg):
@@ -92,5 +97,7 @@ def compile_scene(scene,number,emit):
         values.append(('LEVEL',config.level))
         emit('set_channel',family,value=number-1)
         emit('set_bypass',family,bypassed=True)
+        if family in ('FUZZ','COMP') and config.model is not None:
+            emit('set_type',family,type_name=config.model)
         for name,value in values:emit('set_param',family,param=family+'_'+name,value=value)
         emit('set_bypass',family,bypassed=not config.active)

@@ -1,7 +1,7 @@
 """Captured existing-block Drive/Compressor/EQ controls, FW32.06 only.
 
 2026-10-06 muted TestPreset323 Axe-Edit SETs and independent TC reads.
-No model selection, filter-type edits, insertion, modifier or raw restore.
+Filter-type edits, insertion, modifier and raw restore remain separate gates.
 """
 
 LAYOUTS = {'FUZZ':(118,44), 'COMP':(46,37), 'GEQ':(50,20), 'PEQ':(54,33)}
@@ -62,8 +62,8 @@ def profile_error(spec,words,channel):
             or not isinstance(words,list) or len(words)!=4*stride):
         return 'Existing-block layout/channel unreadable; nothing written'
     part=words[channel*stride:(channel+1)*stride]
-    valid={'FUZZ':lambda:part[0]==0,
-           'COMP':lambda:part[12]==0,
+    valid={'FUZZ':lambda:part[0] in (0,6,8),
+           'COMP':lambda:part[12] in (0,13),
            'GEQ':lambda:part[15]==4,
            'PEQ':lambda:part[15:20]==[0]*5}[spec.family]()
     return None if valid else 'Model/filter mode is not in the captured control profile; nothing written'

@@ -41,6 +41,29 @@ def test_optional_existing_effects_compile_without_model_reset_or_insertion(dev,
     assert not any(a.get('block') in ('FUZZ','COMP','GEQ','PEQ') for a in preserved['actions'])
 
 
+def test_optional_captured_model_choices_precede_voicing_and_explicit_final_level(dev,design):
+    route=[37,118,46,58,62,50,54,70,66,42]
+    for scene in design['scenes']:
+        scene['wah']=False;scene.update(extra_config())
+        scene['drive']['model']='T808 Mod'
+        scene['compressor']['model']='Classic VCA Compressor'
+    plan=planning.compile_design(dev.reg,design,route,4)
+    for family,name in [('FUZZ','T808 Mod'),('COMP','Classic VCA Compressor')]:
+        actions=[a for a in plan['actions'] if a.get('block')==family]
+        types=[i for i,a in enumerate(actions) if a['kind']=='set_type']
+        assert len(types)==4
+        for i in types:
+            assert actions[i]['type_name']==name
+            assert actions[i-1]['kind']=='set_bypass' and actions[i-1]['bypassed'] is True
+            assert actions[i-2]['kind']=='set_channel'
+            tail=actions[i+1:]
+            end=next(j for j,a in enumerate(tail) if a['kind']=='set_bypass')
+            assert any(a.get('param')==family+'_LEVEL' for a in tail[:end])
+    design['scenes'][0]['drive']['model']='FAS Boost'
+    with pytest.raises(ValueError):planning.compile_design(dev.reg,design,route,4)
+    dev._write.assert_not_called()
+
+
 @pytest.mark.parametrize('bad',['missing','post_drive','pre_eq','boost','drive_level','bands','q','nan','bool'])
 def test_optional_effects_fail_closed_without_write(dev,design,bad):
     route=[37,118,46,58,62,50,54,70,66,42]

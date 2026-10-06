@@ -4,6 +4,16 @@
   "firmware": "32.06",
   "purpose": "Read-only model names; not a writable model allowlist",
   "families": {
+    "FUZZ": {
+      "section": 25, "stride": 44,
+      "source": "Axe-Edit model and control SET captures on muted TestPreset323, 2026-10-06",
+      "models": {"0": "Rat Distortion", "6": "T808 OD", "8": "T808 Mod"}
+    },
+    "COMP": {
+      "section": 7, "stride": 37,
+      "source": "Axe-Edit model pid12 and control SET captures on muted TestPreset323, 2026-10-06",
+      "models": {"0": "Modern VCA Compressor", "13": "Classic VCA Compressor"}
+    },
     "CHORUS": {
       "section": 16,
       "stride": 32,

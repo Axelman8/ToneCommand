@@ -22,8 +22,9 @@ def rig(monkeypatch):
         stride = stride or 64
         names = models.roster(Registry("32.06"), family)
         words = [0] * (stride * 4)
+        selector = models.SELECTORS[family]
         for c in range(4):
-            words[c * stride] = 1 if family == "DISTORT" else 3 if family == 'CHORUS' else 0
+            words[c * stride + selector] = 1 if family == "DISTORT" else 3 if family == 'CHORUS' else 0
             words[c * stride + 1] = 12345
         dev = Mock()
         dev.reg = Registry("32.06")
@@ -33,15 +34,15 @@ def rig(monkeypatch):
         dev.status_dump.return_value = [object()]
         dev.get_channel.return_value = channel
         dev.bulk_read.side_effect = lambda eid: words.copy()
-        dev.get_param_display.return_value = -6
+        dev.get_param_display.return_value = 5 if family == 'FUZZ' else -6
         dev.get_bypass.return_value = True
         dev.set_bypass.return_value = True
         dev.set_param_display.return_value = SetResult(True, "readback", -6, -12)
         def write(frame):
             assert protocol.valid_reply(frame[1:-1])
-            assert frame[4:12] == [16, 1, 9, 0, base, 0, 0, 0]
+            assert frame[4:12] == [16, 1, 9, 0, base, 0, selector, 0]
             word = int(decode_f32_septets(frame[12:17]))
-            words[channel * stride] = word
+            words[channel * stride + selector] = word
             # Selecting a model resets voicing in the addressed channel.
             words[channel * stride + 1] = 30000
         dev._write.side_effect = write
@@ -52,7 +53,8 @@ def rig(monkeypatch):
 
 @pytest.mark.parametrize("family,name", [("DISTORT", "Brit 800 2204 High"),
     ("WAH", "Cry Babe"), ("DELAY", "Analog Mono"), ("REVERB", "Plate: Small Plate"),
-    ("CHORUS", "Analog Stereo")])
+    ("CHORUS", "Analog Stereo"), ("FUZZ", "T808 OD"),
+    ("FUZZ", "T808 Mod"), ("COMP", "Classic VCA Compressor")])
 @pytest.mark.parametrize("channel", range(4))
 def test_model_resets_only_target_channel_and_stays_bypassed(rig, family, name, channel):
     dev, words, eid, stride, _ = rig(family, channel)
@@ -65,7 +67,8 @@ def test_model_resets_only_target_channel_and_stays_bypassed(rig, family, name, 
                for c in range(4) if c != channel)
     dev.set_bypass.assert_called_once_with(eid, True)
     assert dev.set_param_display.call_count == 2
-    assert all(c.args[1] == -12 for c in dev.set_param_display.call_args_list)
+    assert all(c.args[1] == (0 if family == 'FUZZ' else -12)
+               for c in dev.set_param_display.call_args_list)
     dev.read_display_text.assert_not_called()
     dev._write.assert_called_once()
 
@@ -74,7 +77,7 @@ def test_model_resets_only_target_channel_and_stays_bypassed(rig, family, name, 
 def test_selecting_same_model_never_resets_voicing_or_bypass(rig, family):
     dev, words, eid, _, names = rig(family)
     before = words.copy()
-    result = dev.set_model(family, eid, names[str(words[0])])
+    result = dev.set_model(family, eid, names[str(words[models.SELECTORS[family]])])
     assert result.ok and words == before
     dev._write.assert_not_called()
     dev.set_bypass.assert_not_called()
@@ -83,7 +86,8 @@ def test_selecting_same_model_never_resets_voicing_or_bypass(rig, family):
 
 @pytest.mark.parametrize("family,name", [("DISTORT", "59 Bassguy Bright"),
     ("WAH", "VX846"), ("DELAY", "Dual Delay"), ("REVERB", "Huge: Cavern"),
-    ("PITCH", "Whammy"), ("CHORUS", "Digital Stereo")])
+    ("PITCH", "Whammy"), ("CHORUS", "Digital Stereo"),
+    ("FUZZ", "FAS Boost"), ("COMP", "JFET Studio Compressor")])
 def test_read_inventory_does_not_authorize_uncaptured_models(rig, family, name):
     dev, _, eid, _, _ = rig("DISTORT" if family == "PITCH" else family)
     with pytest.raises(ValueError):
@@ -127,13 +131,15 @@ def test_failed_verification_cannot_be_reported_as_success(rig, issue):
 
 
 @pytest.mark.parametrize("family,target_name", [("WAH", "FAS Wah"),
-    ("DELAY", "Digital Mono"), ("REVERB", "Room: Small Room")])
+    ("DELAY", "Digital Mono"), ("REVERB", "Room: Small Room"),
+    ("FUZZ", "Rat Distortion"), ("COMP", "Modern VCA Compressor")])
 def test_captured_effect_zero_is_a_model_write_not_an_assumed_get(rig, family, target_name):
     dev, words, eid, _, _ = rig(family)
-    words[0] = 2 if family != "REVERB" else 9
+    selector = models.SELECTORS[family]
+    words[selector] = {'REVERB':9, 'FUZZ':6, 'COMP':13}.get(family,2)
     assert dev.set_model(family, eid, target_name).ok
-    assert words[0] == 0
-    assert dev._write.call_args.args[0] == protocol.param_frame(eid, 0, 0, opcode=9)
+    assert words[selector] == 0
+    assert dev._write.call_args.args[0] == protocol.param_frame(eid, selector, 0, opcode=9)
 
 
 def test_unknown_firmware_has_neither_read_nor_write_model_rosters():

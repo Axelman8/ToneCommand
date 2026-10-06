@@ -117,6 +117,26 @@ def test_numeric_pid_zero_passes_canonical_parameter_gate_not_model_gate(rig,fam
     assert ports.writes()[-1][5:11]==[9,0,eid,0,0,0]
 
 
+@pytest.mark.parametrize('eid,pid,ordinal',[(118,0,0),(118,0,6),(118,0,8),(46,12,0),(46,12,13)])
+def test_drive_and_comp_model_frames_use_their_captured_selector(rig,eid,pid,ordinal):
+    dev,ports=rig
+    frame=protocol.param_frame(eid,pid,ordinal,opcode=9)
+    with pytest.raises(PermissionError):dev._send(frame)
+    with dev.edit_session(external_audio_muted=True,expected_preset=322):
+        dev._write(frame)
+    assert ports.writes()[-1][5:11]==[9,0,eid,0,pid,0]
+
+
+@pytest.mark.parametrize('eid,pid,ordinal,opcode',[(118,0,1,9),(46,12,8,9),
+    (118,0,6,82),(46,12,13,82),(119,0,6,9),(47,12,13,9)])
+def test_extra_model_transport_refuses_uncaptured_instances_models_and_opcodes(rig,eid,pid,ordinal,opcode):
+    dev,ports=rig
+    with dev.edit_session(external_audio_muted=True,expected_preset=322):
+        with pytest.raises((ValueError,PermissionError)):
+            dev._write(protocol.param_frame(eid,pid,ordinal,opcode=opcode))
+    assert ports.writes()==[]
+
+
 def test_native_modifier_allocator_requires_exact_frame_and_edit_session(rig):
     from devices.axefx3 import modifiers
     dev, ports = rig

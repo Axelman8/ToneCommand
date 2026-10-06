@@ -81,6 +81,17 @@ def test_no_guessed_q_model_filter_or_bulk_restore():
     assert not Registry('32.07').params
 
 
+@pytest.mark.parametrize('family,ordinal',[('FUZZ',6),('FUZZ',8),('COMP',13)])
+def test_captured_additional_models_have_the_measured_control_profile(family,ordinal):
+    reg=Registry('32.06');data=words(family)
+    selector=12 if family=='COMP' else 0
+    data[selector]=ordinal
+    for name in tone_controls.DEFINITIONS[family]:
+        assert tone_controls.profile_error(reg.find_param(family,name),data,0) is None
+    data[selector]=99
+    assert tone_controls.profile_error(reg.find_param(family,name),data,0)
+
+
 def test_drive_level_is_a_pinned_knob_not_fm9_db_or_unity():
     reg=Registry('32.06');spec=reg.find_param('FUZZ','FUZZ_LEVEL')
     assert protocol.set_parameter(reg,spec,5)

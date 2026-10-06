@@ -60,15 +60,20 @@ The 2026-10-06 existing-effect checkpoint adds 32 Drive/Compressor/GEQ/PEQ
 controls to the bounded text workspace, with 88/88 muted native TC writes
 verified on TestPreset 323. See [core control evidence](AFX3-DRIVE-COMP-EQ.md)
 for exact first-block mode gates, units, preservation checks and limits.
-This is not complete FM9 effect parity: these families do not yet support
-automatic insertion or model selection; PEQ Q/types remain unchanged.
+The follow-up verified 81/81 native model/control actions: Drive 1 Rat,
+T808 OD/T808 Mod and Compressor 1 Modern/Classic VCA can now be explicitly
+selected by a per-scene design. Omitted model choices preserve the model.
+This is not complete FM9 effect parity: automatic insertion of these
+families is still gated; PEQ Q/types remain unchanged. Hardware acceptance
+is first-instance channel A, with other channels preserved, not a claim
+of every model/channel or acoustic match.
 
 ## Implemented and tested offline
 
 | Component | Boundary retained in the port |
 |---|---|
 | Connection/readback | Model/checksum filtering, addressed replies, complete bulk blocks, passive display reads; no model-selector query |
-| Scalars | 39 individually mapped controls, finite/range checks, independent display verification and captured zero setters |
+| Scalars | 75 individually mapped controls, finite/range checks, independent display verification and captured zero setters |
 | Delay time | Independently verify bulk plus display Tempo NONE before writing milliseconds; failed dependency stops the time write |
 | Legacy cab mixer | IRs 1-4, channels A-D, full-block comparison; levels, pan and normal/mute/solo are distinct from IR selection |
 | Models | Separate readable/selectable rosters; matching model is a no-op, changes are bypassed and quiet-staged with other-channel checks |
