@@ -10,7 +10,8 @@ const path=require('node:path');
   try{
     const page=await browser.newPage({viewport:{width:1440,height:1000}});
     const errors=[],plans=[],sends=[];
-    let audioFetches=0,sourceBackendReady=true;
+    let audioFetches=0,sourceBackendReady=true,routeOptionsReady=false;
+    const explorations=[];
     page.on('pageerror',e=>errors.push(e.message));
     let failPlan=false,failSend=false,failRead=false,addedExtras=false;
     let variant=null,fw33=false,namRoute=false,selected=null,slotsFull=false,slotsFail=false;
@@ -49,8 +50,16 @@ const path=require('node:path');
           nam_selection_supported:fw33,nam:fw33?{slot:1,name:'Old capture'}:null,
           profile:{variant,warning:'Memory policy from declared variant',user2_cabs:true}};
         if(!sourceBackendReady)delete result.source_support;
+        if(routeOptionsReady)result.route_options_supported=true;
         if(fw33)result.route=namRoute?['Input 1','NAM 1','Cab 1','Delay 1','Chorus 1','Reverb 1','Output 1']:[];
         if(failRead){status=409;result={detail:'Read failed'};}
+      }
+      if(name==='options'){
+        explorations.push(req.postDataJSON());
+        result={readonly:true,hardware_written:false,
+          comparison:{recommended:'amp',reason:'Compare both, no automatic selection',amp_direction:'Brit crunch',nam_query:'Whole Lotta Love',pedals:['<img src=x> Delay']},
+          routes:[{mode:'amp',label:'AMP / CAB + pedals',enabled:!fw33,reason:'Model selection requires measured firmware'},
+                  {mode:'nam',label:'NAM + passende effecten',enabled:fw33,reason:'Installed compatible capture required'}],nam_candidates:[]};
       }
       if(name==='plan'){
         plans.push(req.postDataJSON());
@@ -284,6 +293,43 @@ const path=require('node:path');
     await page.fill('#prompt','Gewoon verzoek met een oudere backend');await review();
     assert(!Object.hasOwn(plans.at(-1),'source_kind'));
     assert(!Object.hasOwn(plans.at(-1),'rig_mode'));
+    // A new backend exposes both strategies, with no automatic NAM selection.
+    await request();routeOptionsReady=true;sourceBackendReady=true;
+    await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    await page.setInputFiles('#audioFile',[]);await page.selectOption('#sourceKind','tone');
+    await page.fill('#prompt','Maak de klank van https://example.com/reference.wav');
+    await page.click('#routeOptionsPanel summary');
+    assert(await page.locator('#engage').isDisabled());
+    const beforeExplore={audio:audioFetches,sends:sends.length,installs:installs.length,plans:plans.length};
+    await page.click('#exploreRoutes');await page.locator('#refresh:not([disabled])').waitFor();
+    assert.equal(audioFetches,beforeExplore.audio+1);
+    assert.equal(explorations.at(-1).audio_reference.url,'https://example.com/reference.wav');
+    assert.equal(explorations.at(-1).expected_preset,325);
+    assert.equal(await page.inputValue('#buildRoute'),'');
+    assert.match(await page.textContent('#routeOptions'),/AMP \/ CAB/);
+    assert.match(await page.textContent('#routeOptions'),/NAM \+ passende effecten/);
+    assert.equal(await page.locator('#routeOptions details').getAttribute('open'),null);
+    assert.match(await page.locator('#routeOptions details summary').textContent(),/Waarom dit advies/);
+    assert.equal(await page.locator('#routeOptions img').count(),0);
+    assert.equal(sends.length,beforeExplore.sends);assert.equal(installs.length,beforeExplore.installs);
+    assert.equal(plans.length,beforeExplore.plans);
+    await page.selectOption('#buildRoute','amp');assert(await page.locator('#engage').isDisabled());
+    await page.selectOption('#buildRoute','nam');assert(await page.locator('#engage').isEnabled());
+    if((await page.locator('#namPanel').getAttribute('open'))===null)await page.click('#namPanel summary');
+    await page.fill('#namQuery','Marshall JTM45');
+    await review();assert.equal(plans.at(-1).mode,'nam');
+    assert.equal(audioFetches,beforeExplore.audio+1);
+    await request();await page.fill('#prompt','Werk deze twee scenes verder uit van https://example.com/reference.wav');
+    assert.equal(await page.inputValue('#buildRoute'),'');assert(await page.locator('#engage').isDisabled());
+    await page.click('#exploreRoutes');await page.locator('#refresh:not([disabled])').waitFor();
+    assert.equal(audioFetches,beforeExplore.audio+1);
+    await page.selectOption('#buildRoute','nam');await review();
+    assert.equal(audioFetches,beforeExplore.audio+1);
+    await request();await page.fill('#prompt','Andere referentie https://example.com/changed.wav');
+    await page.click('#exploreRoutes');await page.locator('#refresh:not([disabled])').waitFor();
+    assert.equal(audioFetches,beforeExplore.audio+2);
+    assert.equal(explorations.at(-1).audio_reference.url,'https://example.com/changed.wav');
+    assert.equal(sends.length,beforeExplore.sends);assert.equal(installs.length,beforeExplore.installs);
     assert.deepEqual(errors,[]);
     console.log('AFX3 shared FM9 layout: workflow, fit, consent, reset, MK, audio, XSS; FW33 NAM foundation/two scenes, permanent install and separate Store consent passed');
   }finally{await browser.close();}

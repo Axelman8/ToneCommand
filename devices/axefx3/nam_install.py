@@ -11,12 +11,28 @@ from pathlib import Path
 import secrets
 import threading
 import time
+import re
+import unicodedata
 
 from . import fw33_profile, nam_file, nam_slots, tone3000 as t3
 
 
 def _platform_supported():
     return os.name == 'nt'
+
+
+def capture_name(source_name, model_id):
+    """Map catalog labels to the measured header, without relaxing the compiler.
+
+    The original catalog name remains visible in preview. This changes only
+    the capture label, never weights, calibration, architecture or slot.
+    """
+    if not isinstance(source_name,str) or type(model_id) is not int or model_id<=0:
+        raise nam_file.NamFileError('Invalid source capture identity.')
+    ascii_name=unicodedata.normalize('NFKD',source_name).encode('ascii','ignore').decode('ascii')
+    ascii_name=re.sub(r'[^ -~]',' ',ascii_name)
+    name=' '.join(ascii_name.split())[:27].rstrip()
+    return name if name and name.upper() not in {'EMPTY','<EMPTY>'} else f'NAM {model_id}'[:27]
 
 
 class Installer:
@@ -84,7 +100,8 @@ class Installer:
             raise t3.ToneError('Select the exact NAM model in TC before preparing installation.', 409)
         raw, _filename = t3.client.download(model_id)
         try:
-            compiled = nam_file.compile_nam(raw, selected['model']['name'])
+            source_name=selected['model']['name']
+            compiled = nam_file.compile_nam(raw, capture_name(source_name,model_id))
         except nam_file.NamFileError as exc:
             raise t3.ToneError(str(exc), 422) from None
         with self.lock, self.device_lock:
@@ -97,6 +114,7 @@ class Installer:
                                 before=before, device=device, expected_preset=expected_preset,
                                 model_id=model_id, tone_id=selected['tone']['id'],slot=slot)
             return {'prepared_id': token, 'readonly': True, 'slot': slot, 'name': compiled.name,
+                    'source_name':source_name,'name_adjusted':compiled.name!=source_name,
                     'existing_name': before.name, 'existing_sha256': before.payload_sha256,
                     'existing_occupied': not before.empty,
                     'source_sha256': compiled.source_sha256, 'payload_sha256': compiled.payload_sha256,

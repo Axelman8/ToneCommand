@@ -3,10 +3,13 @@ const viewIds={planPanel:'pane-plan',review:'pane-review',confirmPanel:'pane-con
 const el=id=>document.getElementById(viewIds[id]||id);
 let state=null, proposal=null, busy=false;
 let audioReference=null;
+let audioReferenceKey='';
 let namAccount=null,namSelection=null,namPreview=null;
 let namSlots=null;
 let storePreview=null;
 let currentStage=0;
+let routeExploration=null;
+function clearRouteExploration(){routeExploration=null;el('buildRoute').value='';el('routeOptions').replaceChildren();el('routeReason').textContent='Vul je verzoek in en klik EXPLORE ROUTES. NAM wordt niet automatisch gekozen.';}
 const note=text=>{el('status').textContent=text;};
 const stageNames=['request','plan','review','confirm','send'];
 const stagePanes=['pane-request','planPanel','review','confirmPanel','result'];
@@ -21,6 +24,7 @@ const rigMode=document.createElement('select');rigMode.id='rigMode';
 rigMode.append(new Option('Dichtstbijzijnde benadering','closest'),new Option('Getrouwe routing (weigert beperkingen)','faithful'),new Option('Vereenvoudigde live-rig','simplified'));
 modeLabel.append(rigMode);modeLabel.hidden=true;sourceLabel.after(modeLabel);
 sourceKind.onchange=()=>{modeLabel.hidden=sourceKind.value!=='rig';audioReference=null;invalidate();
+  clearRouteExploration();controls();
   el('audioStatus').textContent=sourceKind.value==='rig'?'Apparatuuruitleg wordt gelezen, geen spraakmeting als gitaarklank.':'Een link wordt als klankvoorbeeld lokaal gemeten.';};
 rigMode.onchange=invalidate;
 const captureLabel=document.createElement('label');captureLabel.textContent='Geinstalleerde NAM ';
@@ -40,6 +44,10 @@ function stage(index){
   el('navHelp').textContent=['Vertel TC wat je wilt.','Voorstel, nog niets verzonden.','Controleer alle wijzigingen.','Bevestig doel en externe demping.','Resultaat van de verzending.'][index];
 }
 function controls(){
+  const chooseRoute=!!state?.route_options_supported;
+  el('routeOptionsPanel').hidden=!chooseRoute;
+  el('exploreRoutes').disabled=busy||!state?.connected||!el('prompt').value.trim();
+  el('buildRoute').disabled=busy||!routeExploration;
   const sourceSupported=!!state?.source_support?.rig_reader;
   sourceLabel.hidden=!sourceSupported;modeLabel.hidden=!sourceSupported||sourceKind.value!=='rig';
   if(!sourceSupported){sourceKind.value='tone';rigMode.value='closest';}
@@ -53,6 +61,7 @@ function controls(){
   for(const option of el('scenes').options)option.disabled=Number(option.value)>maxScenes;
   if(Number(el('scenes').value)>maxScenes)el('scenes').value=String(maxScenes);
   el('generate').disabled=busy||el('deviceChoice').value!=='axefx3'||!state?.connected||!!state.route_problem||(!fw33&&!state.cab_count);
+  if(chooseRoute&&!routeExploration?.routes.some(r=>r.mode===el('buildRoute').value&&r.enabled))el('generate').disabled=true;
   for(const id of ['namSaveKey','namDisconnect','namSuggest','namKey'])el(id).disabled=busy;
   el('namSlotsRefresh').disabled=busy||!namAccount?.installation_supported||!state?.connected;
   el('namSlot').disabled=busy||!namSlots;
@@ -82,7 +91,7 @@ async function api(name,body){
 }
 async function run(work){if(busy)return;busy=true;controls();try{await work();}catch(e){invalidate();note(e.message);}finally{busy=false;controls();}}
 async function refresh(){
-  invalidate();clearNamSlots();state=null;state=await api('state');
+  clearRouteExploration();invalidate();clearNamSlots();state=null;state=await api('state');
   el('target').textContent=state.connected?`Axe-Fx III | ${state.firmware} | Preset ${state.preset}: ${state.name} | Scene ${state.scene}`:'Verbind eerst via Verbinding & controllers.';
   el('cabCount').textContent=state.connected?`${state.cab_count} cabnamen beschikbaar.`:'';
   el('variant').value=state.profile?.variant||'';
@@ -110,6 +119,27 @@ async function refresh(){
 }
 el('refresh').onclick=()=>run(refresh);
 for(const id of ['prompt','scenes','wah','wahMode'])el(id).addEventListener('input',invalidate);
+el('prompt').addEventListener('input',()=>{clearRouteExploration();controls();});
+el('audioFile').addEventListener('input',()=>{clearRouteExploration();controls();});
+el('buildRoute').onchange=()=>{invalidate();const choice=routeExploration?.routes.find(r=>r.mode===el('buildRoute').value);
+  el('routeReason').textContent=choice?choice.reason:'Kies zelf NAM of AMP/CAB.';controls();};
+el('exploreRoutes').onclick=()=>run(async()=>{
+  clearRouteExploration();invalidate();await api('discard',{});
+  audioReference=sourceKind.value==='rig'?null:await analyseRequestAudio();
+  const result=await api('options',{prompt:el('prompt').value,expected_preset:state.preset,audio_reference:audioReference,source_kind:sourceKind.value});
+  routeExploration=result;el('routeOptionsPanel').open=true;
+  el('routeReason').textContent=`Advies: ${result.comparison.recommended==='amp'?'AMP/CAB':result.comparison.recommended==='nam'?'NAM':'beide routes mogelijk'}. Kies zelf je bouwroute; hieronder zie je wat nu uitvoerbaar is.`;
+  for(const route of result.routes){const p=document.createElement('p');
+    p.textContent=`${route.label}: ${route.enabled?'uitvoerbaar binnen de huidige geverifieerde bediening':'muzikale optie, nog niet uitvoerbaar op dit profiel'}. ${route.reason}`;el('routeOptions').append(p);}
+  const evidence=document.createElement('details'),summary=document.createElement('summary');
+  summary.textContent='Waarom dit advies? Amp-richting en mogelijke effecten';evidence.append(summary);
+  const reason=document.createElement('p');reason.textContent=result.comparison.reason;evidence.append(reason);
+  const detail=document.createElement('p');detail.textContent=`Amp-richting: ${result.comparison.amp_direction}. NAM-zoekterm: ${result.comparison.nam_query}. Mogelijke effecten: ${result.comparison.pedals.join(', ')||'geen extra effecten nodig'}. Dit zijn interpretaties, geen toegezegde parameterwrites.`;evidence.append(detail);el('routeOptions').append(evidence);
+  el('namQuery').value=result.comparison.nam_query;
+  if(result.nam_candidates?.length){await showAccountTones(result.nam_candidates);el('namPanel').open=true;}
+  if(result.nam_search_warning){const warning=document.createElement('p');warning.textContent=result.nam_search_warning;el('routeOptions').append(warning);}
+  note('Routes onderzocht. Kies NAM of AMP/CAB; niets geselecteerd, geinstalleerd of verzonden.');
+});
 el('confirmed').onchange=el('muted').onchange=controls;
 function navigate(index){
   if(busy||(index>0&&index<4&&!proposal)||(index===4&&!el('resultText').textContent))return;
@@ -147,6 +177,7 @@ el('connectDevice').onclick=()=>run(async()=>{
 el('newDesign').onclick=()=>run(async()=>{
   if((el('prompt').value||proposal)&&!confirm('Nieuw ontwerp beginnen? Het verzoek en voorstel worden gewist, niet de Fractal.'))return;
   await api('discard',{});invalidate();el('prompt').value='';audioReference=null;el('audioFile').value='';
+  clearRouteExploration();
   el('conversationPanel').hidden=true;el('requestPanel').open=true;el('requestPreview').hidden=true;
   el('emptyConversation').hidden=false;el('resultText').textContent='';stage(0);
   el('result').hidden=true;el('audioStatus').textContent='Een link in het verzoek wordt automatisch gebruikt.';
@@ -227,6 +258,7 @@ el('namInstallPrepare').onclick=()=>run(async()=>{
   if(namPreview.slot!==slot)throw new Error('Het installatievoorstel noemt een ander NAM-slot. Niets installeren.');
   const destination=String(slot).padStart(3,'0');
   el('namInstallSummary').textContent=`NAM ${destination}: ${namPreview.existing_name} -> ${namPreview.name}. Permanent; herstelbackup wordt vóór installatie gecontroleerd. Preset ${namPreview.expected_preset} wordt niet opgeslagen.`;
+    if(namPreview.name_adjusted)el('namInstallSummary').textContent+=` Catalogusnaam: ${namPreview.source_name}. Alleen de Fractal-naam is aangepast tot maximaal 27 ASCII-tekens; het model blijft hetzelfde.`;
   el('namInstallWarning').textContent=namPreview.existing_occupied?
     'DIT SLOT IS BEZET. Vervangen verandert ook andere presets die dit NAM-slot gebruiken. TC inventariseert die verwijzingen niet; een lege doelpreset voorkomt dit niet.':
     'Dit slot is opnieuw als leeg geverifieerd. TC controleert het nogmaals vóór schrijven. De NAM wordt niet automatisch in een preset geselecteerd.';
@@ -243,7 +275,8 @@ el('namInstallCommit').onclick=()=>run(async()=>{
   const result=await api('tone3000/install',{prepared_id:token,external_audio_muted:true,confirm_permanent_write:true,confirm_overwrite:true});
   await accountStatus();await refresh();note(`${result.bytes_verified} NAM-bytes gecontroleerd. Geen preset opgeslagen; audio blijft gedempt.`);
 });
-for(const id of ['namQuery','namWithRequest','audioFile'])el(id).addEventListener('input',()=>{audioReference=null;invalidate();});
+for(const id of ['namQuery','namWithRequest'])el(id).addEventListener('input',invalidate);
+el('audioFile').addEventListener('input',()=>{audioReference=null;invalidate();});
 function requestLinks(text){return [...new Set((text.match(/https?:\/\/[^\s<>"\]]+/g)||[]).map(x=>x.replace(/[).,;]+$/,'')))];}
 function spectrum(samples,rate){
   const size=2048,real=new Float64Array(size),imag=new Float64Array(size);
@@ -265,6 +298,11 @@ async function analyseRequestAudio(){
   if(file&&urls.length)throw new Error('Gebruik een audiolink OF een bestand, niet beide.');
   if(!file&&!urls.length)return null;
   if(file&&file.size>40*1024*1024)throw new Error('Maximaal 40 MiB audio.');
+  const key=file?JSON.stringify([file.name,file.size,file.lastModified]):urls[0];
+  if(audioReference&&audioReferenceKey===key){
+    el('audioStatus').textContent='Eerder lokaal gemeten klankvoorbeeld hergebruikt; geen tweede download.';
+    return audioReference;
+  }
   el('audioStatus').textContent='Audio ophalen en lokaal analyseren...';
   let bytes;
   if(file)bytes=await file.arrayBuffer();
@@ -289,6 +327,7 @@ async function analyseRequestAudio(){
     const measured={url:urls[0]||null,file_name:file?.name?.slice(0,180)||null,sample_seconds:limit/buffer.sampleRate,
       rms_dbfs:db(rms),peak_dbfs:db(peak),crest_db:db(peak)-db(rms),centroid_hz:centroid,band_energy:bands};
     el('audioStatus').textContent=`${measured.sample_seconds.toFixed(1)} s lokaal gemeten, RMS ${measured.rms_dbfs.toFixed(1)} dBFS. Geen gitaarisolatie of directe AI-beluisering.`;
+    audioReferenceKey=key;
     return measured;
   }finally{await context.close();}
 }
@@ -343,10 +382,12 @@ el('generate').onclick=()=>run(async()=>{
   note('AI werkt het voorstel uit. Er wordt nog niets naar de Fractal gestuurd...');
   stage(1);
   if(el('namWithRequest').checked&&!el('namQuery').value.trim())throw new Error('Vul een Tone3000-zoekterm in, of schakel zoeken bij dit voorstel uit.');
+  if(state.route_options_supported&&!routeExploration?.routes.some(r=>r.mode===el('buildRoute').value&&r.enabled))throw new Error('Verken eerst de routes en kies een uitvoerbare bouwroute.');
   if(sourceKind.value==='rig'&&el('audioFile').files.length)throw new Error('Rig-uitleg gebruikt tekst of een YouTube-link. Verwijder het klankbestand of kies klankvoorbeeld.');
   audioReference=sourceKind.value==='rig'?null:await analyseRequestAudio();
   proposal=await api('plan',{prompt:el('prompt').value,expected_preset:state.preset,scenes:Number(el('scenes').value),wah_source:el('wah').value||null,
     wah_auto_engage:el('wah').value?(el('wahMode').value||null):null,audio_reference:audioReference,
+    ...(state.route_options_supported?{mode:el('buildRoute').value}:{}),
     nam_query:el('namWithRequest').checked?(el('namQuery').value||null):null,
     ...(state.nam_selection_supported?{nam_slot:captureSlot.value?Number(captureSlot.value):null}:{}),
     ...(state.source_support?.rig_reader?{source_kind:sourceKind.value,rig_mode:rigMode.value}:{})});

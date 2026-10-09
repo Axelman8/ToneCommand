@@ -305,3 +305,27 @@ exports, account state and model weights remain untracked. Remote GitHub CI,
 licensing/history review, audition and owner-checkout deployment remain separate.
 The candidate is opened as the single local runtime for this feature; the old
 owner checkout is retained intact, not overwritten or promoted to a new release.
+
+## Subsequent YouTube and explicit-route regression, 2026-10-09
+
+The later [FW33 compatibility evidence](FW33-COMPATIBILITY.md) records an actual
+YouTube download/local measurement, configured-provider comparison of both
+musical strategies, native long-name capture installation in252,41/60-action
+GUI builds on325 and separate Store/full-state diagnostic reload. Stored326
+and existing full NAM memories remain unchanged. No sound-match claim follows.
+Read-only live exploration now finds catalog candidates with short artist/song
+queries; the user still chooses route/capture/destination explicitly. Unknown
+FW33 AMP/CAB/model/controller writes remain gated, even when musically advised.
+The native installer and writer have no Axe-Edit runtime dependency.
+
+The UI and read-only comparison are isolated in the FX3 package/workspace,
+not a replacement FM9 planner or forked shared transport. Keep these tests in
+the upstream-update gates: explicit choice/no implicit NAM, changed-source
+audio invalidation, catalog failure/empty matches, normalized label with
+unchanged weights, independent readback and reference-preset preservation.
+The public-facts KB bootstrap reflects the measured player selector while
+preserving an existing private KB. Product capability promotion still needs
+its own exact-firmware measurement, not a simulator or upstream claim.
+
+Only the single8909 integration runtime is used. Owner checkout/settings are
+preserved; no remote push, PR, release, branch protection or allowlist change.

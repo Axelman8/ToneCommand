@@ -117,8 +117,56 @@ and in-preset selection remain distinct, separately reviewed operations.
   frame is accepted without its exact one-operation permit. Ordinary FM9 guards
   and configured allowlists are unchanged.
 
+## Actual YouTube, route exploration and NAM acceptance, 2026-10-09
+
+The shipped GUI, actual selected Codex provider, encrypted TONE3000 account,
+native installer and live MK2 adapter were tested with
+[the user's Whole Lotta Love bluesrock reference](https://www.youtube.com/watch?v=Plwb_gfmSc4).
+This is feature/transport acceptance, not a measured or audible recording match.
+
+- Actual YouTube audio is downloaded and measured locally for60 seconds.
+  The AI receives measurements, not isolated guitar or the raw recording.
+  Exploration and planning reuse the same measurements for an unchanged
+  source in the current browser session; changed URL/file/reset invalidates
+  them. Browser tests cover repeat requests and changed-source isolation.
+- Read-only route exploration considers AMP/CAB with pedals and NAM with
+  effects. No route is silently selected. The user explicitly chooses an
+  executable route; unsupported FW33 AMP/CAB remains a musical alternative,
+  not a hidden NAM substitution. Detailed advice is separately collapsible.
+  Real live catalog research using the short query `Whole Lotta Love`
+  returns two candidates without selection, installation or preset writes.
+- The direct song-related TONE3000 capture has a catalog name longer than the
+  measured27-character ASCII header. Preview shows both names and adapts only
+  the device label, not weights or compiler requirements. Native installation
+  in authorized NAM252 verifies the complete65536-byte payload and keeps a
+  verified private pre-write recovery export. No Axe-Edit is used.
+- Empty325 builds the fixed NAM252 route with41/41 independently verified
+  actions; a second actual GUI design extends it to Rhythm/Solo on NAM A/B
+  with60/60 verified actions and zero skipped. The inventory is read again
+  after refresh before selecting a numbered capture. No stale slot is reused.
+- Separate GUI Store saves325 as `AI-Whole Lotta Love`. Diagnostic325 ->324
+  ->325 reload reproduces the complete snapshot: grid, bulks,32 modifiers,
+  both scene names, capture fingerprints and NAM252 on A/B. Stored reference
+  326 and full NAM001/250/251/256 payloads remain unchanged. An earlier
+  fallback JCM800 capture was separately installed in251 and its one-scene
+  test remains stored on328. These are authorized test resources, not a
+  product requirement to overwrite them or depend on Axe-Edit.
+- Fresh numeric checks on saved323 independently verify Amp Drive/Bass/Mid/
+  Treble/Master/Depth/Presence/Level, Compressor Threshold/Ratio and Output
+  Level. Amp model, other channels, other block bulks, grid and modifiers stay
+  unchanged. Diagnostic reload restores the entire saved323 baseline. This
+  accepts existing measured numeric setters, not FW33 amp model/CAB selectors,
+  controller bindings, extra block construction or complete FM9 parity.
+- Final Windows SIM regression:4,426 passed,16 skipped,336.23s,eight workers.
+  Fresh mandatory/changed regression:350 passed,128.12s,four workers. Real
+  Chrome with shipped assets passes explicit route choice, cache reuse after
+  request/NAM-search changes, changed-source invalidation and text safety.
+  Actual live compact GUI/provider/catalog regression also passes. Public
+  staged-file release tripwire passes; remote CI and manual review are not
+  substituted by these local checks.
+
 Native install still requires supported capture geometry and exact firmware.
-Arbitrary routing, CAB writes and controller bindings on FW33,
-live source-video regression, physical audition and remote CI
-remain separate pending work. Axe-Edit is a comparison tool, not a dependency
-of the native installer or preset writer. Local traces/reports stay private.
+Arbitrary routing, CAB/model writes and controller bindings on FW33, physical
+audition and remote CI remain separate pending work. Axe-Edit is a comparison
+tool, not a dependency of the native installer or preset writer. Local traces,
+model files, private recovery exports and reports stay untracked.

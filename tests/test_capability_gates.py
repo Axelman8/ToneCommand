@@ -301,6 +301,7 @@ def _table(sim) -> list[dict]:
         ("POST", "/api/axefx3/audio", {}, {"url":"https://example.com/reference.wav"}, None),
         ("POST", "/api/axefx3/cabs", {}, {"kind":"user","text":"U1.0001 Test"}, None),
         ("POST", "/api/axefx3/plan", {}, {"prompt":"test preset","expected_preset":324,"scenes":4}, None),
+        ("POST", "/api/axefx3/options", {}, {"prompt":"test preset","expected_preset":324}, None),
         ("POST", "/api/axefx3/discard", {}, {}, None),
         ("POST", "/api/axefx3/send", {}, {"token":"none","target_confirmed":True,"external_audio_muted":True}, None),
         ("GET", "/api/axefx3/tone3000/status", {}, None, None),

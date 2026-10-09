@@ -68,10 +68,20 @@ capture/reamp contract or never-brick guard is widened. See
 scoped edit-buffer selection, not memory installation. Reviews fingerprint the
 chosen full capture and all referenced channel captures. The AI cannot install
 or override the user's slot choice: `nam_slot` is an explicit request field and
-`select_nam` is compiled deterministically. Nonzero selection uses captured
-ordinal units and independent bulk/memory readback. Unknown zero selection,
-unreadable memory or stale review stops before transmission; no implicit
+`select_nam` is compiled deterministically. Selection001-256 uses captured
+ordinal units, separately measured zero, and independent bulk/memory readback.
+Unreadable memory or stale review stops before transmission; no implicit
 rollback, global mapping or preset reload is added.
+`route_options.py` provides a read-only typed comparison of AMP/CAB with pedals
+and NAM with effects, using the selected provider and optional local audio
+measurements. Catalog research is metadata only; it selects/installs nothing.
+The feature-negotiated GUI requires an explicit executable route choice and
+shows unsupported approaches as musical alternatives, not available writes.
+This does not enable FW33 amp model/CAB/routing/controller parity. Audio
+measurements are reused for the same source within the request session, never
+for a different URL/file. The installer adapts only a capture's display label
+to the measured27-character ASCII header and shows the original catalog name;
+capture weights, architecture and strict compiler validation are unchanged.
 Controller routes live in `controller_ui.py`; `controller_review.py` binds
 single-use, five-minute send tickets to a complete live state fingerprint.
 Read/choose/review do not write. The shared writer lock, GIG LOCK, explicit

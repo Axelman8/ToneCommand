@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from fm9 import ai_settings, planner
 from fm9.paths import resource_path
-from . import planning, route_guard, tone_review, profile, tone_search, reference_audio, nam_planning, fw33_profile, rig_source
+from . import planning, route_guard, tone_review, profile, tone_search, reference_audio, nam_planning, fw33_profile, rig_source, route_options
 from .controller_ui import Confirmation
 
 
@@ -44,6 +44,14 @@ class Request(BaseModel):
 class Profile(BaseModel):
     model_config = ConfigDict(extra='forbid')
     variant: Literal['mk1','mk2']
+
+
+class Explore(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    prompt:str=Field(min_length=3,max_length=12000)
+    expected_preset:StrictInt=Field(ge=0,le=511)
+    audio_reference:Measurements|None=None
+    source_kind:Literal['tone','rig']='tone'
 
 
 class Search(BaseModel):
@@ -110,6 +118,7 @@ def register(app, host):
                                 scene=dev.current_scene(), cab_count=len(dev.reg.cab_catalog.names),
                                 route_problem='Choose MK2 for the measured FW33 NAM profile; MK1 NAM is not verified.' if nam_profile_missing else 'Firmware not verified for writes. Search/import are available; preset planning and sending are blocked.')
                 return dict(connected=True, profile=policy,
+                            route_options_supported=True,
                             source_support=dict(rig_reader=True, modes=rig_source.MODES),
                             nam_selection_supported=dev.reg.firmware == fw33_profile.KEY,
                             **tone_review.public_state(tone_review.snapshot(dev),dev.reg))
@@ -151,6 +160,55 @@ def register(app, host):
                             note='Names only, for this connection. No IR audio uploaded.')
             except (ValueError,RuntimeError,OSError) as exc:
                 raise HTTPException(409,str(exc)) from exc
+
+    @app.post('/api/axefx3/options')
+    def explore(body:Explore):
+        urls=reference_audio.links(body.prompt)
+        if body.source_kind=='rig' and body.audio_reference:
+            raise HTTPException(422,'Rig explanation is not a measured guitar-tone reference.')
+        if body.source_kind=='tone' and (len(urls)>1 or (urls and (not body.audio_reference or body.audio_reference.url!=urls[0]))):
+            raise HTTPException(409,'Analyse the linked audio first; route research does not imply listening.')
+        if body.audio_reference and any(not 0<=x<=1 for x in body.audio_reference.band_energy):
+            raise HTTPException(422,'Invalid normalized band measurements.')
+        if not planning_lock.acquire(blocking=False):
+            raise HTTPException(409,'A design or route exploration is already running.')
+        acquired=False
+        try:
+            with host._lock:
+                editable()
+                dev=selected()
+                if dev.current_preset()[0]!=body.expected_preset or dev.firmware_label()!=dev.reg.firmware:
+                    raise ValueError('Target or firmware changed; refresh first.')
+            acquired=host._settings_lock.acquire(blocking=False)
+            if not acquired:raise HTTPException(423,'AI settings are in use.')
+            ai_settings.apply_to_env()
+            if not planner._env('PLANNER_BACKEND').strip() or len(planner.candidates())!=1:
+                raise ValueError('Choose one explicit AI backend; no paid fallback.')
+            result=route_options.compare(planner.plan,body.prompt,dev.reg,
+                body.audio_reference.model_dump() if body.audio_reference else None)
+            from . import tone3000
+            result['nam_candidates']=[]
+            result['nam_search_warning']=''
+            if tone3000.client.status().get('connected'):
+                try:
+                    result['nam_candidates']=tone3000.client.search(result['comparison']['nam_query'])['data']
+                    if not result['nam_candidates']:
+                        result['nam_search_warning']='Geen catalogustreffer voor deze zoekterm. Gebruik de NAM-widget om korter op artiest, liedje of ampmodel te zoeken; TC kiest geen vervangende capture.'
+                except tone3000.ToneError as exc:
+                    result['nam_search_warning']=str(exc)
+            else:
+                result['nam_search_warning']='Koppel Tone3000 voor catalogusonderzoek. AMP/CAB blijft een zelfstandige route.'
+            with host._lock:
+                editable()
+                if selected() is not dev or dev.current_preset()[0]!=body.expected_preset or dev.firmware_label()!=dev.reg.firmware:
+                    raise ValueError('Connection or target changed while exploring; nothing selected.')
+                result['routes']=route_options.capabilities(dev.reg)
+            return result
+        except (ValueError,RuntimeError,OSError,KeyError) as exc:
+            raise HTTPException(409,str(exc)) from exc
+        finally:
+            if acquired:host._settings_lock.release()
+            planning_lock.release()
 
     @app.post('/api/axefx3/plan')
     def build(body: Request):

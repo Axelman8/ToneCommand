@@ -58,6 +58,29 @@ def test_prepare_is_readonly_commit_is_explicit_and_full_backup_exists(setup):
     assert device.install_nam_slot.call_count == 1
 
 
+@pytest.mark.parametrize('source_name,expected',[
+    ('puppet','puppet'),
+    ('Marshall JTM45+cab led zeppelin whole lotte love setting','Marshall JTM45+cab led zepp'),
+    ('Crème Brûlée\nRock','Creme Brulee Rock'),
+    ('  Rock   Tone  ','Rock Tone'),
+    ('EMPTY','NAM 456'),('', 'NAM 456'),
+    ('\x00\x01','NAM 456')])
+def test_catalog_label_maps_to_strict_header_without_changing_weights(setup,source_name,expected):
+    service,device,_policy,_before,_tmp=setup
+    with t3.client.lock:
+        session=t3.client._session()
+        session['selected']['model']['name']=source_name
+        t3.client._save_session(session)
+    preview=service.prepare(456,326,1)
+    assert preview['name']==expected
+    assert preview['source_name']==source_name
+    assert preview['name_adjusted']==(expected!=source_name)
+    assert 1<=len(preview['name'])<=27
+    assert preview['source_sha256']==compile_source().source_sha256
+    assert service.pending['compiled'].payload[28:]==compile_source().payload[28:]
+    device.install_nam_slot.assert_not_called()
+
+
 @pytest.mark.parametrize('fault', ['firmware', 'mk1', 'fm9', 'sim', 'gig', 'preset', 'grid', 'allowlist'])
 def test_policy_and_device_guards_prevent_writes(setup, fault):
     service, device, policy, _before, _tmp = setup

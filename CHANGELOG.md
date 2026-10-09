@@ -4,6 +4,24 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- FX3 requests can explore AMP/CAB with pedals and NAM with suitable effects
+  before choosing an explicit build route. The selected AI provides a typed,
+  read-only comparison and connected TONE3000 metadata search; no capture is
+  selected, downloaded, installed or sent by this exploration. Unsupported
+  FW33 AMP/CAB functionality remains visibly blocked, not silently replaced
+  with NAM. Older backends retain their existing workflow.
+- Reuse genuine local audio measurements for an unchanged URL/file between
+  exploration and planning. Changing the source or starting a new request
+  invalidates them. Long/non-ASCII capture names are normalized only for the
+  Fractal's measured27-character label; installation preview retains the full
+  catalog name and strict model/compiler validation remains unchanged.
+- Actual selected-provider GUI regression downloads/measures a YouTube sound
+  reference, natively installs its compatible long-name NAM in authorized252,
+  builds41/60 verified actions and stores/reloads a two-scene preset on325.
+  Reference326 and existing NAM memories remain unchanged. Additional native
+  Amp/Compressor numeric checks preserve and restore saved323; unmeasured
+  FW33 model/CAB/routing/controller functionality is not promoted. Physical
+  listening and remote CI remain separate acceptance steps.
 - FX3 FW33 designs can explicitly choose an installed NAM slot instead of
   silently using001. Complete four-channel bulk supplies the current selector;
   review/Store fingerprints bind all referenced memories and the chosen slot.
