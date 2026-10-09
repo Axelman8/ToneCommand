@@ -4,6 +4,12 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Verified the isolated FW33 NAM builder on muted MK2 hardware: a real selected
+  Codex plan builds an empty test preset, a second plan voices NAM A/B scenes,
+  separate Store survives a cross-preset reload, and independent Axe-Edit
+  readings match. Existing reference preset and full NAM memory remain intact.
+  Deletion, unmeasured models and unsafe values remain blocked. Native installer
+  write acceptance, physical audition and remote CI are separate pending gates.
 - Integrated upstream 1.5.14 shared planner, rig graph/compile, CLI UTF-8,
   device discovery and account file protection into the FX3 integration branch.
   The working owner installation is not replaced by this source integration.
@@ -15,7 +21,8 @@ Notable changes to ToneCommand. Dates are UTC.
   installation, model/CAB/modifier write or preset Store. Native installation
   needs three separate acknowledgments, a private verified recovery export,
   a single-use preview and full-memory readback. Store is a separate same-slot
-  review. This port needs its own muted hardware regression before deployment.
+  review. Native NAM installation still needs its own hardware write regression
+  before deployment; the build/Store path evidence is recorded below.
 - Added repeatable read-only upstream checks, publication tripwire, PR template
   and FX3 browser/public-tree CI gate while retaining upstream shards and the
   required `tests` check. The newly built evidence-derived KB remains local

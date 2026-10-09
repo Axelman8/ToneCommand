@@ -160,3 +160,50 @@ files remain private; public claims must be supportable from reviewed facts.
 
 The device stayed off. No real AI request, NAM install, preset write/Store,
 Axe-Edit automation, owner-app restart, remote push or PR creation occurred.
+
+## Subsequent muted hardware evidence, 2026-10-09
+
+The preceding paragraph applies to the offline phase only. The owner later
+confirmed power on, external audio off, and explicitly authorized test presets
+321-329 including replacement. Candidate `4cc5834` was then tested on declared
+MK2 hardware with independently identified `33.00-beta.20261006` firmware.
+This is a narrow acceptance result, not general FM9/FX3 feature parity.
+
+- Real configured Codex backend, no substituted AI response or fallback:
+  an empty preset327 foundation executes all **40 actions**; a subsequent
+  existing-route design executes all **58 actions** for Rhythm/Lead with NAM A/B.
+  The actual registered review/send API and live adapter were used via ASGI.
+  Every action passes its independent readback, with no remaining skipped actions.
+- Separate same-slot Store through the actual API succeeds under the owner's
+  already-existing321-329 policy file. After selecting empty328 and returning
+  to327, complete block bulks, grid, modifiers, scene names and NAM hash match
+  the pre-Store state. The diagnostic bank/PC helper is not a newly enabled
+  adapter reload feature; generic preset reload remains deliberately disabled.
+- Additional live scene checks and independent Axe-Edit show NAM A/B with
+  distinct EQ/levels, the requested per-scene bypass states and shared effect
+  timings/mixes/levels. Axe-Edit is opened only after TC releases MIDI and is
+  closed gracefully afterwards. It is not used to build or save the preset.
+- Empty two-scene requests are refused before the AI call. Unsupported block
+  deletion/model selection, feedback95%, Output+12dB and adding a NAM block to
+  the occupied route are refused before writes. Complete state stays unchanged.
+  No claim is made that FW33 can clear, splice or replace an existing route.
+- Stored reference326 retains its complete grid, parameter bulks, modifiers
+  and scene names. Native NAM memory reads return all65536bytes with the same
+  hash throughout. No NAM installation, capture replacement, global MIDI map,
+  firmware, driver or allowlist change is performed.
+- The new account service reads the existing encrypted login and downloads the
+  selected entitled capture through the actual TONE3000 API. Installation
+  preview on empty328 compiles to the exact currently installed payload hash.
+  Each of the three missing-consent cases refuses commit; complete device/NAM
+  state stays unchanged. This proves preview/consent handling, NOT installation.
+- Post-hardware mandatory device/capability/UI-warning, maintenance and FW33/NAM
+  workflow regression: **127 passed**, 114.88s, four workers. Public Git tree
+  tripwire passes; it is not a complete history/license/security audit.
+
+Preset327 is stored as `AI-FX3 Integration Test`. It is a transport/scene test,
+not a claim of a complete cab voicing, matched recording or safe physical
+loudness. Cab is intentionally bypassed. External audio remains off. Physical
+audition/controller checks, the new native installer's hardware WRITE pass,
+manual licensing/history review and actual remote CI remain separate gates.
+Local raw reports and owner-specific harnesses are private and gitignored.
+No owner-app replacement, remote push or PR publication occurred.
