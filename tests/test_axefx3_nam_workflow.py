@@ -5,6 +5,7 @@ from unittest.mock import Mock
 import pytest
 import server
 from fm9.protocol import SlotName
+from devices.axefx3.nam_memory import Capture
 from devices.axefx3 import modifiers, fw33, store_review, tone_review
 from tests.test_axefx3_fw33 import fake, design as nam_design
 from tests.test_axefx3_text_planning import api
@@ -48,6 +49,78 @@ def test_nam_selected_provider_schema_review_send_without_cab_catalog(api,dev):
     dev.install_nam_slot1.assert_not_called()
     dev.store_preset.assert_not_called()
     assert client.post('/api/axefx3/send',json=dict(token=proposal['token'],**CONSENT)).status_code==409
+
+
+def test_explicit_installed_slot_is_in_design_review_and_send(api,dev):
+    client,ask=api
+    dev.read_nam_slot.side_effect=lambda slot:Capture('Chosen capture',slot,'b'*64,65536)
+    proposal=client.post('/api/axefx3/plan',json=dict(**BODY,nam_slot=250))
+    assert proposal.status_code==200,proposal.text
+    plan=proposal.json()
+    assert plan['capture']['slot']==250 and 'Chosen capture' in ask.call_args.args[2]
+    assert [a['value'] for a in plan['actions'] if a['kind']=='select_nam']==[250,250]
+    assert client.post('/api/axefx3/send',json=dict(token=plan['token'],**CONSENT)).json()['ok']
+    assert [call.args[0] for call in dev.select_nam_slot.call_args_list]==[250,250]
+    dev.install_nam_slot.assert_not_called();dev.store_preset.assert_not_called()
+
+
+def test_selected_memory_change_after_review_stops_before_any_write(api,dev):
+    client,_=api
+    dev.read_nam_slot.side_effect=lambda slot:Capture('Chosen',slot,'a'*64,65536)
+    plan=client.post('/api/axefx3/plan',json=dict(**BODY,nam_slot=256)).json()
+    dev.read_nam_slot.side_effect=lambda slot:Capture('Chosen',slot,'b'*64,65536)
+    result=client.post('/api/axefx3/send',json=dict(token=plan['token'],**CONSENT))
+    assert result.status_code==409
+    dev.select_nam_slot.assert_not_called();dev.edit_session.assert_not_called()
+
+
+@pytest.mark.parametrize('slot',[0,257,True,250.0,'250'])
+def test_invalid_selected_slot_never_calls_ai(api,dev,slot):
+    client,ask=api
+    assert client.post('/api/axefx3/plan',json=dict(**BODY,nam_slot=slot)).status_code==422
+    ask.assert_not_called();dev.select_nam_slot.assert_not_called()
+
+
+def test_empty_selected_slot_refuses_before_ai(api,dev):
+    client,ask=api
+    dev.read_nam_slot.return_value=Capture('<EMPTY>',250,'a'*64,65536,True)
+    assert client.post('/api/axefx3/plan',json=dict(**BODY,nam_slot=250)).status_code==409
+    ask.assert_not_called();dev.select_nam_slot.assert_not_called()
+
+
+def test_snapshot_uses_actual_current_slot_and_fingerprints_all_channel_captures(dev):
+    words=[0]*72;words[0]=249;words[18]=255
+    base=dev.bulk_read.side_effect
+    dev.bulk_read.side_effect=lambda eid: list(words) if eid==206 else base(eid)
+    dev.read_nam_slot.side_effect=lambda slot:Capture('Chosen',slot,'b'*64,65536)
+    state=tone_review.snapshot(dev)
+    assert state['nam']['slot']==250
+    assert set(state['nam_captures'])=={1,250,256}
+    assert dev.read_nam_slot1.called
+
+
+def test_unknown_zero_choice_is_rejected_before_any_execution(dev):
+    from devices.axefx3 import executor,nam_planning,fw33_profile
+    words=[0]*72;words[0]=249
+    base=dev.bulk_read.side_effect
+    dev.bulk_read.side_effect=lambda eid: list(words) if eid==206 else base(eid)
+    dev.read_nam_slot.side_effect=lambda slot:Capture('Chosen',slot,'b'*64,65536)
+    plan=nam_planning.compile_design(dev.reg,nam_design(),list(fw33_profile.NAM_ROUTE),1,
+                                    dict(name='Synthetic',slot=1,bytes=65536,sha256='a'*64))
+    with pytest.raises(ValueError,match='zero-selector'):
+        executor.prepare(dev,plan['actions'],plan['required_route'],133)
+    dev.edit_session.assert_not_called();dev.select_nam_slot.assert_not_called()
+
+
+def test_unknown_zero_choice_stops_before_a_paid_ai_request(api,dev):
+    client,ask=api
+    base=dev.bulk_read.side_effect
+    words=[0]*72;words[0]=249
+    dev.bulk_read.side_effect=lambda eid: list(words) if eid==206 else base(eid)
+    dev.read_nam_slot.side_effect=lambda slot:Capture('Chosen',slot,'b'*64,65536)
+    result=client.post('/api/axefx3/plan',json=dict(**BODY,nam_slot=1))
+    assert result.status_code==409
+    ask.assert_not_called();dev.select_nam_slot.assert_not_called()
 
 
 @pytest.mark.parametrize('change',['capture','preset','scene','bulk','variant'])

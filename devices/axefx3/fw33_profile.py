@@ -33,7 +33,7 @@ CONTROL_COUNT = sum(map(len, NAMES.values()))
 NAM_ROUTE = (37,206,62,70,78,66,42)
 BUILD_FAMILIES = frozenset({'NAM','CABINET','DELAY','CHORUS','REVERB'})
 BUILD_KINDS = frozenset({'add_block','rename_preset','rename_scene',
-                         'set_param','set_scene','set_channel','set_bypass','store'})
+                         'set_param','set_scene','set_channel','set_bypass','select_nam','store'})
 # Existing exact NAM routes measured on preset 326; new foundations stay 1/A.
 NAM_SCENES = frozenset({1,2})
 NAM_CHANNELS = frozenset({0,1})

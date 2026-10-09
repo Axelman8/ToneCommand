@@ -23,6 +23,11 @@ modeLabel.append(rigMode);modeLabel.hidden=true;sourceLabel.after(modeLabel);
 sourceKind.onchange=()=>{modeLabel.hidden=sourceKind.value!=='rig';audioReference=null;invalidate();
   el('audioStatus').textContent=sourceKind.value==='rig'?'Apparatuuruitleg wordt gelezen, geen spraakmeting als gitaarklank.':'Een link wordt als klankvoorbeeld lokaal gemeten.';};
 rigMode.onchange=invalidate;
+const captureLabel=document.createElement('label');captureLabel.textContent='Geinstalleerde NAM ';
+const captureSlot=document.createElement('select');captureSlot.id='namBuildSlot';
+captureSlot.append(new Option('Huidige NAM behouden',''));
+captureLabel.append(captureSlot);modeLabel.after(captureLabel);captureLabel.hidden=true;
+captureSlot.onchange=invalidate;
 function stage(index){
   currentStage=index;document.body.dataset.stage=stageNames[index];
   stagePanes.forEach((id,i)=>{el(id).hidden=i!==index;});
@@ -39,6 +44,8 @@ function controls(){
   sourceLabel.hidden=!sourceSupported;modeLabel.hidden=!sourceSupported||sourceKind.value!=='rig';
   if(!sourceSupported){sourceKind.value='tone';rigMode.value='closest';}
   sourceKind.disabled=busy;rigMode.disabled=busy;
+  captureLabel.hidden=!state?.nam_selection_supported;
+  captureSlot.disabled=busy||!state?.nam_selection_supported;
   for(const id of ['refresh','generate','cabImport','prompt','scenes','wah','cabKind','cabFile','discard','variant','deviceChoice','connectDevice','newDesign','audioFile','namQuery','namFormat','namSearch','namLogin','namWithRequest','editRequest','toReview','backPlan','toConfirm','backReview','returnRequest']) el(id).disabled=busy;
   el('wahMode').disabled=busy||!el('wah').value;
   const fw33=state?.firmware==='33.00-beta.20261006';
@@ -80,6 +87,12 @@ async function refresh(){
   el('cabCount').textContent=state.connected?`${state.cab_count} cabnamen beschikbaar.`:'';
   el('variant').value=state.profile?.variant||'';
   el('memoryWarning').textContent=state.profile?.warning||'Kies MK1 of MK2 om de juiste geheugenindeling te tonen.';
+  if(state.nam_selection_supported){
+    const selected=captureSlot.value;
+    captureSlot.replaceChildren(new Option(`Huidige NAM ${String(state.nam?.slot||1).padStart(3,'0')} behouden`,''));
+    for(const row of namSlots||[])if(row.occupied)captureSlot.append(new Option(`${String(row.slot).padStart(3,'0')} | ${row.name}`,String(row.slot)));
+    if([...captureSlot.options].some(o=>o.value===selected))captureSlot.value=selected;
+  }
   el('liveRoute').replaceChildren();
   if(state.route?.length){for(const [i,label] of state.route.entries()){
     if(i)el('liveRoute').append(document.createTextNode(' → '));
@@ -159,12 +172,15 @@ async function accountStatus(){
 function clearNamPreview(){namPreview=null;el('namInstallPanel').hidden=true;
   for(const id of ['namInstallMute','namInstallFlash','namInstallOverwrite'])el(id).checked=false;}
 function clearNamSlots(){namSlots=null;el('namSlot').replaceChildren(new Option('Lees eerst de slots',''));
+  captureSlot.replaceChildren(new Option(`Huidige NAM ${String(state?.nam?.slot||1).padStart(3,'0')} behouden`,''));
   el('namSlotsHint').textContent='Lees de NAM-slots en kies waar je de download wilt plaatsen. Er wordt niets automatisch geinstalleerd.';}
 el('namSlotsRefresh').onclick=()=>run(async()=>{
   clearNamPreview();clearNamSlots();
   const result=await api('tone3000/slots');
   if(!result.complete||result.slots?.length!==256)throw new Error('De NAM-slotlijst is niet volledig. Geen slot wordt als leeg aangenomen.');
   namSlots=result.slots;el('namSlot').replaceChildren();
+  captureSlot.replaceChildren(new Option(`Huidige NAM ${String(state?.nam?.slot||1).padStart(3,'0')} behouden`,''));
+  for(const row of namSlots)if(row.occupied)captureSlot.append(new Option(`${String(row.slot).padStart(3,'0')} | ${row.name}`,String(row.slot)));
   for(const row of namSlots){const value=String(row.slot).padStart(3,'0');
     el('namSlot').append(new Option(`${value} | ${row.occupied?'BEZET: '+row.name:'LEEG'}`,String(row.slot)));}
   el('namSlot').value=result.first_available?String(result.first_available):'';
@@ -172,6 +188,7 @@ el('namSlotsRefresh').onclick=()=>run(async()=>{
   el('namSlotsHint').textContent=result.first_available?
     `Eerste lege slot: ${String(result.first_available).padStart(3,'0')}. Wil je de download hier plaatsen? Kies dit of een ander slot en controleer het voorstel.`:
     'Geen lege slots. Kies alleen een gevuld slot als je de bestaande NAM bewust wilt vervangen.';
+  el('namSlotsHint').textContent+=' Gevulde slots zijn ook bovenaan bij Geinstalleerde NAM te kiezen voor je presetontwerp. Installeren en in de preset kiezen zijn aparte stappen.';
 });
 el('namSlot').onchange=()=>{clearNamPreview();controls();};
 async function showAccountTones(tones){
@@ -278,7 +295,7 @@ async function analyseRequestAudio(){
 function showDesign(plan){
   const design=plan.design, controller=plan.controller;
   if(plan.mode==='nam'){
-    el('toneChoice').textContent=`NAM 001: ${plan.capture.name} | Cab ${design.cab_active?'bestaand behouden':'bypassed'}`;
+    el('toneChoice').textContent=`NAM ${String(plan.capture.slot||1).padStart(3,'0')}: ${plan.capture.name} | Cab ${design.cab_active?'bestaand behouden':'bypassed'}`;
     el('controllerChoice').textContent='FW33 controllerwrites niet gemeten; geen nieuwe koppeling.';
     el('planWarnings').replaceChildren();for(const warning of plan.warnings||[]){const li=document.createElement('li');li.textContent=warning;el('planWarnings').append(li);}
     el('sceneTable').hidden=false;el('sceneRows').replaceChildren();
@@ -331,12 +348,14 @@ el('generate').onclick=()=>run(async()=>{
   proposal=await api('plan',{prompt:el('prompt').value,expected_preset:state.preset,scenes:Number(el('scenes').value),wah_source:el('wah').value||null,
     wah_auto_engage:el('wah').value?(el('wahMode').value||null):null,audio_reference:audioReference,
     nam_query:el('namWithRequest').checked?(el('namQuery').value||null):null,
+    ...(state.nam_selection_supported?{nam_slot:captureSlot.value?Number(captureSlot.value):null}:{}),
     ...(state.source_support?.rig_reader?{source_kind:sourceKind.value,rig_mode:rigMode.value}:{})});
   el('conversation').textContent=proposal.summary;el('conversationPanel').hidden=false;
   el('emptyConversation').hidden=true;
   if(proposal.capture_search)showCaptures(proposal.capture_search);
   el('summary').textContent=proposal.summary;el('planName').textContent=proposal.name;
-  el('who').textContent=`AI: ${proposal.backend||'onbekend'} / ${proposal.model||'onbekend'} | Doel: preset ${proposal.target.preset} | Voorstel 10 minuten geldig`;
+  el('who').textContent=`AI: ${proposal.backend||'onbekend'} / ${proposal.model||'onbekend'} | Doel: preset ${proposal.target.preset} | Voorstel 10 minuten geldig`+
+    (proposal.capture?` | NAM ${String(proposal.capture.slot).padStart(3,'0')}: ${proposal.capture.name}`:'');
   el('sceneNames').textContent=proposal.scenes.map((name,i)=>`${i+1}. ${name}`).join('\n');
   showDesign(proposal);
   el('rigReport').hidden=!proposal.rig_report;el('rigComponents').replaceChildren();

@@ -46,6 +46,7 @@ const path=require('node:path');
       if(name==='state'){
         result={connected:true,preset:325,name:'Test',scene:1,firmware:fw33?'33.00-beta.20261006':'32.06',cab_count:fw33?0:20,
           source_support:{rig_reader:true,modes:['closest','faithful','simplified']},
+          nam_selection_supported:fw33,nam:fw33?{slot:1,name:'Old capture'}:null,
           profile:{variant,warning:'Memory policy from declared variant',user2_cabs:true}};
         if(!sourceBackendReady)delete result.source_support;
         if(fw33)result.route=namRoute?['Input 1','NAM 1','Cab 1','Delay 1','Chorus 1','Reverb 1','Output 1']:[];
@@ -73,7 +74,7 @@ const path=require('node:path');
           result.required_route=['Input 1','Wah 1','Drive 1','Compressor 1','Amp 1','Cab 1','Output 1'];
         }
         if(fw33){
-          result.mode='nam';result.capture={name:'Synthetic A2',bytes:65536,sha256:'a'.repeat(64)};
+          result.mode='nam';result.capture={name:'Synthetic A2',slot:req.postDataJSON().nam_slot||1,bytes:65536,sha256:'a'.repeat(64)};
           result.required_route=['Input 1','NAM 1','Cab 1','Delay 1','Chorus 1','Reverb 1','Output 1'];
           result.scenes=['Rhythm','Solo'].slice(0,req.postDataJSON().scenes);
           result.design={cab_active:false,delay:{time_ms:350},scenes:result.scenes.map(name=>({name,nam:{input_gain:0,level:-16},chorus:true,delay:true,reverb:true}))};
@@ -233,13 +234,19 @@ const path=require('node:path');
     assert(await page.locator('#namInstallPrepare').isDisabled());
     slotsFull=true;await page.click('#namSlotsRefresh');await page.locator('#namSlot:not([disabled])').waitFor();
     assert.equal(await page.inputValue('#namSlot'),'');assert(await page.locator('#namInstallPrepare').isDisabled());
+    assert.equal(await page.locator('#namBuildSlot option').count(),257);
     assert.match(await page.textContent('#namSlotsHint'),/Geen lege slots/);
     await page.selectOption('#namSlot','250');assert(await page.locator('#namInstallPrepare').isEnabled());
     slotsFail=true;await page.click('#namSlotsRefresh');await page.locator('#namSlotsRefresh:not([disabled])').waitFor();
     assert(await page.locator('#namSlot').isDisabled());assert(await page.locator('#namInstallPrepare').isDisabled());
     assert.equal(installs.length,1);assert.match(await page.textContent('#status'),/NAM inventory incomplete/);
-    slotsFail=false;slotsFull=false;
-    await request();await page.fill('#prompt','Make a NAM rhythm foundation');await review();
+    assert.equal(await page.locator('#namBuildSlot option').count(),1);
+    slotsFail=false;slotsFull=true;
+    await page.click('#namSlotsRefresh');await page.locator('#namSlot:not([disabled])').waitFor();
+    slotsFull=false;
+    await request();await page.selectOption('#namBuildSlot','250');
+    await page.fill('#prompt','Make a NAM rhythm foundation');await review();
+    assert.equal(plans.at(-1).nam_slot,250);assert.match(await page.textContent('#toneChoice'),/NAM 250:/);
     assert.equal(plans.at(-1).scenes,1);assert.equal(await page.locator('#sceneRows tr').count(),1);
     assert.match(await page.textContent('#sceneRows'),/NAM input/);assert.equal(stores.length,0);
     await confirmSend();await page.locator('#refresh:not([disabled])').waitFor();

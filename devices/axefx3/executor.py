@@ -16,7 +16,7 @@ from . import fw33_profile
 
 
 KINDS = {"add_block", "set_param", "set_type", "set_cab", "set_scene", "set_channel",
-         "set_bypass", "rename_preset", "rename_scene", "bind_pedal", "bind_controller"}
+         "set_bypass", "rename_preset", "rename_scene", "bind_pedal", "bind_controller", "select_nam"}
 
 
 def integer(value, low, high):
@@ -61,6 +61,14 @@ def resolve(reg, action):
         instance = integer(a.get("instance", 1), 1, 4)
         family, eid = reg.resolve_block(a.get("block", ""), instance)
         result.family, result.effect_id = family, eid
+        if kind == 'select_nam':
+            from . import nam_slots
+            if reg.firmware != fw33_profile.KEY or family != 'NAM' or eid != 206:
+                raise ValueError('NAM selector requires exact FW33 NAM Player 1')
+            if set(a) - {'kind','block','instance','value','reason'}:
+                raise ValueError('NAM slot action cannot install memory or change arbitrary controls')
+            result.value = nam_slots.number(a.get('value'))
+            return result
         if kind == "bind_controller":
             source = {"External 1":12, "External 2":13}.get(a.get("source"))
             mode = a.get("auto_engage")
@@ -232,6 +240,7 @@ def execute(dev, actions, required_route, *, expected_preset, external_audio_mut
                         result = SetResult(True, "Present in the verified required route", None, eid)
                     elif kind == "set_param": result = dev.set_param_display(item.spec, item.value)
                     elif kind == "set_type": result = dev.set_model(item.family, eid, item.value)
+                    elif kind == 'select_nam': result = dev.select_nam_slot(item.value)
                     elif kind == "set_cab": result = dev.set_cab(eid, *item.value)
                     elif kind == "bind_pedal":
                         result = dev.assign_existing_modifier(a["modifier_slot"], eid, 5, item.value)

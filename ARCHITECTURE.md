@@ -64,6 +64,14 @@ Store. The existing OAuth callback dispatches using the browser-bound FX3
 cookie/pending state without replacing FM9's own OAuth path. No generic FM9
 capture/reamp contract or never-brick guard is widened. See
 `docs/FW33-COMPATIBILITY.md` for exact bounds and pending hardware acceptance.
+`nam_selector.py` reads four-channel capture ordinals and performs the separate
+scoped edit-buffer selection, not memory installation. Reviews fingerprint the
+chosen full capture and all referenced channel captures. The AI cannot install
+or override the user's slot choice: `nam_slot` is an explicit request field and
+`select_nam` is compiled deterministically. Nonzero selection uses captured
+ordinal units and independent bulk/memory readback. Unknown zero selection,
+unreadable memory or stale review stops before transmission; no implicit
+rollback, global mapping or preset reload is added.
 Controller routes live in `controller_ui.py`; `controller_review.py` binds
 single-use, five-minute send tickets to a complete live state fingerprint.
 Read/choose/review do not write. The shared writer lock, GIG LOCK, explicit

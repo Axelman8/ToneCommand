@@ -5,13 +5,14 @@ The port still requires a new hardware regression before user deployment.
 """
 import time
 import sys
+import math
 
 import mido
 
 from fm9 import protocol as shared, midi_transport
 from fm9.device import get_store_slots, FM9NotFound
 from fm9.safety import sysex_guard
-from . import protocol, fw33_profile as profile, nam_file, nam_slots
+from . import protocol, fw33_profile as profile, nam_file, nam_slots, nam_selector
 
 
 def platform_supported():
@@ -35,6 +36,13 @@ def check_frame(dev, frame):
         return
     if sub in ([9,0],[0x52,0]) and len(payload) == 15:
         eid, pid = shared.decode14(*payload[2:4]), shared.decode14(*payload[4:6])
+        if eid == 206 and pid == 0:
+            value = shared.decode_f32_septets(payload[6:11])
+            if (not math.isfinite(value) or value != int(value) or not 1 <= value <= 255
+                    or frame != nam_selector.frame(int(value) + 1)
+                    or getattr(dev, '_nam_select_permit', None) != tuple(frame)):
+                raise PermissionError('NAM selector differs from the measured reviewed frame')
+            return
         family = dev.reg.family_of_effect_id(eid)
         if family:
             spec=dev.reg.spec(family[0], pid, family[1])
@@ -59,8 +67,11 @@ def domain_error(dev, spec, channel):
     if (dev._channels.get(spec.effect_id) != 4 or not isinstance(words, list)
             or len(words) != 4 * profile.STRIDES[spec.family]):
         return 'FW33 full four-channel layout could not be verified'
-    if spec.family == 'NAM' and words[channel * 18] != 0:
-        return 'Only already-selected NAM slot 001 is measured; no capture selector write'
+    if spec.family == 'NAM':
+        try:
+            nam_selector.capture(dev, nam_selector.slots(words)[channel])
+        except ValueError as exc:
+            return str(exc)
     return None
 
 
@@ -80,9 +91,12 @@ def prepare(dev, resolved, expected, actual):
     channels = {b.effect_id: b.channel for b in dev.status_dump() or []}
     if actual and any(channels.get(e) not in ({0,1} if e == 206 else {0}) for e in expected):
         raise ValueError('Existing NAM route uses an unmeasured channel')
-    capture = dev.read_nam_slot1()
-    if not capture.name or capture.name.upper() in {'EMPTY','<EMPTY>'} or capture.byte_count != 65536:
-        raise ValueError('A fully read, installed NAM slot 001 is required before building')
+    choices = {item.value for item in resolved if item.action['kind'] == 'select_nam'}
+    if len(choices) > 1:
+        raise ValueError('This NAM design requires one explicitly selected installed capture')
+    selected_slot = next(iter(choices), 1)
+    capture = nam_selector.capture(dev, selected_slot)
+    initial_slots = nam_selector.slots(dev.bulk_read(206)) if actual else [1]*4
     if not actual and not any(i.family == 'NAM' and i.action.get('type_name') == capture.name for i in additions):
         raise ValueError('NAM ADD must name the independently read installed capture')
     entries = modifiers.inspect(dev)
@@ -91,7 +105,7 @@ def prepare(dev, resolved, expected, actual):
     if any(e['active'] for e in entries):
         raise ValueError('FW33 automated NAM builds require no active modifiers; no modifier is cleared')
     final = {}
-    for item in resolved:
+    for index,item in enumerate(resolved):
         kind = item.action['kind']
         if kind not in profile.BUILD_KINDS - {'store'}:
             raise ValueError('FW33 models, CAB selectors and modifiers are not measured')
@@ -105,6 +119,20 @@ def prepare(dev, resolved, expected, actual):
             if item.value not in ({0,1} if actual and item.family == 'NAM' else {0}):
                 raise ValueError('Unmeasured FW33 channel transition')
             channels[item.effect_id] = item.value
+        if kind == 'select_nam':
+            if item.effect_id != 206 or 206 not in channels:
+                raise ValueError('NAM choice requires an explicit preceding NAM channel')
+            channel = channels[206]
+            if item.value == 1 and initial_slots[channel] != 1:
+                raise ValueError('NAM001 zero-selector write is unmeasured; preserve current NAM or choose another installed slot')
+            final_level = False
+            for later in resolved[index+1:]:
+                if later.action['kind'] == 'set_scene' or (later.effect_id == 206 and later.action['kind'] in {'set_channel','select_nam','set_bypass'}):
+                    break
+                if later.effect_id == 206 and later.action['kind'] == 'set_param' and later.spec.name == 'NAM_LEVEL':
+                    final_level = True
+            if not final_level:
+                raise ValueError('NAM selection requires explicit final level before engage or channel transition')
         if kind == 'set_param':
             if item.effect_id not in channels:
                 raise ValueError('FW33 parameter requires an explicit preceding channel')

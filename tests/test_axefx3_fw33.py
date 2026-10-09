@@ -36,6 +36,7 @@ def fake(existing=False):
     dev.bulk_read.side_effect=lambda eid:[0]*(4*profile.STRIDES.get(dev.reg.family_of_effect_id(eid)[0],12))
     dev.read_display_text.return_value='NONE';dev.edit_session.side_effect=lambda **kw:nullcontext()
     dev.set_param_display.return_value=SetResult(True,'display matched',None,0)
+    dev.select_nam_slot.side_effect=lambda slot:SetResult(True,'selected bulk matched',None,slot)
     dev.set_scene.side_effect=lambda n:n;dev.set_channel.side_effect=lambda e,c:c
     dev.set_bypass.side_effect=lambda e,b:b;dev.rename_preset.side_effect=lambda n:(326,n)
     dev.rename_scene.side_effect=lambda n,name:(n,name)

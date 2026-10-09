@@ -127,6 +127,9 @@ class AxeFxIII:
                         if (not math.isfinite(value) or value != int(value) or
                                 frame != cab_selection.frame(effect_id, pid, int(value))):
                             raise PermissionError("Cab selector is not a verified discrete frame")
+                    elif self.reg.firmware == '33.00-beta.20261006' and effect_id == 206 and pid == 0:
+                        if getattr(self, '_nam_select_permit', None) != tuple(frame):
+                            raise PermissionError('NAM selector requires its independently verified operation')
                     elif pid == models.SELECTORS.get(family[0]):
                         ordinal = shared.decode_f32_septets(payload[6:11])
                         names = models.roster(self.reg, family[0], selectable=True)
@@ -629,6 +632,12 @@ class AxeFxIII:
     def read_nam_slot1(self):
         from . import nam_memory
         return self._nam_memory_read(nam_memory.read_slot1)
+
+    def select_nam_slot(self, slot):
+        from . import nam_selector
+        with self._lock:
+            self._check_edit_target()
+            return nam_selector.select(self, slot)
 
     def export_nam_slot1(self):
         from . import nam_memory

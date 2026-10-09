@@ -8,7 +8,7 @@ import json
 from typing import Annotated
 
 from pydantic import Field, StrictBool
-from . import planning, executor, fw33_profile, route_guard
+from . import planning, executor, fw33_profile, route_guard, nam_slots
 
 
 class NAM(planning.Shape):
@@ -74,7 +74,8 @@ def compile_design(reg, raw, current_route, scene_count, capture):
     if not current_route and scene_count != 1:
         raise ValueError('Build the measured one-scene foundation first; then request scenes 1/2')
     if not capture or capture['bytes'] != 65536 or capture['name'].upper() in {'EMPTY','<EMPTY>'}:
-        raise ValueError('Install and independently read NAM slot001 before designing')
+        raise ValueError('Install and independently read the selected NAM slot before designing')
+    slot = nam_slots.number(capture.get('slot'))
     actions=[]
     def emit(kind,block=None,**kw):
         if block: kw.update(block=block,instance=1)
@@ -90,6 +91,7 @@ def compile_design(reg, raw, current_route, scene_count, capture):
             emit('set_channel',family,value=number-1 if family == 'NAM' else 0)
         param('OUTPUT','OUTPUT_LEVEL',-18)
         emit('set_bypass','NAM',bypassed=True)
+        emit('select_nam','NAM',value=slot)
         for name,value in scene.nam.model_dump().items():
             param('NAM','NAM_'+name.upper(),value)
         emit('set_bypass','NAM',bypassed=False)
@@ -112,7 +114,8 @@ def compile_design(reg, raw, current_route, scene_count, capture):
         design=design.model_dump(),scenes=[s.name for s in design.scenes],actions=actions,
         required_route=route_guard.labels(fw33_profile.NAM_ROUTE,reg),cab_choices=[],
         capture=capture,controller=None,mode='nam',
-        warnings=['FW33 exact measured build only; no model/cab/modifier writes.',
+        warnings=['FW33 exact measured build; selected installed NAM only, no amp/cab/modifier writes.',
+                  'NAM001 may be preserved when already selected; its zero-selector write is not measured.',
                   'NAM A/B; effects share A. Scenes 3-8 can also share these settings.',
                   'Separate confirmation for permanent NAM install and preset Store.',
                   'Readback is not proof of audible volume, guitar isolation or sound matching.'])

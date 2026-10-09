@@ -38,6 +38,7 @@ class Request(BaseModel):
     mode: Literal['auto','amp','nam'] = 'auto'
     source_kind: Literal['tone','rig'] = 'tone'
     rig_mode: Literal['closest','faithful','simplified'] = 'closest'
+    nam_slot: StrictInt | None = Field(default=None,ge=1,le=256)
 
 
 class Profile(BaseModel):
@@ -110,6 +111,7 @@ def register(app, host):
                                 route_problem='Choose MK2 for the measured FW33 NAM profile; MK1 NAM is not verified.' if nam_profile_missing else 'Firmware not verified for writes. Search/import are available; preset planning and sending are blocked.')
                 return dict(connected=True, profile=policy,
                             source_support=dict(rig_reader=True, modes=rig_source.MODES),
+                            nam_selection_supported=dev.reg.firmware == fw33_profile.KEY,
                             **tone_review.public_state(tone_review.snapshot(dev),dev.reg))
             except (ValueError,RuntimeError,OSError) as exc:
                 raise HTTPException(409,str(exc)) from exc
@@ -169,7 +171,9 @@ def register(app, host):
                 reviews.clear()
                 if dev.reg.firmware == fw33_profile.KEY and getattr(dev.reg,'hardware_variant',None) != 'mk2':
                     raise ValueError('FW33 NAM planning requires the declared measured MK2 profile')
-                initial = tone_review.snapshot(dev)
+                if body.nam_slot is not None and (dev.reg.firmware != fw33_profile.KEY or body.mode == 'amp'):
+                    raise ValueError('Installed NAM slot choice requires exact FW33 NAM mode')
+                initial = tone_review.snapshot(dev, body.nam_slot)
                 if initial['preset'][0] != body.expected_preset:
                     raise ValueError('Target preset changed. Refresh before planning.')
                 route = route_guard.serial_route(initial['grid'],initial['blocks'],dev.reg)
@@ -180,6 +184,9 @@ def register(app, host):
                     raise ValueError('FW33 amp model selection is unmeasured. Use the installed NAM mode.')
                 if nam_mode and not route and body.scenes != 1:
                     raise ValueError('Build a one-scene NAM foundation first; then extend to scenes 1/2.')
+                if (nam_mode and initial['nam']['slot'] == 1 and 206 in initial['bulk']
+                        and any(initial['bulk'][206][channel*18] != 0 for channel in range(body.scenes))):
+                    raise ValueError('NAM001 zero-selector write is unmeasured; choose the current or another installed capture before planning.')
                 if not nam_mode and not dev.reg.cab_catalog.names:
                     raise ValueError('Import an Axe-Fx III Factory or User cab name list first; no guessed cab names.')
                 facts = resource_path('config','amp_models.json')

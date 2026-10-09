@@ -4,6 +4,16 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- FX3 FW33 designs can explicitly choose an installed NAM slot instead of
+  silently using001. Complete four-channel bulk supplies the current selector;
+  review/Store fingerprints bind all referenced memories and the chosen slot.
+  The request widget lists occupied slots from a complete inventory, clears
+  stale choices on failed reads, and shows the real slot in review. Selection
+  stages quiet/bypassed, verifies bulk/full memory and preserves other channels.
+  Native memory install remains separate. Nonzero selector encoding is captured
+  and replayed at250/256; NAM001 is a no-op only when already selected, with
+  unmeasured zero writes refused before AI planning. Real configured-provider
+  builds execute41/60 actions and preset329 survives separate Store/reload.
 - Added an opt-in Windows developer helper for the independently measured
   Axe-Edit Manage NAM information popup. It matches title, complete message
   and the unique enabled OK control, rechecks the foreground modal before clicking,

@@ -2,11 +2,11 @@
 import secrets
 import time
 
-from . import executor, modifiers, route_guard, fw33_profile
+from . import executor, modifiers, route_guard, fw33_profile, nam_selector, nam_slots
 from .controller_review import digest
 
 
-def snapshot(dev):
+def snapshot(dev, nam_slot=None):
     with dev._lock:
         preset, scene, fw = dev.current_preset(), dev.current_scene(), dev.firmware_label()
         if not preset or type(scene) is not int or fw not in ('32.06',fw33_profile.KEY) or dev.reg.firmware != fw:
@@ -28,13 +28,24 @@ def snapshot(dev):
             raise ValueError('Scene names could not be read.')
         if dev.current_preset() != preset or dev.current_scene() != scene:
             raise ValueError('Preset/scene changed during reading; refresh first.')
-        capture = dev.read_nam_slot1() if fw == fw33_profile.KEY else None
+        capture = None
+        captures = {}
+        if fw == fw33_profile.KEY:
+            selected_slots = nam_selector.slots(bulk[206]) if 206 in bulk else [1]*4
+            channel = next((b.channel for b in blocks if b.effect_id == 206), 0)
+            if type(channel) is not int or channel not in range(4):
+                raise ValueError('NAM channel cannot be read')
+            slot = nam_slots.number(nam_slot) if nam_slot is not None else selected_slots[channel]
+            for number in sorted(set(selected_slots + [slot])):
+                got = nam_selector.capture(dev, number)
+                captures[number] = dict(name=got.name,slot=got.slot,sha256=got.payload_sha256,
+                                        bytes=got.byte_count)
+            capture = captures[slot]
         if dev.current_preset() != preset or dev.current_scene() != scene:
             raise ValueError('Target changed during NAM reading; nothing sent')
         return dict(preset=preset, scene=scene, firmware=fw, blocks=blocks, grid=grid,
                     variant=getattr(dev.reg,'hardware_variant',None),
-                    nam=(dict(name=capture.name,slot=capture.slot,sha256=capture.payload_sha256,
-                              bytes=capture.byte_count) if capture else None),
+                    nam=capture, nam_captures=captures,
                     modifiers=entries, bulk=bulk, scene_names=names,
                     cabs=sorted((b,o,n) for (b,o),n in dev.reg.cab_catalog.names.items()))
 
@@ -64,13 +75,14 @@ class Reviews:
     def prepare(self, dev, plan, initial):
         self.clear()
         with dev._lock:
-            now = snapshot(dev)
+            now = snapshot(dev, initial['nam']['slot'] if initial.get('nam') else None)
             if digest(now) != digest(initial):
                 raise ValueError('Preset changed while the AI was planning. Nothing sent; regenerate.')
             executor.prepare(dev,plan['actions'],plan['required_route'],now['preset'][0])
             token = secrets.token_urlsafe(32)
             self.pending = dict(token=token, device=dev, stamp=digest(now), plan=plan,
                                 preset=now['preset'][0], expires=self.clock()+600)
+            self.pending['nam_slot'] = now['nam']['slot'] if now.get('nam') else None
             return dict(**plan, token=token, expires_in=600,
                         target=public_state(now,dev.reg), stored=False)
 
@@ -85,7 +97,7 @@ class Reviews:
         if pending['device'] is not dev or self.clock() >= pending['expires']:
             raise ValueError('Review expired or connection changed; regenerate.')
         with dev._lock:
-            if digest(snapshot(dev)) != pending['stamp']:
+            if digest(snapshot(dev, pending['nam_slot'])) != pending['stamp']:
                 raise ValueError('Device or cab catalogue changed since review. Nothing sent.')
             plan = pending['plan']
             result = executor.execute(dev,plan['actions'],plan['required_route'],

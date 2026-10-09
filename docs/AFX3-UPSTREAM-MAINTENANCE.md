@@ -7,8 +7,8 @@ copied FM9 application or an Axe-Edit-dependent addon. The intended architecture
 is upstream's shared planner/UI plus `devices/axefx3`, with explicit per-firmware
 capabilities. The integration branch includes upstream 1.5.14 and moves the
 bounded FW33/NAM protocol, installer, account and design path to
-`devices/axefx3`. The owner installation is deliberately unchanged pending
-new adapter hardware acceptance. This is NOT an automatic one-click update:
+`devices/axefx3`. The original owner checkout is preserved; the single active
+runtime uses the hardware-tested integration checkout. This is NOT a one-click update:
 shared interfaces still require regression and hardware changes need review.
 
 There is one user installation, on port 8909. Integration checkouts are source
@@ -28,10 +28,10 @@ and issues, rather than a copied feature checklist:
 
 | Upstream work | FX3 relationship | Next gate |
 | --- | --- | --- |
-| [NAM epic I](https://github.com/monzta1/ToneCommand/issues/140), especially install #147 | Native measured MK2/FW33 install and slot001-256 inventory already implemented; do not rebuild the installer | Capture selector writes still require independent editor evidence |
-| Capture placement #148 | Exact NAM route, quiet voicing and scene A/B already accepted | Connect the reviewed installed slot to the player; no speculative selector |
+| [NAM epic I](https://github.com/monzta1/ToneCommand/issues/140), especially install #147 | Native measured MK2/FW33 install and slot001-256 inventory already implemented; do not rebuild the installer | Nonzero player selection now captured/replayed at250/256; zero-selector change remains blocked |
+| Capture placement #148 | Exact NAM route, quiet voicing, scene A/B and explicit installed-slot selection accepted | No speculative001 zero selector, routing splice or new firmware profile |
 | Inventory/usage/removal #151 | Inventory exists; preset reference indexing and protected deletion do not | Do not describe inventory as complete usage/removal support |
-| [Rig Reconstruction](https://github.com/monzta1/ToneCommand/issues/224), #225-230 | Shared source/graph code already in the 1.5.14 foundation | FX3-only source translation and review, followed by hardware acceptance |
+| [Rig Reconstruction](https://github.com/monzta1/ToneCommand/issues/224), #225-230 | Shared source/graph reader, bounded FX3 reports and actual pasted-rig hardware build accepted | Live YouTube source regression and physical audition remain separate |
 | Parallel/stereo #16 and four-cable #244 | Neither automatically enabled on FX3 | Disclose closest-mode simplification; faithful mode refuses unsupported geometry |
 | Source/build defects #243, #245-248 | Rack effects must not become delay by default; multiple rigs and unsupported insertion must not silently merge | Bounded mapping, source-order checks and existing complete route preflight |
 
@@ -47,11 +47,12 @@ through the existing review/send boundary. This is not isolated guitar audio,
 an exact sound clone, automatic download/install/Store or a new hardware profile.
 Source tests and mocked browser passes are not hardware or auditory acceptance.
 
-Current selector gate: the runtime built test328 using the accepted NAM001 path
+Earlier selector checkpoint: the runtime built test328 using the accepted NAM001 path
 with40/40 verified actions, no Store. An attempted exclusive editor handoff was
 rejected by the execution environment before it ran. The runtime stayed on328;
 no editor capture, non001 selector, new NAM install or firmware capability was
-claimed. Resolve that evidence gate before enabling capture selection.
+claimed at that point. Later user-operated editor capture and independent TC
+replay resolve nonzero selection; the rejected composite operation was not retried.
 
 Validation for the source extension:830focused source/NAM/shared-gate tests
 passed, then277mandatory/changed/maintenance/packaging tests passed after the
@@ -59,7 +60,17 @@ final changes. Real Chrome exercises source choice, source-report escaping,
 consent invalidation and compatibility with an older backend. One real
 configured Codex extraction passed. A wheel was built; these results do not
 claim remote CI, a deployed new Python handler, a live YouTube extraction,
-source-driven hardware execution or NAM selector acceptance.
+source-driven hardware execution or NAM selector acceptance at that checkpoint.
+
+Later acceptance: user-operated editor capture250 ->256 ->250, exclusive TC
+selector replay, actual configured-provider41/60-action builds on329 (including
+pasted explained-rig source), and separate Store/reload succeed. Current runtime
+on8909 loads the new source and selector handler; actual headless Chrome checks
+occupied choices001/250/256 and current256 without any writes. Full regression
+4404passed/16skipped, then567mandatory/changed checks after final small guards,
+and mocked/actual-runtime browser passes are local evidence, not remote CI.
+NAM001 zero-selector change, live video ingestion and physical sound remain
+pending. See `FW33-COMPATIBILITY.md` for the exact per-operation scope.
 
 For a fresh source checkout without a local KB, first run:
 
@@ -257,7 +268,11 @@ The updated candidate adds a serial256-name inventory, first-free suggestion,
 destination selector and slot-bound preview/consent. Existing FM9 traffic guards
 and configured allowlists are unchanged. Full-bank and failed-read paths do not
 silently select a replacement. Native installation is not preset selection;
-the FW33 preset builder still requires NAM001.
+the FW33 preset builder still required NAM001 at that checkpoint. The later
+NAM player-selection acceptance in `FW33-COMPATIBILITY.md` supersedes that
+restriction, except unmeasured zero-selector changes. It includes native
+250/256 selector replay, real configured-provider41/60-action builds on329,
+shared explained-rig text extraction and separate same-slot Store/reload.
 
 - Axe-Edit name GETs independently establish all256 addresses. Read-only
   exports establish memory headers/GETs at250/256; erased slots contain a full
