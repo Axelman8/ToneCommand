@@ -50,6 +50,12 @@ translation exposes source provenance, topology/gear omissions and planned
 effect activation; it does not promote firmware capabilities or prove sound.
 The shared extractor's optional reader seam leaves the restricted image path
 and default FM9 source behavior unchanged.
+`tools/axe_edit_dialogs.py` is an optional Windows developer comparison helper,
+not a server service or NAM installation dependency. It attaches only to an
+already running measured editor executable and acknowledges only the complete
+known Manage NAM information dialog. Unknown or changed dialogs stop before
+comparison; screenshots/status stay in ignored backups. No MIDI owner, hotkey,
+Save, overwrite or selector write is introduced by this helper.
 FW33 numeric/NAM behavior is pinned in `fw33_profile.py`, guarded by `fw33.py`
 and compiled through `nam_planning.py`. Native memory conversion/readback and
 the two-phase installer stay inside the FX3 package. `nam_ui.py` registers

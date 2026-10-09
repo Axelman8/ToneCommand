@@ -4,6 +4,12 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Added an opt-in Windows developer helper for the independently measured
+  Axe-Edit Manage NAM information popup. It matches title, complete message
+  and the unique enabled OK control, rechecks the foreground modal before clicking,
+  and verifies closure. Unknown, changed, Save and overwrite dialogs stop
+  comparison instead of receiving a generic Enter/OK. Local evidence remains
+  private. This does not add Axe-Edit automation to TC's native NAM installer.
 - FX3 source intent now distinguishes a sound reference from an explained rig.
   YouTube metadata/transcripts and pasted equipment explanations reuse the
   shared upstream reader/typed graph with the explicitly selected text AI,
