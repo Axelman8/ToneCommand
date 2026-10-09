@@ -10,7 +10,9 @@ const path=require('node:path');
   try{
     const page=await browser.newPage({viewport:{width:1440,height:1000}});
     const errors=[],plans=[],sends=[];
-    let audioFetches=0,sourceBackendReady=true,routeOptionsReady=false;
+    let audioFetches=0,sourceBackendReady=true,routeOptionsReady=false,navigationReady=false;
+    let currentPreset=325,currentScene=1,navigationRequest=null;
+    const navigationSelections=[];
     const explorations=[];
     page.on('pageerror',e=>errors.push(e.message));
     let failPlan=false,failSend=false,failRead=false,addedExtras=false;
@@ -44,13 +46,23 @@ const path=require('node:path');
       if(url.pathname==='/api/axefx3/tone3000/install'){installs.push(req.postDataJSON());result={bytes_verified:65536};}
       if(url.pathname==='/api/axefx3/store/prepare')result={token:'store-ticket',preset:325,name:'AI-Test NAM',replaces:'Old stored preset'};
       if(url.pathname==='/api/axefx3/store'){stores.push(req.postDataJSON());result={ok:true,stored:true,preset:325,name:'AI-Test NAM'};}
+      if(url.pathname==='/api/axefx3/navigation/presets')result={readonly:true,slots:[{number:325,name:'Test'},{number:326,name:'<img src=x> Damage INC'}]};
+      if(url.pathname==='/api/axefx3/navigation/prepare'){
+        navigationRequest=req.postDataJSON();result={token:'navigation-test-ticket',kind:navigationRequest.kind,destination:{number:navigationRequest.value,name:'Selected'}};
+      }
+      if(url.pathname==='/api/axefx3/navigation/select'){
+        navigationSelections.push(req.postDataJSON());
+        if(navigationRequest.kind==='preset')currentPreset=navigationRequest.value;else currentScene=navigationRequest.value;
+        result={ok:true,kind:navigationRequest.kind,selected:navigationRequest.value,stored:false};
+      }
       if(name==='state'){
-        result={connected:true,preset:325,name:'Test',scene:1,firmware:fw33?'33.00-beta.20261006':'32.06',cab_count:fw33?0:20,
+        result={connected:true,preset:currentPreset,name:'Test',scene:currentScene,firmware:fw33?'33.00-beta.20261006':'32.06',cab_count:fw33?0:20,
           source_support:{rig_reader:true,modes:['closest','faithful','simplified']},
           nam_selection_supported:fw33,nam:fw33?{slot:1,name:'Old capture'}:null,
           profile:{variant,warning:'Memory policy from declared variant',user2_cabs:true}};
         if(!sourceBackendReady)delete result.source_support;
         if(routeOptionsReady)result.route_options_supported=true;
+        if(navigationReady){result.navigation_supported=true;result.scene_names=Array.from({length:8},(_,i)=>[i+1,i?'Solo':'Rhythm']);}
         if(fw33)result.route=namRoute?['Input 1','NAM 1','Cab 1','Delay 1','Chorus 1','Reverb 1','Output 1']:[];
         if(failRead){status=409;result={detail:'Read failed'};}
       }
@@ -329,6 +341,31 @@ const path=require('node:path');
     await page.click('#exploreRoutes');await page.locator('#refresh:not([disabled])').waitFor();
     assert.equal(audioFetches,beforeExplore.audio+2);
     assert.equal(explorations.at(-1).audio_reference.url,'https://example.com/changed.wav');
+    assert.equal(sends.length,beforeExplore.sends);assert.equal(installs.length,beforeExplore.installs);
+    // Preset names are read-only; explicit selection needs mute and discard consent.
+    navigationReady=true;await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    assert.equal(await page.textContent('#connectDevice'),'VERBONDEN');assert(await page.locator('#connectDevice').isDisabled());
+    assert.match(await page.textContent('#target'),/^Preset 325:/);
+    assert.match(await page.locator('#target').getAttribute('title'),/Axe-Fx III/);
+    assert.equal(await page.locator('#sceneRack button').count(),8);assert.match(await page.textContent('#sceneRack button:first-child'),/Rhythm/);
+    assert(!(await page.textContent('#sceneRack button:first-child')).includes('1,Rhythm'));
+    await page.click('#sceneRack button[data-scene="2"]');await page.locator('#navigationDialog[open]').waitFor();
+    assert.equal(navigationSelections.length,0);assert(await page.locator('#navigationSelect').isDisabled());
+    await page.click('#navigationCancel');assert.equal(navigationSelections.length,0);
+    await page.click('#sceneRack button[data-scene="2"]');await page.locator('#navigationDialog[open]').waitFor();
+    await page.check('#navigationMute');await page.click('#navigationSelect');await page.locator('#refresh:not([disabled])').waitFor();
+    assert.equal(navigationSelections.length,1);assert.equal(currentScene,2);
+    assert.equal(await page.locator('#sceneRack button[data-scene="2"]').getAttribute('aria-pressed'),'true');
+    const retained=await page.inputValue('#prompt');await page.click('#target');await page.locator('#presetChoices button').first().waitFor();
+    assert.equal(navigationSelections.length,1);assert.equal(await page.locator('#presetChoices img').count(),0);
+    await page.fill('#presetSearch','0326');assert.equal(await page.locator('#presetChoices button').count(),1);
+    await page.click('#presetChoices button');await page.locator('#navigationDialog[open]').waitFor();
+    assert.match(await page.textContent('#navigationWarning'),/niet-opgeslagen/);
+    await page.check('#navigationMute');assert(await page.locator('#navigationSelect').isDisabled());
+    await page.check('#navigationDiscard');await page.click('#navigationSelect');await page.locator('#refresh:not([disabled])').waitFor();
+    assert.equal(currentPreset,326);assert.equal(navigationSelections.length,2);
+    assert.equal(await page.inputValue('#prompt'),retained);
+    assert.deepEqual(navigationSelections.at(-1),{token:'navigation-test-ticket',external_audio_muted:true,confirm_discard_edits:true});
     assert.equal(sends.length,beforeExplore.sends);assert.equal(installs.length,beforeExplore.installs);
     assert.deepEqual(errors,[]);
     console.log('AFX3 shared FM9 layout: workflow, fit, consent, reset, MK, audio, XSS; FW33 NAM foundation/two scenes, permanent install and separate Store consent passed');

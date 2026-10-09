@@ -23,7 +23,9 @@ def check_frame(dev, frame):
     fn, payload = frame[5], frame[6:-2]
     if fn != 1:
         if fn == 0x0c and payload != [127] and payload not in ([0],[1]):
-            raise PermissionError('FW33 scene transition outside the measured NAM scope')
+            if (len(payload)!=1 or payload[0] not in range(8)
+                    or getattr(dev,'_navigation_frame_permit',None)!=tuple(frame)):
+                raise PermissionError('FW33 scene transition outside the measured NAM scope')
         if fn in (0x0a,0x0b) and len(payload) == 3 and payload[2] != 127:
             eid=shared.decode14(*payload[:2])
             if eid not in profile.NAM_ROUTE or (fn == 0x0b and payload[2] not in ({0,1} if eid == 206 else {0})):

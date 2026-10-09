@@ -9,6 +9,7 @@ let namSlots=null;
 let storePreview=null;
 let currentStage=0;
 let routeExploration=null;
+let navigationPreview=null,presetLibrary=[];
 function clearRouteExploration(){routeExploration=null;el('buildRoute').value='';el('routeOptions').replaceChildren();el('routeReason').textContent='Vul je verzoek in en klik EXPLORE ROUTES. NAM wordt niet automatisch gekozen.';}
 const note=text=>{el('status').textContent=text;};
 const stageNames=['request','plan','review','confirm','send'];
@@ -44,6 +45,11 @@ function stage(index){
   el('navHelp').textContent=['Vertel TC wat je wilt.','Voorstel, nog niets verzonden.','Controleer alle wijzigingen.','Bevestig doel en externe demping.','Resultaat van de verzending.'][index];
 }
 function controls(){
+  el('target').disabled=busy||!state?.connected||!state?.navigation_supported;
+  el('connectDevice').textContent=state?.connected?'VERBONDEN':'VERBIND';
+  el('connectDevice').classList.toggle('linked',!!state?.connected);
+  el('navigationSelect').disabled=busy||!navigationPreview||!el('navigationMute').checked||(navigationPreview.kind==='preset'&&!el('navigationDiscard').checked);
+  for(const button of el('sceneRack').querySelectorAll('button'))button.disabled=busy||!state?.navigation_supported;
   const chooseRoute=!!state?.route_options_supported;
   el('routeOptionsPanel').hidden=!chooseRoute;
   el('exploreRoutes').disabled=busy||!state?.connected||!el('prompt').value.trim();
@@ -55,6 +61,7 @@ function controls(){
   captureLabel.hidden=!state?.nam_selection_supported;
   captureSlot.disabled=busy||!state?.nam_selection_supported;
   for(const id of ['refresh','generate','cabImport','prompt','scenes','wah','cabKind','cabFile','discard','variant','deviceChoice','connectDevice','newDesign','audioFile','namQuery','namFormat','namSearch','namLogin','namWithRequest','editRequest','toReview','backPlan','toConfirm','backReview','returnRequest']) el(id).disabled=busy;
+  el('connectDevice').disabled=busy||!!state?.connected;
   el('wahMode').disabled=busy||!el('wah').value;
   const fw33=state?.firmware==='33.00-beta.20261006';
   const maxScenes=fw33?(state.route?.length?2:1):4;
@@ -91,8 +98,11 @@ async function api(name,body){
 }
 async function run(work){if(busy)return;busy=true;controls();try{await work();}catch(e){invalidate();note(e.message);}finally{busy=false;controls();}}
 async function refresh(){
+  navigationPreview=null;el('navigationDialog').close();
   clearRouteExploration();invalidate();clearNamSlots();state=null;state=await api('state');
-  el('target').textContent=state.connected?`Axe-Fx III | ${state.firmware} | Preset ${state.preset}: ${state.name} | Scene ${state.scene}`:'Verbind eerst via Verbinding & controllers.';
+  el('target').textContent=state.connected?`Preset ${state.preset}: ${state.name} \u25be`:'Verbind eerst via Verbinding & controllers.';
+  el('target').title=state.connected?`Axe-Fx III | ${state.firmware} | Preset ${state.preset}: ${state.name} | Scene ${state.scene}. Klik om een preset te kiezen.`:'Verbind eerst via Verbinding & controllers.';
+  el('connectDevice').title=state.connected?`Axe-Fx III | ${state.firmware}`:'Verbind met de Fractal';
   el('cabCount').textContent=state.connected?`${state.cab_count} cabnamen beschikbaar.`:'';
   el('variant').value=state.profile?.variant||'';
   el('memoryWarning').textContent=state.profile?.warning||'Kies MK1 of MK2 om de juiste geheugenindeling te tonen.';
@@ -109,15 +119,54 @@ async function refresh(){
   }}else el('liveRoute').textContent=state.route_problem||'Lege of niet uitgelezen keten';
   el('sceneRack').replaceChildren();
   for(let i=0;i<8;i++){
-    const scene=document.createElement('div');scene.className='sc'+(state.connected&&state.scene===i+1?' on':'');
-    scene.setAttribute('aria-label',`Scene ${i+1}: ${state.scene_names?.[i]||'niet uitgelezen'}`);
+    const raw=state.scene_names?.[i],label=Array.isArray(raw)?raw[1]:(raw||'');
+    const scene=document.createElement('button');scene.type='button';scene.className='sc'+(state.connected&&state.scene===i+1?' on':'');
+    scene.dataset.scene=String(i+1);scene.disabled=busy||!state.navigation_supported;
+    scene.setAttribute('aria-label',`Scene ${i+1}: ${label||'geen naam'}`);scene.setAttribute('aria-pressed',String(state.scene===i+1));
     const num=document.createElement('span');num.className='n';num.textContent=String(i+1);
-    const name=document.createElement('span');name.className='nm';name.textContent=state.scene_names?.[i]||'';scene.append(num,name);el('sceneRack').append(scene);
+    const name=document.createElement('span');name.className='nm';name.textContent=label;scene.append(num,name);el('sceneRack').append(scene);
   }
   if(el('namPanel').open)await accountStatus();
   note(state.route_problem||(state.connected?'Status uitgelezen. Niets verzonden.':'Nog niet verbonden.'));
 }
 el('refresh').onclick=()=>run(refresh);
+function renderPresets(){
+  const query=el('presetSearch').value.trim().toLowerCase();el('presetChoices').replaceChildren();
+  for(const row of presetLibrary.filter(r=>`${String(r.number).padStart(4,'0')} ${r.number} ${r.name}`.toLowerCase().includes(query))){
+    const button=document.createElement('button');button.type='button';button.dataset.preset=String(row.number);
+    button.textContent=`${String(row.number).padStart(3,'0')} | ${row.name}`;
+    button.onclick=()=>{el('presetDialog').close();prepareNavigation('preset',row.number);};el('presetChoices').append(button);
+  }
+}
+el('presetSearch').oninput=renderPresets;
+el('presetClose').onclick=()=>el('presetDialog').close();
+el('target').onclick=()=>run(async()=>{
+  el('presetSearch').value='';presetLibrary=[];el('presetChoices').replaceChildren();el('presetDialog').showModal();
+  el('presetScanStatus').textContent='Presetnamen 000-511 lezen. Dit selecteert niets...';
+  let result;
+  try{result=await api('navigation/presets');}
+  catch(error){el('presetScanStatus').textContent=error.message;throw error;}
+  presetLibrary=result.slots;renderPresets();
+  el('presetScanStatus').textContent=`${presetLibrary.length} presetnamen gelezen. Klik een preset om de wissel te bevestigen.`;
+});
+function prepareNavigation(kind,value){return run(async()=>{
+  navigationPreview=null;el('navigationMute').checked=el('navigationDiscard').checked=false;
+  const preview=await api('navigation/prepare',{kind,value,expected_preset:state.preset,expected_scene:state.scene});
+  navigationPreview=preview;el('navigationTitle').textContent=kind==='preset'?'PRESET SELECTEREN':'SCENE SELECTEREN';
+  el('navigationDestination').textContent=`${kind==='preset'?'Preset':'Scene'} ${preview.destination.number}: ${preview.destination.name||'geen naam'}`;
+  el('navigationWarning').textContent=kind==='preset'?'Deze wissel verwerpt niet-opgeslagen wijzigingen op de Fractal. Je verzoektekst blijft behouden; een bestaand plan wordt ongeldig.':'Deze wissel verandert de actieve sound. Externe audio moet tijdens de testwissel gedempt zijn. Een bestaand plan wordt ongeldig.';
+  el('navigationDiscardLabel').hidden=kind!=='preset';el('navigationDialog').showModal();
+});}
+el('sceneRack').onclick=event=>{const button=event.target.closest('button[data-scene]');if(button&&!button.disabled)prepareNavigation('scene',Number(button.dataset.scene));};
+el('navigationMute').onchange=el('navigationDiscard').onchange=controls;
+el('navigationCancel').onclick=()=>{navigationPreview=null;el('navigationDialog').close();controls();};
+el('navigationDialog').addEventListener('cancel',()=>{navigationPreview=null;controls();});
+el('navigationSelect').onclick=()=>run(async()=>{
+  const preview=navigationPreview;if(!preview)throw new Error('Selectie opnieuw bevestigen.');
+  navigationPreview=null;el('navigationDialog').close();
+  const result=await api('navigation/select',{token:preview.token,external_audio_muted:el('navigationMute').checked,confirm_discard_edits:el('navigationDiscard').checked});
+  el('navigationDialog').close();await refresh();note(`${result.kind==='preset'?'Preset':'Scene'} geselecteerd en van de Fractal teruggelezen. Niets opgeslagen.`);
+});
 for(const id of ['prompt','scenes','wah','wahMode'])el(id).addEventListener('input',invalidate);
 el('prompt').addEventListener('input',()=>{clearRouteExploration();controls();});
 el('audioFile').addEventListener('input',()=>{clearRouteExploration();controls();});

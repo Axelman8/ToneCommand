@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from fm9 import ai_settings, planner
 from fm9.paths import resource_path
-from . import planning, route_guard, tone_review, profile, tone_search, reference_audio, nam_planning, fw33_profile, rig_source, route_options
+from . import planning, route_guard, tone_review, profile, tone_search, reference_audio, nam_planning, fw33_profile, rig_source, route_options, navigation
 from .controller_ui import Confirmation
 
 
@@ -118,6 +118,7 @@ def register(app, host):
                                 scene=dev.current_scene(), cab_count=len(dev.reg.cab_catalog.names),
                                 route_problem='Choose MK2 for the measured FW33 NAM profile; MK1 NAM is not verified.' if nam_profile_missing else 'Firmware not verified for writes. Search/import are available; preset planning and sending are blocked.')
                 return dict(connected=True, profile=policy,
+                            navigation_supported=navigation.supported(dev),
                             route_options_supported=True,
                             source_support=dict(rig_reader=True, modes=rig_source.MODES),
                             nam_selection_supported=dev.reg.firmware == fw33_profile.KEY,
@@ -315,4 +316,5 @@ def register(app, host):
             except (ValueError,RuntimeError,OSError,KeyError) as exc:
                 raise HTTPException(409,str(exc)) from exc
 
+    navigation.register(app,host,reviews,planning_lock,editable,selected)
     return reviews

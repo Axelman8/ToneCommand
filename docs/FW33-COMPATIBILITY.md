@@ -63,6 +63,51 @@ Remote GitHub CI and hardware regression are recorded separately. Ordinary pip w
 unsupported as complete apps under upstream's resource policy; use the source
 checkout/editable installation until a bundled distribution passes its own run.
 
+## Explicit GUI navigation acceptance, 2026-10-09
+
+Click the preset header to search freshly read preset names000-511; click a
+named scene button to select scene1-8. The connection indicator says VERBONDEN
+only when TC reports a connection. Names/status reads do not select anything.
+Navigation has separate expiring, single-use, device/state-bound confirmation.
+External mute is required; loading a preset additionally requires acknowledging
+that unstored device edits will be discarded. Request text stays in the GUI,
+but previous build approvals are invalidated. Navigation never performs Store.
+
+The native exact-FW33 test selects all eight scenes on325 and presets324/325,
+then compares complete325 state with its baseline. The actual browser reads
+all512 names, selects scenes1/8/2 and presets324/325, verifies consent and
+retained text, and checks1180/1280/1440 layouts without JavaScript errors.
+No parameter, model, NAM-memory or Store writes are part of this test.
+Scene selection has an exact one-operation frame permit; it does not extend
+AI NAM builds beyond their measured scene1/2 scope. Generic automatic preset
+reload, unknown firmware and arbitrary model/routing/controller writes remain
+blocked. This native/browser result is not an independent Axe-Edit comparison
+or physical loudness measurement. Test switching stayed within321-329;
+other preset banks are not claimed as newly hardware-tested.
+
+### Next independent FW33 measurements
+
+FW33 model/CAB selection, free grid construction and new modifier allocation
+remain deliberately disabled. This is not just a product-code difference:
+the32.06 model roster/selection domains, CAB Legacy mixer layout and modifier
+creation path are firmware-pinned. Identical-looking addresses are not new
+readback proof. The current exact-FW33 grid permit covers only the accepted
+NAM route. Human scene navigation does not extend that grid/build scope.
+
+The next measurement pass needs an independently running Axe-Edit while TC
+has explicitly released MIDI. First export a baseline of a test preset and
+all32 modifier records, then passively capture a named AMP-model change, CAB
+bank/slot change, isolated block/connection edit, and modifier creation/source
+choice. After the editor closes, replay only the captured operation in TC
+with external mute and compare full bulk/display/grid/modifiers, including
+unchanged other channels. No globalCC mapping, firmware change or speculative
+opcode is part of this work. A failure leaves the feature disabled.
+
+The autonomous launch attempt was rejected by the execution environment before
+execution. No editor was started and no blocked operation was retried through
+another mechanism. A user-opened editor is required to resume this independent
+measurement; native/browser navigation tests already completed without it.
+
 ## NAM player-selection acceptance, 2026-10-09
 
 This chooses a capture already installed in memory. It never downloads,

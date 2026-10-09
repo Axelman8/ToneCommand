@@ -43,6 +43,9 @@ readback. Cab imports/selections and narrow grid/modifier operations remain
 behind this boundary; broad topology/modifier capabilities stay disabled.
 See `docs/AFX3-INTEGRATION.md` for the remaining
 server/UI and hardware gates. `server.py` has 8,229 lines in this stage.
+FX3 `navigation` is an explicit human-only selection service, separate from
+planner actions and automatic reload. State-bound single-use confirmations
+protect scene/preset transitions; native readback verifies selection, not sound.
 Source ingestion in `rig_source.py` reuses upstream `describe` and `riggraph`
 with the explicitly selected text AI, not the FM9 executor or implicit Claude.
 Sound references stay separate from rig explanations. The bounded FX3

@@ -4,6 +4,13 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- FX3 GUI now selects presets from a searchable, freshly read512-name library
+  and scenes from eight named buttons, with a clear connected indicator.
+  Human selection has its own state-bound, single-use confirmation, requires
+  external mute and warns before discarding an unstored preset buffer.
+  AI actions and automatic reload remain blocked; configured storage guards
+  are unchanged. Actual FW33 native/browser tests verify all eight scenes,
+  preset324/325 switching and complete325-state preservation, without Store.
 - FX3 requests can explore AMP/CAB with pedals and NAM with suitable effects
   before choosing an explicit build route. The selected AI provides a typed,
   read-only comparison and connected TONE3000 metadata search; no capture is
