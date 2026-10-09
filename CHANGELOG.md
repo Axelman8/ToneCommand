@@ -11,8 +11,10 @@ Notable changes to ToneCommand. Dates are UTC.
   stale choices on failed reads, and shows the real slot in review. Selection
   stages quiet/bypassed, verifies bulk/full memory and preserves other channels.
   Native memory install remains separate. Nonzero selector encoding is captured
-  and replayed at250/256; NAM001 is a no-op only when already selected, with
-  unmeasured zero writes refused before AI planning. Real configured-provider
+  and replayed at250/256. A later user-operated Axe-Edit capture and independent
+  native replay verify NAM001 zero selection, retaining the exact single-write
+  permit, quiet staging, full-memory readback and no implicit installation.
+  Real configured-provider
   builds execute41/60 actions and preset329 survives separate Store/reload.
 - Added an opt-in Windows developer helper for the independently measured
   Axe-Edit Manage NAM information popup. It matches title, complete message

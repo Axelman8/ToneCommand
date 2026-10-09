@@ -270,7 +270,7 @@ and configured allowlists are unchanged. Full-bank and failed-read paths do not
 silently select a replacement. Native installation is not preset selection;
 the FW33 preset builder still required NAM001 at that checkpoint. The later
 NAM player-selection acceptance in `FW33-COMPATIBILITY.md` supersedes that
-restriction, except unmeasured zero-selector changes. It includes native
+restriction, including the later independently measured001 zero selector. It includes native
 250/256 selector replay, real configured-provider41/60-action builds on329,
 shared explained-rig text extraction and separate same-slot Store/reload.
 

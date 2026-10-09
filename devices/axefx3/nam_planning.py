@@ -115,7 +115,7 @@ def compile_design(reg, raw, current_route, scene_count, capture):
         required_route=route_guard.labels(fw33_profile.NAM_ROUTE,reg),cab_choices=[],
         capture=capture,controller=None,mode='nam',
         warnings=['FW33 exact measured build; selected installed NAM only, no amp/cab/modifier writes.',
-                  'NAM001 may be preserved when already selected; its zero-selector write is not measured.',
+                  'Installed NAM001-256 selection is separate from memory installation; changed selection stays quiet/bypassed until voiced.',
                   'NAM A/B; effects share A. Scenes 3-8 can also share these settings.',
                   'Separate confirmation for permanent NAM install and preset Store.',
                   'Readback is not proof of audible volume, guitar isolation or sound matching.'])

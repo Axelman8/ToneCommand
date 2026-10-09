@@ -99,7 +99,7 @@ def test_snapshot_uses_actual_current_slot_and_fingerprints_all_channel_captures
     assert dev.read_nam_slot1.called
 
 
-def test_unknown_zero_choice_is_rejected_before_any_execution(dev):
+def test_measured_zero_choice_can_be_prepared_without_execution(dev):
     from devices.axefx3 import executor,nam_planning,fw33_profile
     words=[0]*72;words[0]=249
     base=dev.bulk_read.side_effect
@@ -107,20 +107,27 @@ def test_unknown_zero_choice_is_rejected_before_any_execution(dev):
     dev.read_nam_slot.side_effect=lambda slot:Capture('Chosen',slot,'b'*64,65536)
     plan=nam_planning.compile_design(dev.reg,nam_design(),list(fw33_profile.NAM_ROUTE),1,
                                     dict(name='Synthetic',slot=1,bytes=65536,sha256='a'*64))
-    with pytest.raises(ValueError,match='zero-selector'):
-        executor.prepare(dev,plan['actions'],plan['required_route'],133)
+    executor.prepare(dev,plan['actions'],plan['required_route'],133)
     dev.edit_session.assert_not_called();dev.select_nam_slot.assert_not_called()
 
 
-def test_unknown_zero_choice_stops_before_a_paid_ai_request(api,dev):
+def test_measured_zero_choice_is_available_in_review_from_nonzero_current_slot(api,dev):
     client,ask=api
     base=dev.bulk_read.side_effect
     words=[0]*72;words[0]=249
     dev.bulk_read.side_effect=lambda eid: list(words) if eid==206 else base(eid)
     dev.read_nam_slot.side_effect=lambda slot:Capture('Chosen',slot,'b'*64,65536)
     result=client.post('/api/axefx3/plan',json=dict(**BODY,nam_slot=1))
-    assert result.status_code==409
-    ask.assert_not_called();dev.select_nam_slot.assert_not_called()
+    assert result.status_code==200,result.text
+    assert result.json()['capture']['slot']==1
+    assert [a['value'] for a in result.json()['actions'] if a['kind']=='select_nam']==[1,1]
+    assert ask.called
+    dev.select_nam_slot.assert_not_called()
+    sent=client.post('/api/axefx3/send',json=dict(token=result.json()['token'],**CONSENT))
+    assert sent.status_code==200,sent.text
+    assert sent.json()['ok']
+    assert [c.args[0] for c in dev.select_nam_slot.call_args_list]==[1,1]
+    dev.install_nam_slot1.assert_not_called();dev.store_preset.assert_not_called()
 
 
 @pytest.mark.parametrize('change',['capture','preset','scene','bulk','variant'])

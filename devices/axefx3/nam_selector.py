@@ -2,7 +2,9 @@
 
 Editor trace on preset328: slot250 ->256 ->250 is parameter0, effect206,
 opcode09, float32 ordinals249/255/249. Full independent bulk is four18-word
-channels with the ordinal at offset0. Zero selection is not yet captured.
+channels with the ordinal at offset0. A later user-operated256 ->001 ->256
+->001 capture on329 records opcode09 zero twice, with visible001 and an
+independent complete bulk ordinal0 after the editor closes.
 """
 import time
 
@@ -12,8 +14,6 @@ from . import fw33_profile, nam_slots, protocol
 
 def frame(slot):
     nam_slots.number(slot)
-    if slot == 1:
-        raise ValueError('NAM001 zero-selector write is unmeasured; already selected is a read-only no-op')
     return protocol.param_frame(206, 0, slot - 1, opcode=9)
 
 
@@ -71,7 +71,7 @@ def select(dev, slot):
     wanted = capture(dev, slot)
     if before['slot'] == slot:
         return SetResult(True, 'NAM already selected; all voicing preserved', slot, slot)
-    encoded = frame(slot)  # Refuse unknown zero before any staging write.
+    encoded = frame(slot)
     from . import modifiers
     records = modifiers.inspect(dev)
     if len(records) != 32 or any(len(r['words']) != 25 or r['active'] for r in records):

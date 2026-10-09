@@ -83,11 +83,22 @@ and in-preset selection remain distinct, separately reviewed operations.
   and unchanged other channels. Full65536-byte NAM001/250/256 memories were
   checked before/after and unchanged. A changed selector stays quiet/bypassed
   until the reviewed design explicitly voices and engages that channel.
-- Nonzero choices002-256 use the measured ordinal encoding, constrained to
-  NAM Player1 and exact MK2/FW33. Hardware replay used250/256, not254 other
-  destructive tests. NAM001 can be preserved as a read-only no-op; its zero
-  selector SET is unmeasured and blocked when a real change is needed, before
-  starting an AI request. Channels A/B remain the reviewed build scope.
+- Choices001-256 use the measured ordinal encoding, constrained to NAM
+  Player1 and exact MK2/FW33. Hardware replay used001/250/256, not256
+  destructive tests. A later user-operated256 ->001 ->256 ->001 measurement
+  on329 captured opcode09 zero twice. Visible editor selection001 and complete
+  independent TC bulk ordinal0 confirm the final selection. Native TC replay
+  256 ->001 ->250 ->001 independently verifies each selection, complete
+  unchanged NAM001/250/256 memories, unchanged other NAM channels, other block
+  bulks and grid. NAM remains quiet/bypassed. No Store or installation occurs
+  in that selector-only pass. Channels A/B remain the reviewed build scope.
+- The previous technical AI design is then recompiled for001, reviewed and
+  sent through the actual registered API:60/60 actions, zero skipped. Both
+  NAM A/B select001. Separate Store329 and diagnostic reload reproduce the
+  full state; stored326 and NAM001/250/256 remain unchanged. This is not a
+  new paid AI or sound-matching test. Mandatory and changed regression tests:
+  268 passed. Graceful runtime restart loads the new code on the single8909
+  instance; live state independently shows NAM001 on preset329/scene2.
 - Actual registered API, live adapter and configured Codex build one-scene
   preset329 using250:41/41 actions verified. A second two-scene design uses256
   on NAM A/B:60/60 actions verified. This second request exercises the shared
@@ -107,7 +118,7 @@ and in-preset selection remain distinct, separately reviewed operations.
   and configured allowlists are unchanged.
 
 Native install still requires supported capture geometry and exact firmware.
-Arbitrary routing, CAB writes and controller bindings on FW33, zero-selector
-measurement, live source-video regression, physical audition and remote CI
+Arbitrary routing, CAB writes and controller bindings on FW33,
+live source-video regression, physical audition and remote CI
 remain separate pending work. Axe-Edit is a comparison tool, not a dependency
 of the native installer or preset writer. Local traces/reports stay private.

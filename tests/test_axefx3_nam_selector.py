@@ -26,29 +26,32 @@ def device():
     def write(frame):
         assert dev._nam_select_permit == tuple(frame)
         fw33.check_frame(dev, frame)
-        words[0] = 255
+        from fm9.protocol import decode_f32_septets
+        words[0] = int(decode_f32_septets(frame[12:17]))
     dev._write.side_effect = write
     return dev, words
 
 
 def test_frames_equal_independently_captured_editor_bytes():
+    assert selector.frame(1) == list(bytes.fromhex('f0 00 01 74 10 01 09 00 4e 01 00 00 00 00 00 00 00 00 00 00 00 52 f7'))
     assert selector.frame(250) == list(bytes.fromhex('f0 00 01 74 10 01 09 00 4e 01 00 00 00 00 64 1b 04 00 00 00 00 29 f7'))
     assert selector.frame(256) == list(bytes.fromhex('f0 00 01 74 10 01 09 00 4e 01 00 00 00 00 7c 1b 04 00 00 00 00 31 f7'))
 
 
-@pytest.mark.parametrize('slot', [0, 257, True, 250., '250', 1])
-def test_invalid_or_unmeasured_zero_selector_frame_refused(slot):
+@pytest.mark.parametrize('slot', [0, 257, True, 250., '250'])
+def test_invalid_selector_frame_refused(slot):
     with pytest.raises(ValueError): selector.frame(slot)
 
 
-def test_raw_selector_needs_exact_scoped_permit():
+@pytest.mark.parametrize('slot', [1,250,256])
+def test_raw_selector_needs_exact_scoped_permit(slot):
     dev, _ = device()
     dev._nam_select_permit = None
-    with pytest.raises(PermissionError): fw33.check_frame(dev, selector.frame(250))
-    dev._nam_select_permit = tuple(selector.frame(250))
-    fw33.check_frame(dev, selector.frame(250))
-    with pytest.raises(PermissionError): fw33.check_frame(dev, selector.frame(256))
-    with pytest.raises(PermissionError): fw33.check_frame(dev, protocol.param_frame(206, 0, 249, opcode=0x52))
+    with pytest.raises(PermissionError): fw33.check_frame(dev, selector.frame(slot))
+    dev._nam_select_permit = tuple(selector.frame(slot))
+    fw33.check_frame(dev, selector.frame(slot))
+    with pytest.raises(PermissionError): fw33.check_frame(dev, selector.frame(250 if slot!=250 else 256))
+    with pytest.raises(PermissionError): fw33.check_frame(dev, protocol.param_frame(206, 0, slot-1, opcode=0x52))
 
 
 def test_only_full_four_channel_enum_bulk_is_accepted():
@@ -58,15 +61,17 @@ def test_only_full_four_channel_enum_bulk_is_accepted():
         with pytest.raises(ValueError): selector.slots(invalid)
 
 
-def test_verified_slot_change_leaves_bypassed_quiet_and_never_installs(monkeypatch):
+@pytest.mark.parametrize('slot', [1,256])
+def test_verified_slot_change_leaves_bypassed_quiet_and_never_installs(monkeypatch,slot):
     monkeypatch.setattr(selector.time, 'sleep', lambda _: None)
     dev, _ = device()
-    assert selector.select(dev, 256).ok
-    dev._write.assert_called_once_with(selector.frame(256))
+    assert selector.select(dev, slot).ok
+    dev._write.assert_called_once_with(selector.frame(slot))
     assert dev._nam_select_permit is None
     dev.set_bypass.assert_called_once_with(206, True)
     assert [call.args[1] for call in dev.set_param_display.call_args_list] == [-18, -18]
     dev.install_nam_slot.assert_not_called(); dev.store_preset.assert_not_called()
+    dev.install_nam_slot1.assert_not_called()
 
 
 def test_same_slot_does_not_reset_voicing_or_stage():
@@ -75,7 +80,7 @@ def test_same_slot_does_not_reset_voicing_or_stage():
     dev._write.assert_not_called(); dev.set_param_display.assert_not_called()
 
 
-@pytest.mark.parametrize('fault', ['empty','incomplete','wrong_slot','unknown_zero','modifier','channel','variant'])
+@pytest.mark.parametrize('fault', ['empty','incomplete','wrong_slot','empty_zero','modifier','channel','variant'])
 def test_bad_target_stops_before_staging_or_selector(fault, monkeypatch):
     dev, _ = device()
     target = 256
@@ -84,7 +89,9 @@ def test_bad_target_stops_before_staging_or_selector(fault, monkeypatch):
     if fault == 'incomplete': got = replace(got, byte_count=100)
     if fault == 'wrong_slot': got = replace(got, slot=250)
     dev.read_nam_slot.side_effect = None; dev.read_nam_slot.return_value = got
-    if fault == 'unknown_zero': target = 1
+    if fault == 'empty_zero':
+        target = 1
+        dev.read_nam_slot1.return_value = Capture('EMPTY',1,'a'*64,65536,True)
     if fault == 'modifier': monkeypatch.setattr(modifiers, 'inspect', lambda _: [dict(active=True, words=[0]*25)]*32)
     if fault == 'channel': dev.get_channel.return_value = 2
     if fault == 'variant': dev.reg.hardware_variant = 'mk1'

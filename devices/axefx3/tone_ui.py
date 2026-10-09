@@ -184,9 +184,6 @@ def register(app, host):
                     raise ValueError('FW33 amp model selection is unmeasured. Use the installed NAM mode.')
                 if nam_mode and not route and body.scenes != 1:
                     raise ValueError('Build a one-scene NAM foundation first; then extend to scenes 1/2.')
-                if (nam_mode and initial['nam']['slot'] == 1 and 206 in initial['bulk']
-                        and any(initial['bulk'][206][channel*18] != 0 for channel in range(body.scenes))):
-                    raise ValueError('NAM001 zero-selector write is unmeasured; choose the current or another installed capture before planning.')
                 if not nam_mode and not dev.reg.cab_catalog.names:
                     raise ValueError('Import an Axe-Fx III Factory or User cab name list first; no guessed cab names.')
                 facts = resource_path('config','amp_models.json')

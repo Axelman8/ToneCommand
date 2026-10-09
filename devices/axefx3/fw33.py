@@ -38,7 +38,7 @@ def check_frame(dev, frame):
         eid, pid = shared.decode14(*payload[2:4]), shared.decode14(*payload[4:6])
         if eid == 206 and pid == 0:
             value = shared.decode_f32_septets(payload[6:11])
-            if (not math.isfinite(value) or value != int(value) or not 1 <= value <= 255
+            if (not math.isfinite(value) or value != int(value) or not 0 <= value <= 255
                     or frame != nam_selector.frame(int(value) + 1)
                     or getattr(dev, '_nam_select_permit', None) != tuple(frame)):
                 raise PermissionError('NAM selector differs from the measured reviewed frame')
@@ -96,7 +96,6 @@ def prepare(dev, resolved, expected, actual):
         raise ValueError('This NAM design requires one explicitly selected installed capture')
     selected_slot = next(iter(choices), 1)
     capture = nam_selector.capture(dev, selected_slot)
-    initial_slots = nam_selector.slots(dev.bulk_read(206)) if actual else [1]*4
     if not actual and not any(i.family == 'NAM' and i.action.get('type_name') == capture.name for i in additions):
         raise ValueError('NAM ADD must name the independently read installed capture')
     entries = modifiers.inspect(dev)
@@ -122,9 +121,6 @@ def prepare(dev, resolved, expected, actual):
         if kind == 'select_nam':
             if item.effect_id != 206 or 206 not in channels:
                 raise ValueError('NAM choice requires an explicit preceding NAM channel')
-            channel = channels[206]
-            if item.value == 1 and initial_slots[channel] != 1:
-                raise ValueError('NAM001 zero-selector write is unmeasured; preserve current NAM or choose another installed slot')
             final_level = False
             for later in resolved[index+1:]:
                 if later.action['kind'] == 'set_scene' or (later.effect_id == 206 and later.action['kind'] in {'set_channel','select_nam','set_bypass'}):
