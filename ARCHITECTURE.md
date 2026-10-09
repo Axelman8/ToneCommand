@@ -43,6 +43,13 @@ readback. Cab imports/selections and narrow grid/modifier operations remain
 behind this boundary; broad topology/modifier capabilities stay disabled.
 See `docs/AFX3-INTEGRATION.md` for the remaining
 server/UI and hardware gates. `server.py` has 8,229 lines in this stage.
+Source ingestion in `rig_source.py` reuses upstream `describe` and `riggraph`
+with the explicitly selected text AI, not the FM9 executor or implicit Claude.
+Sound references stay separate from rig explanations. The bounded FX3
+translation exposes source provenance, topology/gear omissions and planned
+effect activation; it does not promote firmware capabilities or prove sound.
+The shared extractor's optional reader seam leaves the restricted image path
+and default FM9 source behavior unchanged.
 FW33 numeric/NAM behavior is pinned in `fw33_profile.py`, guarded by `fw33.py`
 and compiled through `nam_planning.py`. Native memory conversion/readback and
 the two-phase installer stay inside the FX3 package. `nam_ui.py` registers

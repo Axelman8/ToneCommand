@@ -20,6 +20,47 @@ certify untested firmware, controllers, NAM formats or upstream features.
 
 ## Repeatable update check
 
+### Roadmap reconciliation, 2026-10-09
+
+There is no standalone ROADMAP file in the inspected upstream main tree.
+Follow the live [milestones](https://github.com/monzta1/ToneCommand/milestones)
+and issues, rather than a copied feature checklist:
+
+| Upstream work | FX3 relationship | Next gate |
+| --- | --- | --- |
+| [NAM epic I](https://github.com/monzta1/ToneCommand/issues/140), especially install #147 | Native measured MK2/FW33 install and slot001-256 inventory already implemented; do not rebuild the installer | Capture selector writes still require independent editor evidence |
+| Capture placement #148 | Exact NAM route, quiet voicing and scene A/B already accepted | Connect the reviewed installed slot to the player; no speculative selector |
+| Inventory/usage/removal #151 | Inventory exists; preset reference indexing and protected deletion do not | Do not describe inventory as complete usage/removal support |
+| [Rig Reconstruction](https://github.com/monzta1/ToneCommand/issues/224), #225-230 | Shared source/graph code already in the 1.5.14 foundation | FX3-only source translation and review, followed by hardware acceptance |
+| Parallel/stereo #16 and four-cable #244 | Neither automatically enabled on FX3 | Disclose closest-mode simplification; faithful mode refuses unsupported geometry |
+| Source/build defects #243, #245-248 | Rack effects must not become delay by default; multiple rigs and unsupported insertion must not silently merge | Bounded mapping, source-order checks and existing complete route preflight |
+
+Upstream main3f20af0 contains six newer commits than the integrated c2dae138
+foundation. Their transport/CI and dead-scene comparison changes are not a new
+music-only audio reconstruction engine. Audit them by the existing update
+checker; do not infer FM9/macOS transport evidence enables FX3/Windows writes.
+
+The source extension distinguishes an explained equipment/video source from
+a measured sound reference. It uses the user's single selected text provider,
+preserves graph provenance and provides closest/faithful/simplified FX3 reports
+through the existing review/send boundary. This is not isolated guitar audio,
+an exact sound clone, automatic download/install/Store or a new hardware profile.
+Source tests and mocked browser passes are not hardware or auditory acceptance.
+
+Current selector gate: the runtime built test328 using the accepted NAM001 path
+with40/40 verified actions, no Store. An attempted exclusive editor handoff was
+rejected by the execution environment before it ran. The runtime stayed on328;
+no editor capture, non001 selector, new NAM install or firmware capability was
+claimed. Resolve that evidence gate before enabling capture selection.
+
+Validation for the source extension:830focused source/NAM/shared-gate tests
+passed, then277mandatory/changed/maintenance/packaging tests passed after the
+final changes. Real Chrome exercises source choice, source-report escaping,
+consent invalidation and compatibility with an older backend. One real
+configured Codex extraction passed. A wheel was built; these results do not
+claim remote CI, a deployed new Python handler, a live YouTube extraction,
+source-driven hardware execution or NAM selector acceptance.
+
 For a fresh source checkout without a local KB, first run:
 
 ```powershell

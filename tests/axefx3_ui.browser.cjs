@@ -10,6 +10,7 @@ const path=require('node:path');
   try{
     const page=await browser.newPage({viewport:{width:1440,height:1000}});
     const errors=[],plans=[],sends=[];
+    let audioFetches=0,sourceBackendReady=true;
     page.on('pageerror',e=>errors.push(e.message));
     let failPlan=false,failSend=false,failRead=false,addedExtras=false;
     let variant=null,fw33=false,namRoute=false,selected=null,slotsFull=false,slotsFail=false;
@@ -44,7 +45,9 @@ const path=require('node:path');
       if(url.pathname==='/api/axefx3/store'){stores.push(req.postDataJSON());result={ok:true,stored:true,preset:325,name:'AI-Test NAM'};}
       if(name==='state'){
         result={connected:true,preset:325,name:'Test',scene:1,firmware:fw33?'33.00-beta.20261006':'32.06',cab_count:fw33?0:20,
+          source_support:{rig_reader:true,modes:['closest','faithful','simplified']},
           profile:{variant,warning:'Memory policy from declared variant',user2_cabs:true}};
+        if(!sourceBackendReady)delete result.source_support;
         if(fw33)result.route=namRoute?['Input 1','NAM 1','Cab 1','Delay 1','Chorus 1','Reverb 1','Output 1']:[];
         if(failRead){status=409;result={detail:'Read failed'};}
       }
@@ -75,6 +78,10 @@ const path=require('node:path');
           result.scenes=['Rhythm','Solo'].slice(0,req.postDataJSON().scenes);
           result.design={cab_active:false,delay:{time_ms:350},scenes:result.scenes.map(name=>({name,nam:{input_gain:0,level:-16},chorus:true,delay:true,reverb:true}))};
         }
+        if(req.postDataJSON().source_kind==='rig'){
+          result.source={title:'<img src=x onerror=alert(1)> Explained rig',spec:{reader:{backend:'codex'}}};
+          result.rig_report={mode:req.postDataJSON().rig_mode,status:{nodes:{amp:{label:'<img src=x> Amp',state:'changed',provenance:'observed',reason:'Installed capture interpretation'},wah:{label:'Wah',state:'not_reproduced',provenance:'observed',reason:'Not measured'}},edges:{pedal:{state:'not_reproduced',reason:'No verified controller mapping'}}}};
+        }
         if(failPlan){status=409;result={detail:'AI output refused'};}
       }
       if(name==='send'){
@@ -87,6 +94,7 @@ const path=require('node:path');
       if(name==='profile'){variant=req.postDataJSON().variant;result={profile:{variant},hardware_written:false};}
       if(name==='search')result={candidates:[{id:42,title:'<img src=x onerror=alert(1)> Plexi',creator:'test'}]};
       if(name==='audio'){
+        audioFetches++;
         const size=32000,buf=Buffer.alloc(44+size*2);
         buf.write('RIFF');buf.writeUInt32LE(buf.length-8,4);buf.write('WAVEfmt ',8);buf.writeUInt32LE(16,16);
         buf.writeUInt16LE(1,20);buf.writeUInt16LE(1,22);buf.writeUInt32LE(16000,24);buf.writeUInt32LE(32000,28);
@@ -246,6 +254,29 @@ const path=require('node:path');
     assert(await page.locator('#storeCommit').isDisabled());
     await request();await page.selectOption('#scenes','2');await review();
     assert.equal(plans.at(-1).scenes,2);assert.equal(await page.locator('#sceneRows tr').count(),2);
+    await request();
+    const beforeAudio=audioFetches,beforeSends=sends.length;
+    await page.fill('#prompt','Maak de uitgelegde rig van https://youtu.be/Plwb_gfmSc4');
+    await page.selectOption('#sourceKind','rig');await page.selectOption('#rigMode','closest');
+    await review();
+    assert.equal(plans.at(-1).source_kind,'rig');assert.equal(plans.at(-1).audio_reference,null);
+    assert.equal(audioFetches,beforeAudio);assert.equal(sends.length,beforeSends);
+    await page.click('#rail [data-step="1"]');
+    assert(await page.locator('#rigReport').isVisible());
+    await page.click('#rigReport summary');
+    assert.match(await page.textContent('#rigComponents'),/Wah: not_reproduced/);
+    assert.match(await page.textContent('#sourceTitle'),/codex/);
+    assert.equal(await page.locator('#rigReport img').count(),0);
+    await request();await page.selectOption('#rigMode','faithful');
+    assert(await page.locator('#rigReport').isHidden());
+    assert(!(await page.isChecked('#confirmed')));
+    await review();assert.equal(plans.at(-1).rig_mode,'faithful');
+    await request();sourceBackendReady=false;await page.click('#refresh');
+    await page.locator('#refresh:not([disabled])').waitFor();
+    assert(await page.locator('#sourceKind').isHidden());
+    await page.fill('#prompt','Gewoon verzoek met een oudere backend');await review();
+    assert(!Object.hasOwn(plans.at(-1),'source_kind'));
+    assert(!Object.hasOwn(plans.at(-1),'rig_mode'));
     assert.deepEqual(errors,[]);
     console.log('AFX3 shared FM9 layout: workflow, fit, consent, reset, MK, audio, XSS; FW33 NAM foundation/two scenes, permanent install and separate Store consent passed');
   }finally{await browser.close();}

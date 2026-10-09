@@ -4,6 +4,15 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- FX3 source intent now distinguishes a sound reference from an explained rig.
+  YouTube metadata/transcripts and pasted equipment explanations reuse the
+  shared upstream reader/typed graph with the explicitly selected text AI,
+  not an implicit Claude fallback. FX3 closest/faithful/simplified translation
+  preserves source provenance and reports omitted gear/connections in review.
+  Unsupported rack effects are not assumed to be delay, and faithful routing
+  refuses unsupported topology/order. Existing muted confirmation, bounded
+  FX3 executor and readback remain authoritative. No source-driven installation,
+  Store, global mapping or new measured firmware capability is implied.
 - Native MK2/FW33 NAM destination choice now covers slots001-256. Read the full
   named inventory, suggest the first explicitly empty slot, and require a
   selected-slot preview and confirmation. Occupied targets show a shared-memory

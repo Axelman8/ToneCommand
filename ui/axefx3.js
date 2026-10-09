@@ -10,6 +10,19 @@ let currentStage=0;
 const note=text=>{el('status').textContent=text;};
 const stageNames=['request','plan','review','confirm','send'];
 const stagePanes=['pane-request','planPanel','review','confirmPanel','result'];
+// Keep source intent compact beside the upstream-style request controls.
+const sourceLabel=document.createElement('label');sourceLabel.textContent='Bron ';
+const sourceKind=document.createElement('select');sourceKind.id='sourceKind';
+sourceKind.append(new Option('Klankvoorbeeld / gewoon verzoek','tone'),new Option('Rig-uitleg / apparatuurvideo','rig'));
+sourceLabel.append(sourceKind);el('requestPanel').querySelector('.formbar').prepend(sourceLabel);
+sourceLabel.hidden=true;
+const modeLabel=document.createElement('label');modeLabel.textContent='Rigvertaling ';
+const rigMode=document.createElement('select');rigMode.id='rigMode';
+rigMode.append(new Option('Dichtstbijzijnde benadering','closest'),new Option('Getrouwe routing (weigert beperkingen)','faithful'),new Option('Vereenvoudigde live-rig','simplified'));
+modeLabel.append(rigMode);modeLabel.hidden=true;sourceLabel.after(modeLabel);
+sourceKind.onchange=()=>{modeLabel.hidden=sourceKind.value!=='rig';audioReference=null;invalidate();
+  el('audioStatus').textContent=sourceKind.value==='rig'?'Apparatuuruitleg wordt gelezen, geen spraakmeting als gitaarklank.':'Een link wordt als klankvoorbeeld lokaal gemeten.';};
+rigMode.onchange=invalidate;
 function stage(index){
   currentStage=index;document.body.dataset.stage=stageNames[index];
   stagePanes.forEach((id,i)=>{el(id).hidden=i!==index;});
@@ -22,6 +35,10 @@ function stage(index){
   el('navHelp').textContent=['Vertel TC wat je wilt.','Voorstel, nog niets verzonden.','Controleer alle wijzigingen.','Bevestig doel en externe demping.','Resultaat van de verzending.'][index];
 }
 function controls(){
+  const sourceSupported=!!state?.source_support?.rig_reader;
+  sourceLabel.hidden=!sourceSupported;modeLabel.hidden=!sourceSupported||sourceKind.value!=='rig';
+  if(!sourceSupported){sourceKind.value='tone';rigMode.value='closest';}
+  sourceKind.disabled=busy;rigMode.disabled=busy;
   for(const id of ['refresh','generate','cabImport','prompt','scenes','wah','cabKind','cabFile','discard','variant','deviceChoice','connectDevice','newDesign','audioFile','namQuery','namFormat','namSearch','namLogin','namWithRequest','editRequest','toReview','backPlan','toConfirm','backReview','returnRequest']) el(id).disabled=busy;
   el('wahMode').disabled=busy||!el('wah').value;
   const fw33=state?.firmware==='33.00-beta.20261006';
@@ -46,6 +63,7 @@ function controls(){
     'Bestaande Auto Engage-modus blijft behouden. Bij een nieuwe koppeling gebruikt het apparaat zijn standaard; controleer het gedrag.';
 }
 function invalidate(){proposal=null;stage(0);el('confirmed').checked=el('muted').checked=false;
+  el('rigReport').hidden=true;
   clearNamPreview();
   storePreview=null;el('storeMute').checked=el('storeFlash').checked=false;el('storeSummary').textContent='';
   el('requestPreview').textContent=el('prompt').value.slice(0,160)+(el('prompt').value.length>160?'...':'');controls();}
@@ -308,10 +326,12 @@ el('generate').onclick=()=>run(async()=>{
   note('AI werkt het voorstel uit. Er wordt nog niets naar de Fractal gestuurd...');
   stage(1);
   if(el('namWithRequest').checked&&!el('namQuery').value.trim())throw new Error('Vul een Tone3000-zoekterm in, of schakel zoeken bij dit voorstel uit.');
-  audioReference=await analyseRequestAudio();
+  if(sourceKind.value==='rig'&&el('audioFile').files.length)throw new Error('Rig-uitleg gebruikt tekst of een YouTube-link. Verwijder het klankbestand of kies klankvoorbeeld.');
+  audioReference=sourceKind.value==='rig'?null:await analyseRequestAudio();
   proposal=await api('plan',{prompt:el('prompt').value,expected_preset:state.preset,scenes:Number(el('scenes').value),wah_source:el('wah').value||null,
     wah_auto_engage:el('wah').value?(el('wahMode').value||null):null,audio_reference:audioReference,
-    nam_query:el('namWithRequest').checked?(el('namQuery').value||null):null});
+    nam_query:el('namWithRequest').checked?(el('namQuery').value||null):null,
+    ...(state.source_support?.rig_reader?{source_kind:sourceKind.value,rig_mode:rigMode.value}:{})});
   el('conversation').textContent=proposal.summary;el('conversationPanel').hidden=false;
   el('emptyConversation').hidden=true;
   if(proposal.capture_search)showCaptures(proposal.capture_search);
@@ -319,6 +339,16 @@ el('generate').onclick=()=>run(async()=>{
   el('who').textContent=`AI: ${proposal.backend||'onbekend'} / ${proposal.model||'onbekend'} | Doel: preset ${proposal.target.preset} | Voorstel 10 minuten geldig`;
   el('sceneNames').textContent=proposal.scenes.map((name,i)=>`${i+1}. ${name}`).join('\n');
   showDesign(proposal);
+  el('rigReport').hidden=!proposal.rig_report;el('rigComponents').replaceChildren();
+  if(proposal.rig_report){
+    el('sourceTitle').textContent=`${proposal.source?.title||'Geplakte rig-uitleg'} | ${proposal.rig_report.mode} | lezer: ${proposal.source?.spec?.reader?.backend||'onbekend'}`;
+    for(const entry of Object.values(proposal.rig_report.status.nodes)){
+      const li=document.createElement('li');li.textContent=`${entry.label}: ${entry.state} (${entry.provenance}) - ${entry.reason}`;el('rigComponents').append(li);
+    }
+    for(const entry of Object.values(proposal.rig_report.status.edges)){
+      if(entry.state==='not_reproduced'){const li=document.createElement('li');li.textContent=`Verbinding: ${entry.reason}`;el('rigComponents').append(li);}
+    }
+  }
   el('route').textContent=proposal.required_route.join(' → ');
   el('actionCount').textContent=`Bekijk alle ${proposal.actions.length} wijzigingen`;
   el('actions').replaceChildren();

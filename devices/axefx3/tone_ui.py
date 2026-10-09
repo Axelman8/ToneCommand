@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from fm9 import ai_settings, planner
 from fm9.paths import resource_path
-from . import planning, route_guard, tone_review, profile, tone_search, reference_audio, nam_planning, fw33_profile
+from . import planning, route_guard, tone_review, profile, tone_search, reference_audio, nam_planning, fw33_profile, rig_source
 from .controller_ui import Confirmation
 
 
@@ -36,6 +36,8 @@ class Request(BaseModel):
     audio_reference: Measurements | None = None
     nam_query: str | None = Field(default=None, min_length=1, max_length=250)
     mode: Literal['auto','amp','nam'] = 'auto'
+    source_kind: Literal['tone','rig'] = 'tone'
+    rig_mode: Literal['closest','faithful','simplified'] = 'closest'
 
 
 class Profile(BaseModel):
@@ -106,7 +108,9 @@ def register(app, host):
                                 preset=preset[0] if preset else None, name=preset[1] if preset else '',
                                 scene=dev.current_scene(), cab_count=len(dev.reg.cab_catalog.names),
                                 route_problem='Choose MK2 for the measured FW33 NAM profile; MK1 NAM is not verified.' if nam_profile_missing else 'Firmware not verified for writes. Search/import are available; preset planning and sending are blocked.')
-                return dict(connected=True, profile=policy, **tone_review.public_state(tone_review.snapshot(dev),dev.reg))
+                return dict(connected=True, profile=policy,
+                            source_support=dict(rig_reader=True, modes=rig_source.MODES),
+                            **tone_review.public_state(tone_review.snapshot(dev),dev.reg))
             except (ValueError,RuntimeError,OSError) as exc:
                 raise HTTPException(409,str(exc)) from exc
 
@@ -149,7 +153,9 @@ def register(app, host):
     @app.post('/api/axefx3/plan')
     def build(body: Request):
         urls = reference_audio.links(body.prompt)
-        if len(urls) > 1 or (urls and (not body.audio_reference or body.audio_reference.url != urls[0])):
+        if body.source_kind == 'rig' and body.audio_reference:
+            raise HTTPException(422,'Choose rig explanation or sound reference; speech measurements are not a guitar-tone target.')
+        if body.source_kind == 'tone' and (len(urls) > 1 or (urls and (not body.audio_reference or body.audio_reference.url != urls[0]))):
             raise HTTPException(409,'Analyse the linked audio first. TC will not pretend to hear an unanalysed link.')
         if body.audio_reference and any(not 0 <= x <= 1 for x in body.audio_reference.band_energy):
             raise HTTPException(422,'Invalid normalized band measurements.')
@@ -196,11 +202,22 @@ def register(app, host):
             ai_settings.apply_to_env()
             if not planner._env('PLANNER_BACKEND').strip() or len(planner.candidates()) != 1:
                 raise ValueError('Choose one explicit AI backend in TC settings first; no automatic or paid fallback.')
+            source = compiled = None
+            if body.source_kind == 'rig':
+                source = rig_source.read(body.prompt)
+                compiled = rig_source.compile_source(source, nam_mode=nam_mode, mode=body.rig_mode)
+                context += rig_source.brief(source, compiled)
             def validate(raw):
                 if nam_mode:
-                    return nam_planning.compile_design(dev.reg,raw,route,body.scenes,initial['nam'])
-                return planning.compile_design(dev.reg,raw,route,body.scenes,body.wah_source,
-                                               body.wah_auto_engage)
+                    plan = nam_planning.compile_design(dev.reg,raw,route,body.scenes,initial['nam'])
+                else:
+                    plan = planning.compile_design(dev.reg,raw,route,body.scenes,body.wah_source,
+                                                   body.wah_auto_engage)
+                if compiled:
+                    plan['source'] = source
+                    plan['rig_report'] = rig_source.report(compiled, plan)
+                    plan['warnings'].extend(compiled['warnings'] + plan['rig_report']['design_omissions'])
+                return plan
             result = planner.plan(
                 f'Exactly {body.scenes} scenes. User-selected wah source: {body.wah_source or "preserve"}. '
                 f'Wah Auto Engage: {body.wah_auto_engage if body.wah_source and body.wah_auto_engage else "preserve"}. '
