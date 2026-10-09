@@ -49,6 +49,8 @@ class Registry(BaseRegistry):
         self.dynacabs = {}
         from .catalog import Catalog
         self.cab_catalog = Catalog()
+        from .profile import apply
+        apply(self, None)
         if firmware not in SUPPORTED_FIRMWARE:
             return
         for family, definitions in AXE_FX_III_PARAM_DEFINITIONS.items():

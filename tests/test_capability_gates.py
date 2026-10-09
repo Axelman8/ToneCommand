@@ -140,6 +140,9 @@ def world(monkeypatch, tmp_path):
 
 def _stub_world(monkeypatch, tmp_path) -> list[str]:
     calls: list[str] = []
+    from devices.axefx3 import tone_search, reference_audio
+    monkeypatch.setattr(tone_search, 'search', lambda *a, **k: {'candidates': [], 'hardware_written': False})
+    monkeypatch.setattr(reference_audio, 'fetch_audio', lambda url: b'test audio')
     monkeypatch.setattr(urllib.request, "urlopen", _refuse("urlopen", calls))
     monkeypatch.setattr(socket, "create_connection",
                         _refuse("socket.create_connection", calls))
@@ -288,7 +291,11 @@ def _table(sim) -> list[dict]:
         ("GET", "/controllers.js", {}, None, None),
         ("GET", "/axefx3", {}, None, None),
         ("GET", "/axefx3.js", {}, None, None),
+        ("GET", "/axefx3.css", {}, None, None),
         ("GET", "/api/axefx3/state", {}, None, None),
+        ("POST", "/api/axefx3/profile", {}, {"variant":"mk1"}, None),
+        ("POST", "/api/axefx3/search", {}, {"query":"Marshall Plexi","format":"nam"}, None),
+        ("POST", "/api/axefx3/audio", {}, {"url":"https://example.com/reference.wav"}, None),
         ("POST", "/api/axefx3/cabs", {}, {"kind":"user","text":"U1.0001 Test"}, None),
         ("POST", "/api/axefx3/plan", {}, {"prompt":"test preset","expected_preset":324,"scenes":4}, None),
         ("POST", "/api/axefx3/discard", {}, {}, None),

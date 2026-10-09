@@ -543,6 +543,8 @@ class AxeFxIII:
     def set_cab(self, effect_id, bank, ordinal, side="left"):
         with self._lock:
             self._check_edit_target()
+            if bank == 2 and ordinal >= 512 and not self.reg.cab_catalog.user2_enabled:
+                raise ValueError('User2 is reserved for NAM on this hardware profile.')
             return cab_selection.select(self, effect_id, bank, ordinal, side)
 
     def set_model(self, family, effect_id, name):

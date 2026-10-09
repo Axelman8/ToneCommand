@@ -5,6 +5,11 @@ Notable changes to ToneCommand. Dates are UTC.
 ## Unreleased
 
 ### Changed
+- Use the actual FM9 stylesheet and console layout for the bounded Axe-Fx III
+  workspace. Request, Plan, Review, Confirm and Send are separate screens with
+  back navigation and independent send consent. Preserve device/MK selection,
+  collapsible cab imports and NAM search; the native executor and firmware
+  gates remain separate. This does not enable full main-page functional parity.
 - Keep bypassed signal-chain block and model names readable in white, with
   a white channel letter inside a solid red badge. Active channel styling
   and dashed bypassed block outlines remain unchanged, including expanded views.
@@ -20,6 +25,17 @@ Notable changes to ToneCommand. Dates are UTC.
   controller workspace, firmware gates and blocked general tone executor.
 
 ### Added
+- User-declared Axe-Fx III MK1/MK2 selection and conservative cab/NAM memory
+  policy. MK1 on unverified NAM-era firmware cannot import or select User2 as
+  cabs; MK2 keeps separate storage metadata. No NAM install gate is enabled.
+- Audio links inside AFX3 requests and local audio-file measurements in Chrome.
+  Public HTTPS YouTube/SoundCloud and bounded direct audio downloads feed local
+  RMS, peak, crest and sampled spectrum measurements, not waveform hearing or
+  guitar isolation. Optional `audio` dependency installs yt-dlp.
+- Authenticated TONE3000 A2 NAM / IR search in an expandable right-side widget,
+  with optional candidate metadata supplied to the selected planner. Search
+  does not download/install captures or place NAM on the unit. Firmware 33
+  planning/writes remain blocked until independently verified.
 - Always-visible NEW DESIGN button on the request screen. It clears the
   conversation, draft, agreed scene preview and current plan with confirmation,
   disarms sending and returns focus to an empty input without device writes.

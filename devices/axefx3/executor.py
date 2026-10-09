@@ -84,6 +84,8 @@ def resolve(reg, action):
             if family != "CABINET":
                 raise ValueError("Cab selection requires a Cab block")
             bank, ordinal = integer(a.get("bank", 0), 0, 2), integer(a.get("value"), 0, 1023)
+            if bank == 2 and ordinal >= 512 and not reg.cab_catalog.user2_enabled:
+                raise ValueError('User2 is NAM storage, not an available cab bank on this profile.')
             side = str(a.get("cab_side") or "left").lower()
             if side not in ("left", "right", "both"):
                 raise ValueError("Cab side must be LEFT, RIGHT or BOTH")

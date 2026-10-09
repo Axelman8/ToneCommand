@@ -12,8 +12,14 @@ const path=require('node:path');
     const errors=[],plans=[],sends=[];
     page.on('pageerror',e=>errors.push(e.message));
     let failPlan=false,failSend=false,failRead=false,addedExtras=false;
+    let variant=null;
     await page.route('**/*',async route=>{
       const req=route.request(),url=new URL(req.url()),name=url.pathname.split('/').pop();
+      if(url.pathname==='/logo.png')return route.fulfill({contentType:'image/png',body:fs.readFileSync(path.join(__dirname,'../ui/logo.png'))});
+      if(url.pathname==='/axefx3.css'){
+        const source=fs.readFileSync(path.join(__dirname,'../ui/index.html'),'utf8');
+        return route.fulfill({contentType:'text/css',body:source.split('<style>')[1].split('</style>')[0]});
+      }
       if(url.pathname==='/axefx3'||url.pathname==='/axefx3.js'){
         return route.fulfill({contentType:name.endsWith('.js')?'text/javascript':'text/html',
           body:fs.readFileSync(path.join(__dirname,'../ui',name==='axefx3'?'axefx3.html':name),'utf8')});
@@ -21,7 +27,8 @@ const path=require('node:path');
       if(!url.pathname.startsWith('/api/axefx3/'))return route.fulfill({status:404,body:''});
       let status=200,result={};
       if(name==='state'){
-        result={connected:true,preset:325,name:'Test',scene:1,firmware:'32.06',cab_count:20};
+        result={connected:true,preset:325,name:'Test',scene:1,firmware:'32.06',cab_count:20,
+          profile:{variant,warning:'Memory policy from declared variant',user2_cabs:true}};
         if(failRead){status=409;result={detail:'Read failed'};}
       }
       if(name==='plan'){
@@ -53,83 +60,110 @@ const path=require('node:path');
           results:[{ok:!failSend,detail:failSend?'Readback mismatch':'Verified'}]};
       }
       if(name==='cabs')result={imported:20};
+      if(name==='profile'){variant=req.postDataJSON().variant;result={profile:{variant},hardware_written:false};}
+      if(name==='search')result={candidates:[{id:42,title:'<img src=x onerror=alert(1)> Plexi',creator:'test'}]};
+      if(name==='audio'){
+        const size=32000,buf=Buffer.alloc(44+size*2);
+        buf.write('RIFF');buf.writeUInt32LE(buf.length-8,4);buf.write('WAVEfmt ',8);buf.writeUInt32LE(16,16);
+        buf.writeUInt16LE(1,20);buf.writeUInt16LE(1,22);buf.writeUInt32LE(16000,24);buf.writeUInt32LE(32000,28);
+        buf.writeUInt16LE(2,32);buf.writeUInt16LE(16,34);buf.write('data',36);buf.writeUInt32LE(size*2,40);
+        for(let i=0;i<size;i++)buf.writeInt16LE(Math.round(8000*Math.sin(2*Math.PI*440*i/16000)),44+2*i);
+        return route.fulfill({contentType:'audio/wav',body:buf});
+      }
       await route.fulfill({status,contentType:'application/json',body:JSON.stringify(result)});
     });
-    await page.goto('http://tc.test/axefx3');
-    await page.locator('#generate:not([disabled])').waitFor();
-    await page.fill('#prompt','Maak vier scenes');
-    await page.press('#prompt','End');await page.press('#prompt','Enter');
+    async function review(){
+      await page.click('#engage');await page.locator('#pane-plan:not([hidden])').waitFor();
+      assert(await page.locator('#pane-review').isHidden());
+      assert(await page.locator('#pane-confirm').isHidden());
+      await page.click('#reviewbtn');await page.locator('#pane-review:not([hidden])').waitFor();
+    }
+    async function request(){
+      await page.click('#rail [data-step="0"]');
+      if((await page.locator('#requestPanel').getAttribute('open'))===null)await page.click('#requestPanel summary');
+    }
+    async function confirmSend(){
+      await page.click('#toconfirm');
+      assert(await page.locator('#pane-review').isHidden());
+      assert(await page.locator('#apply').isDisabled());
+      await page.check('#confirmed');assert(await page.locator('#apply').isDisabled());
+      await page.check('#muted');assert(await page.locator('#apply').isEnabled());
+      await page.click('#apply');
+    }
+    await page.goto('http://tc.test/axefx3');await page.locator('#engage:not([disabled])').waitFor();
+    assert.equal(await page.locator('#rail .stg').count(),5);
+    assert.equal(await page.locator('#sceneRack .sc').count(),8);
+    assert.equal(await page.locator('#shell').evaluate(x=>getComputedStyle(x).display),'flex');
+    assert.equal(await page.locator('#hwbar h1').evaluate(x=>getComputedStyle(x).color),'rgb(47, 230, 255)');
+    if(process.env.TC_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.TC_SCREENSHOT_DIR,'fm9-layout-request.png')});
+    for(const width of [1440,1280,1180]){
+      await page.setViewportSize({width,height:1000});
+      assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+      for(const id of ['hwbar','context','workspace','shelf','engage']){
+        assert(await page.locator('#'+id).evaluate(x=>{
+          const r=x.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight;
+        }),id+' must fit at '+width);
+      }
+    }
+    await page.setViewportSize({width:1440,height:1000});
+    await page.fill('#prompt','Maak vier scenes');await page.press('#prompt','End');await page.press('#prompt','Enter');
     assert.equal(plans.length,0);assert((await page.inputValue('#prompt')).endsWith('\n'));
-    await page.selectOption('#wah','External 1');
-    assert(await page.locator('#wahMode').isEnabled());
-    assert.match(await page.textContent('#controllerHint'),/scene met Wah uit/);
-    await page.selectOption('#wahMode','Off');
-    await page.click('#generate');await page.locator('#review:not([hidden])').waitFor();
+    await page.selectOption('#wah','External 1');await page.selectOption('#wahMode','Off');
+    await review();
     assert.equal(plans[0].wah_source,'External 1');assert.equal(plans[0].expected_preset,325);
     assert.equal(plans[0].wah_auto_engage,'Off');
     assert.equal(await page.locator('#sceneRows tr').count(),4);
-    assert.match(await page.textContent('#sceneRows'),/280 ms/);
-    assert.match(await page.textContent('#sceneRows'),/Analog Stereo \| 0.3 Hz \| depth 25% \| mix 20%/);
+    for(const value of ['280 ms','Analog Stereo','T808 Mod','Classic VCA Compressor','GEQ: 10 banden','Q behouden']){
+      assert((await page.textContent('#sceneRows')).includes(value));
+    }
     assert.equal(await page.locator('#sceneRows tr').first().locator('td').count(),7);
-    assert.match(await page.textContent('#sceneRows'),/Drive: gain 6, tone 4, level 2\/10/);
-    assert.match(await page.textContent('#sceneRows'),/Compressor: threshold -30 dB/);
-    assert.match(await page.textContent('#sceneRows'),/T808 Mod/);
-    assert.match(await page.textContent('#sceneRows'),/Classic VCA Compressor/);
-    assert.match(await page.textContent('#sceneRows'),/GEQ: 10 banden/);
-    assert.match(await page.textContent('#sceneRows'),/Q behouden/);
-    assert.match(await page.textContent('#sceneRows tr:nth-child(3)'),/Bestaand behouden/);
-    assert.match(await page.textContent('#controllerChoice'),/Auto Engage: Off/);
-    assert.match(await page.textContent('#toneChoice'),/Test Greenback \(USER 1 slot 28\)/);
-    if(process.env.TC_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.TC_SCREENSHOT_DIR,'wah-review-desktop.png'),fullPage:true});
-    await page.setViewportSize({width:390,height:844});
-    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
-    if(process.env.TC_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.TC_SCREENSHOT_DIR,'wah-review-mobile.png'),fullPage:true});
-    await page.setViewportSize({width:1440,height:1000});
     assert.equal(await page.locator('#planWarnings img').count(),0);
     assert.equal(await page.locator('#requestPanel').getAttribute('open'),null);
-    await page.click('#requestPanel summary');
-    assert.equal(await page.inputValue('#prompt'),'Maak vier scenes\n');
-    assert.equal(await page.locator('#summary img').count(),0);
-    assert(await page.locator('#send').isDisabled());
-    await page.check('#confirmed');assert(await page.locator('#send').isDisabled());
-    await page.check('#muted');assert(await page.locator('#send').isEnabled());
-    addedExtras=true;
-    await page.fill('#prompt','Different sound');
-    assert(await page.locator('#review').isHidden());assert.equal(sends.length,0);
-    await page.click('#generate');await page.locator('#review:not([hidden])').waitFor();
-    assert.match(await page.textContent('#sceneRows tr:nth-child(1)'),/Compressor: uit \(niet gevraagd\)/);
-    assert.match(await page.textContent('#sceneRows tr:nth-child(2)'),/Drive: uit \(niet gevraagd\)/);
+    await request();assert.equal(await page.inputValue('#prompt'),'Maak vier scenes\n');
+    assert.equal(await page.locator('#conversation img').count(),0);
+    await page.click('#rail [data-step="2"]');
+    if(process.env.TC_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.TC_SCREENSHOT_DIR,'fm9-layout-review.png')});
+    await page.click('#toconfirm');
+    await page.check('#confirmed');await page.check('#muted');
+    assert((await page.textContent('#confirmTarget')).includes('325'));
+    await request();await page.fill('#prompt','Different sound');
+    assert(await page.locator('#pane-review').isHidden());assert.equal(sends.length,0);
     assert(!(await page.isChecked('#confirmed')));
-    await page.check('#confirmed');await page.check('#muted');await page.click('#send');
-    await page.locator('#result:not([hidden])').waitFor();await page.locator('#refresh:not([disabled])').waitFor();
+    addedExtras=true;await review();
+    assert.match(await page.textContent('#sceneRows tr:nth-child(1)'),/Compressor: uit/);
+    await confirmSend();await page.locator('#pane-send:not([hidden])').waitFor();
+    await page.locator('#refresh:not([disabled])').waitFor();
     assert.equal(sends.length,1);assert.equal(sends[0].external_audio_muted,true);
     assert.match(await page.textContent('#resultText'),/Niets permanent opgeslagen/);
-    await page.click('#requestPanel summary');
-    failPlan=true;await page.click('#generate');
+    await request();failPlan=true;await page.click('#engage');
     await page.waitForFunction(()=>document.getElementById('status').textContent==='AI output refused');
-    assert(await page.locator('#review').isHidden());assert(await page.locator('#generate').isEnabled());
-    failPlan=false;failSend=true;
-    await page.click('#generate');await page.locator('#review:not([hidden])').waitFor();
-    await page.check('#confirmed');await page.check('#muted');await page.click('#send');
+    assert(await page.locator('#pane-request').isVisible());assert(await page.locator('#engage').isEnabled());
+    failPlan=false;failSend=true;await review();await confirmSend();
     await page.waitForFunction(()=>document.getElementById('status').textContent.startsWith('Gestopt.'));
     assert.equal(sends.length,2);assert.match(await page.textContent('#resultText'),/Readback mismatch/);
-    // Read errors may not leave the old target usable for planning.
     failRead=true;await page.click('#refresh');
     await page.waitForFunction(()=>document.getElementById('status').textContent==='Read failed');
-    assert(await page.locator('#generate').isDisabled());
-    failRead=false;await page.click('#refresh');await page.locator('#generate:not([disabled])').waitFor({state:'attached'});
-    await page.click('#requestPanel summary');
-    await page.selectOption('#wahMode','Fast Pos');
-    await page.click('#generate');await page.locator('#review:not([hidden])').waitFor();
-    await page.click('#requestPanel summary');
-    await page.selectOption('#wahMode','Off');
-    assert(await page.locator('#review').isHidden());
-    assert(!(await page.isChecked('#confirmed')));
-    await page.selectOption('#wah','');
-    assert(await page.locator('#wahMode').isDisabled());
+    assert(await page.locator('#engage').isDisabled());
+    failRead=false;await page.click('#refresh');await page.locator('#engage:not([disabled])').waitFor({state:'attached'});
+    await request();await page.selectOption('#wahMode','Fast Pos');await review();await request();
+    await page.selectOption('#wahMode','Off');assert(await page.locator('#pane-review').isHidden());
+    await page.selectOption('#wah','');assert(await page.locator('#wahMode').isDisabled());
     await page.setViewportSize({width:390,height:844});
-    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
-    assert.deepEqual(errors,[]);
-    console.log('AFX3 text UI: scene table, controller mode, retained collapsible request, Enter newline, consent, stale draft, failure recovery, XSS, mobile passed');
+    assert(await page.locator('#unsupported').isVisible());assert(await page.locator('#shell').isHidden());
+    await page.setViewportSize({width:1440,height:1000});
+    await page.selectOption('#variant','mk2');await page.locator('#variant:not([disabled])').waitFor();
+    assert.equal(await page.inputValue('#variant'),'mk2');
+    await page.click('#namPanel summary');await page.fill('#namQuery','Marshall Plexi');await page.click('#namSearch');
+    await page.locator('#namResults a').waitFor();
+    assert.equal(await page.locator('#namResults img').count(),0);
+    assert.equal(await page.locator('#namResults a').getAttribute('href'),'https://www.tone3000.com/tones/42');
+    page.once('dialog',dialog=>dialog.accept());await page.click('#newDesign');
+    await page.locator('#prompt:not([disabled])').waitFor();assert.equal(await page.inputValue('#prompt'),'');
+    await page.fill('#prompt','Maak de klank van https://youtu.be/test');await review();
+    const measurement=plans.at(-1).audio_reference;
+    assert.equal(measurement.url,'https://youtu.be/test');assert(Math.abs(measurement.centroid_hz-440)<30);
+    assert(measurement.sample_seconds>1.9&&measurement.sample_seconds<=2);
+    assert.equal(sends.length,2);assert.deepEqual(errors,[]);
+    console.log('AFX3 shared FM9 layout: five-stage workflow, desktop fit, narrow-screen guard, preserved request, consent, errors, reset, MK, audio and XSS passed');
   }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

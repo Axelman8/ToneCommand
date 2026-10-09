@@ -68,11 +68,14 @@ class Catalog:
 
     def __init__(self):
         self.names = {}
+        self.user2_enabled = True
 
     def import_text(self, text, kind, *, replace=False):
         if not isinstance(text, str) or len(text.encode("utf-8")) > 2 * 1024 * 1024:
             raise ValueError("Cab name list exceeds 2 MiB or is not text")
         parsed = parse_names(text, kind)
+        if kind == 'user' and not self.user2_enabled and any(b == 2 for b, s in parsed):
+            raise ValueError('User2 is reserved for NAM on MK1/unknown NAM-era hardware. Import User1 only, or confirm MK2.')
         incoming = {wire_address(kind, b, s): n for (b, s), n in parsed.items()}
         merged = {key: name for key, name in self.names.items()
                   if not replace or (key[0] == 2) != (kind == "user")}

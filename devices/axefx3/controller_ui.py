@@ -53,12 +53,14 @@ def register(app, host):
 
     @app.middleware('http')
     async def limit_afx3_workspace(request, call_next):
-        if request.method == 'POST' and request.url.path.startswith(('/api/controllers/', '/api/axefx3/')):
+        if request.method == 'POST' and request.url.path.startswith(('/api/controllers/', '/api/axefx3/', '/api/tone3000/')):
             origin = request.headers.get('origin')
             if origin and origin != f'{request.url.scheme}://{request.url.netloc}':
                 return JSONResponse({'error': 'Cross-origin controller requests are not allowed.'}, status_code=403)
         if host.device_context().kind == 'axefx3':
-            allowed = {'/controllers', '/controllers.js', '/axefx3', '/axefx3.js', '/logo.png', '/api/device'}
+            allowed = {'/controllers', '/controllers.js', '/axefx3', '/axefx3.js', '/axefx3.css', '/logo.png', '/api/device'}
+            allowed.update({'/api/tone3000/login', '/api/tone3000/callback', '/api/tone3000/status',
+                            '/api/tone3000/load', '/api/tone3000/logout'})
             if request.url.path == '/':
                 return RedirectResponse('/controllers')
             if request.url.path not in allowed and not request.url.path.startswith(('/api/controllers/', '/api/axefx3/')):
