@@ -4,6 +4,7 @@ const el=id=>document.getElementById(viewIds[id]||id);
 let state=null, proposal=null, busy=false;
 let audioReference=null;
 let namAccount=null,namSelection=null,namPreview=null;
+let namSlots=null;
 let storePreview=null;
 let currentStage=0;
 const note=text=>{el('status').textContent=text;};
@@ -29,7 +30,9 @@ function controls(){
   if(Number(el('scenes').value)>maxScenes)el('scenes').value=String(maxScenes);
   el('generate').disabled=busy||el('deviceChoice').value!=='axefx3'||!state?.connected||!!state.route_problem||(!fw33&&!state.cab_count);
   for(const id of ['namSaveKey','namDisconnect','namSuggest','namKey'])el(id).disabled=busy;
-  el('namInstallPrepare').disabled=busy||!namSelection?.model||!namAccount?.installation_supported||!state?.connected;
+  el('namSlotsRefresh').disabled=busy||!namAccount?.installation_supported||!state?.connected;
+  el('namSlot').disabled=busy||!namSlots;
+  el('namInstallPrepare').disabled=busy||!namSelection?.model||!namAccount?.installation_supported||!state?.connected||!namSlots||!el('namSlot').value;
   el('namInstallCommit').disabled=busy||!namPreview||!el('namInstallMute').checked||!el('namInstallFlash').checked||!el('namInstallOverwrite').checked;
   el('wah').disabled=busy||fw33; if(fw33)el('wah').value='';
   el('wahMode').disabled=busy||fw33||!el('wah').value;
@@ -54,7 +57,7 @@ async function api(name,body){
 }
 async function run(work){if(busy)return;busy=true;controls();try{await work();}catch(e){invalidate();note(e.message);}finally{busy=false;controls();}}
 async function refresh(){
-  invalidate();state=null;state=await api('state');
+  invalidate();clearNamSlots();state=null;state=await api('state');
   el('target').textContent=state.connected?`Axe-Fx III | ${state.firmware} | Preset ${state.preset}: ${state.name} | Scene ${state.scene}`:'Verbind eerst via Verbinding & controllers.';
   el('cabCount').textContent=state.connected?`${state.cab_count} cabnamen beschikbaar.`:'';
   el('variant').value=state.profile?.variant||'';
@@ -137,6 +140,22 @@ async function accountStatus(){
 }
 function clearNamPreview(){namPreview=null;el('namInstallPanel').hidden=true;
   for(const id of ['namInstallMute','namInstallFlash','namInstallOverwrite'])el(id).checked=false;}
+function clearNamSlots(){namSlots=null;el('namSlot').replaceChildren(new Option('Lees eerst de slots',''));
+  el('namSlotsHint').textContent='Lees de NAM-slots en kies waar je de download wilt plaatsen. Er wordt niets automatisch geinstalleerd.';}
+el('namSlotsRefresh').onclick=()=>run(async()=>{
+  clearNamPreview();clearNamSlots();
+  const result=await api('tone3000/slots');
+  if(!result.complete||result.slots?.length!==256)throw new Error('De NAM-slotlijst is niet volledig. Geen slot wordt als leeg aangenomen.');
+  namSlots=result.slots;el('namSlot').replaceChildren();
+  for(const row of namSlots){const value=String(row.slot).padStart(3,'0');
+    el('namSlot').append(new Option(`${value} | ${row.occupied?'BEZET: '+row.name:'LEEG'}`,String(row.slot)));}
+  el('namSlot').value=result.first_available?String(result.first_available):'';
+  if(!result.first_available)el('namSlot').prepend(new Option('Alle slots bezet: kies bewust een slot','',true,true));
+  el('namSlotsHint').textContent=result.first_available?
+    `Eerste lege slot: ${String(result.first_available).padStart(3,'0')}. Wil je de download hier plaatsen? Kies dit of een ander slot en controleer het voorstel.`:
+    'Geen lege slots. Kies alleen een gevuld slot als je de bestaande NAM bewust wilt vervangen.';
+});
+el('namSlot').onchange=()=>{clearNamPreview();controls();};
 async function showAccountTones(tones){
   el('namResults').replaceChildren();
   for(const tone of tones){
@@ -166,10 +185,20 @@ el('namLogin').onclick=()=>run(async()=>{
   location.href=url.href;
 });
 el('namInstallPrepare').onclick=()=>run(async()=>{
-  if(!namSelection?.model||!state?.connected)throw new Error('Selecteer een model en lees je lege doelpreset uit.');
+  const slot=Number(el('namSlot').value);
+  if(!namSelection?.model||!state?.connected||!namSlots||!Number.isInteger(slot)||slot<1||slot>256)throw new Error('Selecteer een model, lees de NAM-slots en kies je doelslot.');
   invalidate();clearNamPreview();await api('discard',{});
-  namPreview=await api('tone3000/install/prepare',{model_id:namSelection.model.id,expected_preset:state.preset});
-  el('namInstallSummary').textContent=`NAM 001: ${namPreview.existing_name} -> ${namPreview.name}. Permanent; herstelbackup wordt vóór installatie gecontroleerd. Preset ${namPreview.expected_preset} wordt niet opgeslagen.`;
+  namPreview=await api('tone3000/install/prepare',{model_id:namSelection.model.id,expected_preset:state.preset,slot});
+  if(namPreview.slot!==slot)throw new Error('Het installatievoorstel noemt een ander NAM-slot. Niets installeren.');
+  const destination=String(slot).padStart(3,'0');
+  el('namInstallSummary').textContent=`NAM ${destination}: ${namPreview.existing_name} -> ${namPreview.name}. Permanent; herstelbackup wordt vóór installatie gecontroleerd. Preset ${namPreview.expected_preset} wordt niet opgeslagen.`;
+  el('namInstallWarning').textContent=namPreview.existing_occupied?
+    'DIT SLOT IS BEZET. Vervangen verandert ook andere presets die dit NAM-slot gebruiken. TC inventariseert die verwijzingen niet; een lege doelpreset voorkomt dit niet.':
+    'Dit slot is opnieuw als leeg geverifieerd. TC controleert het nogmaals vóór schrijven. De NAM wordt niet automatisch in een preset geselecteerd.';
+  el('namSlotConsent').textContent=namPreview.existing_occupied?
+    `Ik bevestig het overschrijven van NAM-slot ${destination}, ook voor andere presets die het gebruiken.`:
+    `Ik kies NAM-slot ${destination} voor deze download.`;
+  el('namInstallCommit').textContent=`INSTALLEER IN NAM ${destination}`;
   el('namInstallPanel').hidden=false;
 });
 for(const id of ['namInstallMute','namInstallFlash','namInstallOverwrite'])el(id).onchange=controls;

@@ -30,9 +30,9 @@ def setup(monkeypatch, tmp_path):
     device.firmware_label.return_value = fw33_profile.KEY
     device.current_preset.return_value = (326, '<EMPTY>')
     device.read_grid.return_value = []
-    device.read_nam_slot1.return_value = before
-    device.export_nam_slot1.return_value = (before, old.frames())
-    device.install_nam_slot1.side_effect = lambda model, sha: nam_memory.parse_export(model.frames())
+    device.read_nam_slot.return_value = before
+    device.export_nam_slot.return_value = (before, old.frames())
+    device.install_nam_slot.side_effect = lambda slot, model, sha: nam_memory.parse_export(model.frames(slot),slot=slot)
     policy = {'device': 'axe-fx-iii', 'firmware': fw33_profile.KEY, 'variant': 'mk2',
               'simulated': False, 'gig_locked': False, 'allowed_presets': {326}}
     service = nam_install.Installer(threading.RLock(), lambda: device, lambda: policy)
@@ -43,8 +43,8 @@ def setup(monkeypatch, tmp_path):
 
 def test_prepare_is_readonly_commit_is_explicit_and_full_backup_exists(setup):
     service, device, _policy, before, _tmp = setup
-    preview = service.prepare(456, 326)
-    device.install_nam_slot1.assert_not_called()
+    preview = service.prepare(456, 326, 1)
+    device.install_nam_slot.assert_not_called()
     assert preview['readonly'] and preview['existing_name'] == 'Before'
     result = service.commit(preview['prepared_id'], True, True, True)
     assert result['ok'] and result['bytes_verified'] == 65536 and not result['preset_stored']
@@ -55,7 +55,7 @@ def test_prepare_is_readonly_commit_is_explicit_and_full_backup_exists(setup):
     assert result['backup'] not in context and 'access_token' not in context
     with pytest.raises(t3.ToneError):
         service.commit(preview['prepared_id'], True, True, True)
-    assert device.install_nam_slot1.call_count == 1
+    assert device.install_nam_slot.call_count == 1
 
 
 @pytest.mark.parametrize('fault', ['firmware', 'mk1', 'fm9', 'sim', 'gig', 'preset', 'grid', 'allowlist'])
@@ -70,43 +70,43 @@ def test_policy_and_device_guards_prevent_writes(setup, fault):
     if fault == 'grid': device.read_grid.return_value = [p.GridCell(2, 0, 206, False, 0)]
     if fault == 'allowlist': policy['allowed_presets'] = set()
     with pytest.raises(t3.ToneError):
-        service.prepare(456, 326)
-    device.install_nam_slot1.assert_not_called()
+        service.prepare(456, 326, 1)
+    device.install_nam_slot.assert_not_called()
 
 
 @pytest.mark.parametrize('acks', [(False, True, True), (True, False, True), (True, True, False),
                                  ('true', True, True), (1, True, True)])
 def test_acknowledgements_cannot_be_inferred_or_coerced(setup, acks):
     service, device, _policy, _before, _tmp = setup
-    preview = service.prepare(456, 326)
+    preview = service.prepare(456, 326, 1)
     with pytest.raises(t3.ToneError): service.commit(preview['prepared_id'], *acks)
-    device.install_nam_slot1.assert_not_called()
+    device.install_nam_slot.assert_not_called()
 
 
 @pytest.mark.parametrize('fault', ['token', 'expired', 'selection', 'memory', 'export', 'backup', 'readback'])
 def test_changed_evidence_and_failed_recovery_stop_install(setup, monkeypatch, fault):
     service, device, _policy, before, _tmp = setup
-    preview = service.prepare(456, 326)
+    preview = service.prepare(456, 326, 1)
     token = preview['prepared_id']
     if fault == 'token': token = 'bad-token'
     if fault == 'expired': service.pending['expires'] = 0
     if fault == 'selection': t3.client.clear_selection()
-    if fault == 'memory': device.export_nam_slot1.return_value = (replace(before, payload_sha256='bad'), compile_source('Before').frames())
-    if fault == 'export': device.export_nam_slot1.return_value = (before, compile_source('Before').frames()[:-1])
+    if fault == 'memory': device.export_nam_slot.return_value = (replace(before, payload_sha256='bad'), compile_source('Before').frames())
+    if fault == 'export': device.export_nam_slot.return_value = (before, compile_source('Before').frames()[:-1])
     if fault == 'backup':
         monkeypatch.setattr(t3, '_write_private', Mock(side_effect=OSError('private location')))
-    if fault == 'readback': device.install_nam_slot1.return_value = before; device.install_nam_slot1.side_effect = None
+    if fault == 'readback': device.install_nam_slot.return_value = before; device.install_nam_slot.side_effect = None
     with pytest.raises((t3.ToneError, ValueError)):
         service.commit(token, True, True, True)
-    assert device.install_nam_slot1.call_count == (1 if fault == 'readback' else 0)
+    assert device.install_nam_slot.call_count == (1 if fault == 'readback' else 0)
 
 
 def test_local_routes_use_two_phase_body_and_csrf_protection(setup):
     _service, device, _policy, _before, _tmp = setup
     client = TestClient(server.app, base_url='http://127.0.0.1:8909', headers={'X-ToneCommand': '1'})
-    body = {'model_id': 456, 'expected_preset': 326}
+    body = {'model_id': 456, 'expected_preset': 326, 'slot': 1}
     assert client.post('/api/axefx3/tone3000/install/prepare', json=body, headers={'Origin': 'https://evil.test'}).status_code == 403
-    assert client.post('/api/axefx3/tone3000/install/prepare', json={**body, 'slot': 2}).status_code == 422
+    assert client.post('/api/axefx3/tone3000/install/prepare', json={**body, 'slot': 257}).status_code == 422
     preview = client.post('/api/axefx3/tone3000/install/prepare', json=body)
     assert preview.status_code == 200
     token = preview.json()['prepared_id']
@@ -115,21 +115,21 @@ def test_local_routes_use_two_phase_body_and_csrf_protection(setup):
     result = client.post('/api/axefx3/tone3000/install', json={'prepared_id': token, 'external_audio_muted': True,
         'confirm_permanent_write': True, 'confirm_overwrite': True})
     assert result.status_code == 200 and result.json()['ok']
-    assert device.install_nam_slot1.call_count == 1
+    assert device.install_nam_slot.call_count == 1
 
 
 def test_front_panel_preset_change_during_backup_stops_install(setup):
     service, device, _policy, _before, _tmp = setup
-    preview = service.prepare(456, 326)
+    preview = service.prepare(456, 326, 1)
     device.current_preset.side_effect = [(326, '<EMPTY>'), (327, '<EMPTY>')]
     with pytest.raises(t3.ToneError, match='target preset changed'):
         service.commit(preview['prepared_id'], True, True, True)
-    device.install_nam_slot1.assert_not_called()
+    device.install_nam_slot.assert_not_called()
 
 
 def test_identical_reconnected_device_invalidates_install_preview(setup):
     service,device,_policy,_before,_tmp=setup
-    preview=service.prepare(456,326)
+    preview=service.prepare(456,326,1)
     replacement=Mock(model=16,_injected_ports=False)
     replacement.firmware_label.return_value=fw33_profile.KEY
     replacement.current_preset.return_value=(326,'<EMPTY>')
@@ -137,24 +137,25 @@ def test_identical_reconnected_device_invalidates_install_preview(setup):
     service.get_device=lambda:replacement
     with pytest.raises(t3.ToneError,match='connection changed'):
         service.commit(preview['prepared_id'],True,True,True)
-    replacement.export_nam_slot1.assert_not_called()
-    replacement.install_nam_slot1.assert_not_called()
-    device.install_nam_slot1.assert_not_called()
+    replacement.export_nam_slot.assert_not_called()
+    replacement.install_nam_slot.assert_not_called()
+    device.install_nam_slot.assert_not_called()
 
 
 def test_unmeasured_platform_is_refused(setup, monkeypatch):
     service, device, _policy, _before, _tmp = setup
     monkeypatch.setattr(nam_install, '_platform_supported', lambda: False)
     with pytest.raises(t3.ToneError):
-        service.prepare(456, 326)
-    device.install_nam_slot1.assert_not_called()
+        service.prepare(456, 326, 1)
+    device.install_nam_slot.assert_not_called()
 
 
 def test_native_frame_sequence_is_separately_guarded_and_fully_verified(monkeypatch):
     dev=fake();dev._injected_ports=False
     before=nam_memory.parse_export(compile_source('Before').frames())
     compiled=compile_source();after=nam_memory.parse_export(compiled.frames())
-    dev.read_nam_slot1.side_effect=[before,after]
+    dev.read_nam_slot.side_effect=[before,after]
+    dev._nam_install_permit=(1,compiled.source_sha256,before.payload_sha256)
     monkeypatch.setattr(fw33,'platform_supported',lambda:True)
     monkeypatch.setattr(fw33.time,'sleep',lambda _:None)
     assert fw33.install(dev,compiled,before.payload_sha256)==after
@@ -169,8 +170,9 @@ def test_native_frame_sequence_is_separately_guarded_and_fully_verified(monkeypa
 def test_native_installer_refuses_changed_or_forged_input_without_writes(monkeypatch,fault):
     dev=fake();dev._injected_ports=False
     before=nam_memory.parse_export(compile_source('Before').frames())
-    dev.read_nam_slot1.return_value=before;compiled=compile_source()
+    dev.read_nam_slot.return_value=before;compiled=compile_source()
     sha=before.payload_sha256
+    dev._nam_install_permit=(1,compiled.source_sha256,sha)
     monkeypatch.setattr(fw33,'platform_supported',lambda:True)
     if fault=='hash':sha='bad'
     if fault=='variant':dev.reg.hardware_variant='mk1'

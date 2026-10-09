@@ -207,3 +207,45 @@ audition/controller checks, the new native installer's hardware WRITE pass,
 manual licensing/history review and actual remote CI remain separate gates.
 Local raw reports and owner-specific harnesses are private and gitignored.
 No owner-app replacement, remote push or PR publication occurred.
+
+## NAM slot-selection acceptance, 2026-10-09
+
+The owner subsequently authorized autonomous NAM250-256 tests and requested
+product support for destinations001-256 with occupancy and explicit choice.
+The updated candidate adds a serial256-name inventory, first-free suggestion,
+destination selector and slot-bound preview/consent. Existing FM9 traffic guards
+and configured allowlists are unchanged. Full-bank and failed-read paths do not
+silently select a replacement. Native installation is not preset selection;
+the FW33 preset builder still requires NAM001.
+
+- Axe-Edit name GETs independently establish all256 addresses. Read-only
+  exports establish memory headers/GETs at250/256; erased slots contain a full
+  65536-byte all-FF image. Empty/populated preset reply context differs and is
+  not a slot ordinal. Selected slots require complete export verification.
+- Actual TONE3000 download and registered TC API commit install the supported
+  selected capture in250 and256, without Axe-Edit as installer. Each receives
+  full65536-byte hash/name/address readback and a verified private pre-write
+  recovery export. Missing target consent refuses before writing. A subsequent
+  inventory reports both occupied; a repeat preview recognizes occupancy.
+- Independent Axe-Edit NAM manager shows the same capture in250/256. No editor
+  import, rename or Save is used. NAM001 and complete stored reference326 remain
+  unchanged; test preset328 is still empty and unsaved, as before installation.
+- Real Chrome with mocked APIs passes first-free/manual choice, occupied-slot
+  warning, changed-slot and refresh invalidation, all-full/manual replacement
+  and incomplete-inventory refusal. Offline full suite: **4,304 passed,
+  16 skipped**,327.88s,eight workers; subsequent changed NAM/account/maintenance
+  suite **392 passed**,32.46s,four workers. Mandatory gates **54 passed**;
+  final mandatory plus changed-module regression **564 passed**,233.17s.
+- Single local runtime on8909, using existing owner settings and policy files:
+  real Chrome, actual account and live MIDI verify all256 destination options,
+  first-free002, occupied250/256 and a read-only occupied250 preview. Missing
+  confirmations keep install disabled; rescan invalidates the pending preview.
+  No additional install, Store or AI request is triggered by this browser test.
+
+Only250/256 were written during this acceptance; other addresses are validated
+by captured name addresses, measured header encoding and synthetic tests, not
+256 destructive hardware installations. Private scripts, screenshots, recovery
+exports, account state and model weights remain untracked. Remote GitHub CI,
+licensing/history review, audition and owner-checkout deployment remain separate.
+The candidate is opened as the single local runtime for this feature; the old
+owner checkout is retained intact, not overwritten or promoted to a new release.

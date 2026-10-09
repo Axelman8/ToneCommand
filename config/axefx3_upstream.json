@@ -7,7 +7,7 @@
   "integration_foundation": "c2dae138272cbfb26096ff7d92e643eacf8c32ab",
   "foundation_version": "1.5.14",
   "previous_foundation": "3c97d6cff34c8b9ca842b79bed21154052411047",
-  "integration_status": "source-integrated-nam-build-hardware-verified-install-audition-and-remote-ci-pending",
+  "integration_status": "source-integrated-nam-build-and-slot-installer-hardware-verified-audition-and-remote-ci-pending",
   "working_checkpoint": "939e3ef8cab2a64c7ce043c213314b9ebe02539a",
   "rules": [
     {"name": "fx3-hardware-boundary", "paths": ["fm9/device.py", "fm9/protocol.py", "fm9/editbuffer.py", "fm9/registry.py", "fm9/route_build.py", "fm9/scratch_build.py", "fm9/firmware_compat.py", "fm9/fw33_profile.py", "fm9/nam_*.py", "devices/axefx3/**"], "policy": "manual-hardware-review"},

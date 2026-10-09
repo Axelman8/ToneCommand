@@ -4,12 +4,22 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Native MK2/FW33 NAM destination choice now covers slots001-256. Read the full
+  named inventory, suggest the first explicitly empty slot, and require a
+  selected-slot preview and confirmation. Occupied targets show a shared-memory
+  overwrite warning; incomplete inventory never implies free memory. A fresh
+  complete slot export binds confirmation and a verified private recovery
+  backup precedes any write. Native TC API writes to authorized slots250/256
+  pass full65536-byte readback and preserve NAM001/reference326. NAM capture
+  selection in the preset builder remains bounded to001; no implicit selector,
+  preset Store, FM9 guard or configured allowlist change.
 - Verified the isolated FW33 NAM builder on muted MK2 hardware: a real selected
   Codex plan builds an empty test preset, a second plan voices NAM A/B scenes,
   separate Store survives a cross-preset reload, and independent Axe-Edit
   readings match. Existing reference preset and full NAM memory remain intact.
   Deletion, unmeasured models and unsafe values remain blocked. Native installer
-  write acceptance, physical audition and remote CI are separate pending gates.
+  write acceptance is recorded above; physical audition and remote CI remain
+  separate pending gates.
 - Integrated upstream 1.5.14 shared planner, rig graph/compile, CLI UTF-8,
   device discovery and account file protection into the FX3 integration branch.
   The working owner installation is not replaced by this source integration.

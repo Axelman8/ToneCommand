@@ -20,7 +20,7 @@ from fm9 import protocol as shared
 from fm9.safety import sysex_guard
 from . import protocol, audio_safety, cab_mix, models, cab_selection, grid, modifiers, pedal_control
 from .registry import Registry, SUPPORTED_FIRMWARE
-from . import evidence
+from . import evidence, nam_slots
 
 
 class AxeFxIII:
@@ -88,7 +88,8 @@ class AxeFxIII:
         if self.reg.firmware == '33.00-beta.20261006':
             from . import fw33
             fw33.check_frame(self, frame)
-        readonly = ((fn in (8, 0x13) and payload == [])
+        readonly = ((self.reg.firmware == '33.00-beta.20261006' and nam_slots.is_name_request(frame))
+                    or (fn in (8, 0x13) and payload == [])
                     or (fn in (0x0D, 0x1F) and len(payload) == 2)
                     or (fn == 0x0E and len(payload) == 1)
                     or (fn == 0x0C and payload == [127])
@@ -633,12 +634,28 @@ class AxeFxIII:
         from . import nam_memory
         return self._nam_memory_read(nam_memory.export_slot1)
 
+    def scan_nam_slots(self):
+        return nam_slots.scan(self)
+
+    def read_nam_slot(self, slot):
+        from . import nam_memory
+        nam_slots.number(slot)
+        return self._nam_memory_read(lambda outp: nam_memory.read_slot(outp,slot))
+
+    def export_nam_slot(self, slot):
+        from . import nam_memory
+        nam_slots.number(slot)
+        return self._nam_memory_read(lambda outp: nam_memory.export_slot(outp,slot))
+
     def _nam_memory_read(self, read):
         from . import fw33
         with self._lock:
             return fw33.memory_read(self, read)
 
     def install_nam_slot1(self, compiled, expected_sha256):
+        return self.install_nam_slot(1,compiled,expected_sha256)
+
+    def install_nam_slot(self, slot, compiled, expected_sha256):
         from . import fw33
         with self._lock:
-            return fw33.install(self, compiled, expected_sha256)
+            return fw33.install(self, compiled, expected_sha256,slot=slot)

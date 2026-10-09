@@ -73,6 +73,7 @@ class SuggestBody(Body):
 class InstallPreviewBody(Body):
     model_id: StrictInt = Field(gt=0)
     expected_preset: StrictInt = Field(ge=0, le=511)
+    slot: StrictInt = Field(ge=1,le=256)
 
 
 class InstallBody(Body):
@@ -96,7 +97,13 @@ def router(recommend, installer=None):
     def prepare_install(body: InstallPreviewBody):
         if not installer:
             raise t3.ToneError('Native NAM installer is not available.', 422)
-        return installer().prepare(body.model_id, body.expected_preset)
+        return installer().prepare(body.model_id, body.expected_preset, body.slot)
+
+    @routes.get('/slots')
+    def slots():
+        if not installer:
+            raise t3.ToneError('Native NAM inventory is not available.',422)
+        return installer().inventory()
 
     @routes.post('/install')
     def install(body: InstallBody):

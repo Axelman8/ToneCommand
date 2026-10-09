@@ -12,6 +12,7 @@ import struct
 
 from fm9 import protocol as p
 from .nam_memory import parse_export
+from . import nam_slots
 
 SIZE = 65536
 WEIGHT_COUNTS = (1871, 12146)
@@ -64,10 +65,11 @@ class CompiledNAM:
     def payload_sha256(self):
         return hashlib.sha256(self.payload).hexdigest()
 
-    def frames(self):
-        """Measured slot 001 only; never retarget a download or caller's SysEx."""
+    def frames(self, slot=1):
+        """Encode one confirmed address; this does not authorize transmission."""
+        nam_slots.number(slot)
         words = struct.unpack('<16384I', self.payload)
-        frames = [p.envelope(0x54, [0, 0, 0, 0, 0, 1], model=16)]
+        frames = [p.envelope(0x54, nam_slots.header(slot), model=16)]
         checksum = 0
         for start in range(0, len(words), 128):
             data = [0, 1]
@@ -76,7 +78,7 @@ class CompiledNAM:
                 data.extend((word >> (7 * i)) & 127 for i in range(5))
             frames.append(p.envelope(0x55, data, model=16))
         frames.append(p.envelope(0x56, [(checksum >> (7 * i)) & 127 for i in range(5)], model=16))
-        capture = parse_export(frames)
+        capture = parse_export(frames,slot=slot)
         if capture.name != self.name or capture.payload_sha256 != self.payload_sha256:
             raise NamFileError('Compiled NAM frame validation failed.')
         return tuple(bytes(frame) for frame in frames)

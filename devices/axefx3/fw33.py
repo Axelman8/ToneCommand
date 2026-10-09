@@ -11,7 +11,7 @@ import mido
 from fm9 import protocol as shared, midi_transport
 from fm9.device import get_store_slots, FM9NotFound
 from fm9.safety import sysex_guard
-from . import protocol, fw33_profile as profile, nam_file
+from . import protocol, fw33_profile as profile, nam_file, nam_slots
 
 
 def platform_supported():
@@ -29,6 +29,8 @@ def check_frame(dev, frame):
                 raise PermissionError('FW33 block transition outside the measured NAM scope')
         return  # The ordinary guard and command checks remain authoritative.
     sub = payload[:2]
+    if nam_slots.is_name_request(frame):
+        return
     if sub in ([0x10, 0], [0x2e, 0]):
         return
     if sub in ([9,0],[0x52,0]) and len(payload) == 15:
@@ -144,28 +146,31 @@ def memory_read(dev, read):
             raise FM9NotFound('MIDI input could not reopen after NAM read') from exc
 
 
-def install(dev, compiled, expected_sha256):
+def install(dev, compiled, expected_sha256, *, slot=1):
+    nam_slots.number(slot)
     dev._check_edit_target()
     if (dev.reg.firmware != profile.KEY or getattr(dev, '_injected_ports', True)
             or not platform_supported()
             or getattr(dev.reg, 'hardware_variant', None) != 'mk2'
             or not isinstance(compiled, nam_file.CompiledNAM)):
         raise PermissionError('Only measured live MK2/FW33 NAM installation is allowed')
+    if getattr(dev,'_nam_install_permit',None) != (slot,compiled.source_sha256,expected_sha256):
+        raise PermissionError('Native NAM write requires the exact reviewed slot/source/memory permit')
     rebuilt = nam_file.compile_nam(compiled.source, compiled.name)
     if rebuilt.payload != compiled.payload or rebuilt.source_sha256 != compiled.source_sha256:
         raise PermissionError('Compiled NAM and source differ; nothing sent')
-    if dev.read_nam_slot1().payload_sha256 != expected_sha256:
+    if dev.read_nam_slot(slot).payload_sha256 != expected_sha256:
         raise PermissionError('NAM slot changed after preview; nothing sent')
-    guard = sysex_guard('Measured FX3 NAM slot001', {0x54, 0x55, 0x56})
+    guard = sysex_guard('Reviewed FX3 NAM slot', {0x54, 0x55, 0x56})
     dev._drain()
-    for frame in rebuilt.frames():
+    for frame in rebuilt.frames(slot):
         guard.check(frame[5])
         dev._check_edit_target()
         dev.outp.send(mido.Message('sysex', data=frame[1:-1]))
         time.sleep(.03)
     time.sleep(1)
-    after = dev.read_nam_slot1()
-    if (after.payload_sha256 != rebuilt.payload_sha256 or after.name != rebuilt.name
+    after = dev.read_nam_slot(slot)
+    if (after.slot != slot or after.empty or after.payload_sha256 != rebuilt.payload_sha256 or after.name != rebuilt.name
             or after.byte_count != 65536):
         raise RuntimeError('NAM complete-memory readback mismatch; retain external mute')
     return after

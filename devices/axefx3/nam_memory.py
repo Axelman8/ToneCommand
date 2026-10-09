@@ -1,7 +1,7 @@
-"""Read-only, bounded NAM slot 001 export on the measured FW33 build.
+"""Read-only, bounded NAM slot001-256 export on the measured MK2/FW33 build.
 
 This is NOT a .nam converter, installer or general slot-address decoder.
-Only the actual Axe-Edit slot-001 read request was measured. Large native
+Addresses follow independently captured Axe-Edit requests/exports. Large native
 WinMM buffers are necessary: python-rtmidi's Windows input drops these bodies.
 The caller must close its ordinary MIDI input first and serialize the read.
 """
@@ -11,8 +11,9 @@ import struct
 
 from fm9 import protocol as p
 from fm9.safety import sysex_guard
+from . import nam_slots
 
-READ_GUARD = sysex_guard('NAM slot 001 read only', {0x1c})
+READ_GUARD = sysex_guard('NAM memory read only', {0x1c})
 
 
 @dataclass(frozen=True)
@@ -21,14 +22,16 @@ class Capture:
     slot: int
     payload_sha256: str
     byte_count: int
+    empty: bool = False
 
 
-def parse_export(frames) -> Capture:
+def parse_export(frames, *, slot=1, allow_empty=False) -> Capture:
     """Validate every frame, count, slot header and full-payload XOR.
 
     No musical/device compatibility inference follows from this structure.
     Header flags, architecture and calibration fields remain opaque.
     """
+    nam_slots.number(slot)
     frames = [bytes(f) for f in frames]
     if len(frames) < 3:
         raise ValueError('Incomplete NAM export')
@@ -40,7 +43,7 @@ def parse_export(frames) -> Capture:
                 or f[-1] != 0xf7 or any(b > 127 for b in f[1:-1])
                 or checksum & 127 != f[-2]):
             raise ValueError('Invalid NAM envelope or checksum')
-    if (len(frames[0]) != 14 or frames[0][5:12] != bytes([0x54,0,0,0,0,0,1])
+    if (len(frames[0]) != 14 or frames[0][5:12] != bytes([0x54,*nam_slots.header(slot)])
             or len(frames[-1]) != 13 or frames[-1][5] != 0x56):
         raise ValueError('Unmeasured NAM slot/header/footer')
     words = []
@@ -63,21 +66,28 @@ def parse_export(frames) -> Capture:
     if checksum != expected:
         raise ValueError('NAM payload XOR mismatch')
     payload = struct.pack('<16384I', *words)
+    # The independently exported EMPTY images on250/256 are entirely erased.
+    # No name-only/partial-header heuristic can classify a full image as empty.
+    if payload == b'\xff' * 65536:
+        if not allow_empty:
+            raise ValueError('NAM slot is empty')
+        return Capture('<EMPTY>',slot,hashlib.sha256(payload).hexdigest(),len(payload),True)
     raw_name = payload[:28].split(b'\0', 1)[0]
     try:
         name = raw_name.decode('ascii').strip()
     except UnicodeDecodeError as exc:
         raise ValueError('Unmeasured NAM name encoding') from exc
     if not name or name.upper() in {'EMPTY', '<EMPTY>'} or any(ord(c)<32 for c in name):
-        raise ValueError('NAM slot 001 is empty or unnamed')
-    return Capture(name, 1, hashlib.sha256(payload).hexdigest(), len(payload))
+        raise ValueError('NAM slot is unnamed or has an unverified empty representation')
+    return Capture(name, slot, hashlib.sha256(payload).hexdigest(), len(payload))
 
 
-def _export_slot1(outp, timeout=5):
+def _export_slot(outp, slot, timeout=5, *, allow_empty=True):
     """Own the native input exclusively; use the caller's existing output.
 
     Fixed bounded pool, no driver calls inside callbacks, no permanent writes.
     """
+    nam_slots.number(slot)
     import ctypes as c
     import os
     import queue
@@ -139,7 +149,7 @@ def _export_slot1(outp, timeout=5):
             buffers.append((raw,header))
             checked(win.midiInAddBuffer(handle,c.byref(header),c.sizeof(header)))
         checked(win.midiInStart(handle))
-        request = p.envelope(0x1c,[0,0,0],model=16)
+        request = nam_slots.memory_request(slot)
         READ_GUARD.check(request[5])
         outp.send(mido.Message('sysex',data=request[1:-1]))
         frames = []
@@ -155,7 +165,7 @@ def _export_slot1(outp, timeout=5):
                     break
         if not errors.empty():
             raise RuntimeError('NAM read: long-message driver error')
-        return parse_export(frames), tuple(bytes(f) for f in frames)
+        return parse_export(frames,slot=slot,allow_empty=allow_empty), tuple(bytes(f) for f in frames)
     finally:
         # All buffers must be returned before closing; even a failed read
         # must release ownership so the normal device session can reconnect.
@@ -169,9 +179,17 @@ def _export_slot1(outp, timeout=5):
 
 
 def read_slot1(outp, timeout=5):
-    return _export_slot1(outp, timeout)[0]
+    return _export_slot(outp,1,timeout,allow_empty=False)[0]
 
 
 def export_slot1(outp, timeout=5):
     """Full validated frames for private recovery, never returned to the UI/AI."""
-    return _export_slot1(outp, timeout)
+    return _export_slot(outp,1,timeout,allow_empty=False)
+
+
+def read_slot(outp,slot,timeout=5):
+    return _export_slot(outp,slot,timeout)[0]
+
+
+def export_slot(outp,slot,timeout=5):
+    return _export_slot(outp,slot,timeout)

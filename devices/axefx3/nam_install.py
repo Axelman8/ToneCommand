@@ -1,6 +1,6 @@
 """Two-phase native NAM installation. No Axe-Edit, shell or global guard changes.
 
-Only the measured Windows/MK2/FW33/A2/slot-001 combination is supported.
+Only the measured Windows/MK2/FW33/A2 combination is supported, slots001-256.
 Read-only preview binds source, preset, device profile and old memory hash.
 Commit requires distinct mute, flash-write and overwrite acknowledgements.
 Every commit saves a full recovery SysEx outside the checkout before writing.
@@ -12,7 +12,7 @@ import secrets
 import threading
 import time
 
-from . import fw33_profile, nam_file, tone3000 as t3
+from . import fw33_profile, nam_file, nam_slots, tone3000 as t3
 
 
 def _platform_supported():
@@ -30,9 +30,26 @@ class Installer:
         enabled = (_platform_supported() and policy.get('device') == 'axe-fx-iii'
                    and policy.get('firmware') == fw33_profile.KEY and policy.get('variant') == 'mk2'
                    and not policy.get('simulated'))
-        return {'installation_supported': enabled, 'slot': 1, 'native': True,
-                'scope': 'Measured A2 profile, Windows, Axe-Fx III MK2, exact FW33 beta, NAM slot 001 only.',
-                'reason': '' if enabled else 'NAM installation requires the measured MK2/FW33 Windows profile. FM9/MK1/other slots are not supported.'}
+        return {'installation_supported': enabled, 'slot_range': [1,256], 'native': True,
+                'scope': 'Measured A2 profile, Windows, Axe-Fx III MK2, exact FW33 beta, NAM slots001-256. Explicit target confirmation required.',
+                'reason': '' if enabled else 'NAM installation requires the measured MK2/FW33 Windows profile. FM9/MK1 are not supported.'}
+
+    def inventory(self):
+        with self.lock, self.device_lock:
+            self.pending = None
+            if not self.capability()['installation_supported']:
+                raise t3.ToneError(self.capability()['reason'],422)
+            device = self.get_device()
+            try:
+                rows = device.scan_nam_slots()
+            except (ValueError,RuntimeError,OSError) as exc:
+                raise t3.ToneError(str(exc),409) from None
+            if len(rows) != 256 or [row.slot for row in rows] != list(range(1,257)):
+                raise t3.ToneError('Incomplete NAM inventory. No slot will be assumed empty.',409)
+            return dict(slots=[dict(slot=r.slot,name=r.name,occupied=r.occupied) for r in rows],
+                        first_available=next((r.slot for r in rows if not r.occupied),None),
+                        complete=True,readonly=True,
+                        note='Choose the destination explicitly. Inventory is a current reading, not a reservation.')
 
     def _device(self, expected_preset):
         if not self.capability()['installation_supported']:
@@ -54,7 +71,11 @@ class Installer:
             raise t3.ToneError('Use an empty test preset so installation cannot replace an audible active capture.', 422)
         return device
 
-    def prepare(self, model_id, expected_preset):
+    def prepare(self, model_id, expected_preset, slot):
+        try:
+            nam_slots.number(slot)
+        except ValueError as exc:
+            raise t3.ToneError(str(exc),422) from None
         with self.lock:
             self.pending = None
         # Nothing sent while downloading/parsing creator-controlled content.
@@ -68,17 +89,20 @@ class Installer:
             raise t3.ToneError(str(exc), 422) from None
         with self.lock, self.device_lock:
             device = self._device(expected_preset)
-            before = device.read_nam_slot1()
+            before = device.read_nam_slot(slot)
+            if before.slot != slot or before.byte_count != 65536:
+                raise t3.ToneError('Full readback of the selected NAM slot is required.',422)
             token = secrets.token_urlsafe(32)
             self.pending = dict(token=token, expires=time.monotonic() + 600, compiled=compiled,
                                 before=before, device=device, expected_preset=expected_preset,
-                                model_id=model_id, tone_id=selected['tone']['id'])
-            return {'prepared_id': token, 'readonly': True, 'slot': 1, 'name': compiled.name,
+                                model_id=model_id, tone_id=selected['tone']['id'],slot=slot)
+            return {'prepared_id': token, 'readonly': True, 'slot': slot, 'name': compiled.name,
                     'existing_name': before.name, 'existing_sha256': before.payload_sha256,
+                    'existing_occupied': not before.empty,
                     'source_sha256': compiled.source_sha256, 'payload_sha256': compiled.payload_sha256,
                     'payload_bytes': len(compiled.payload), 'expected_preset': expected_preset,
                     'permanent': True, 'expires_seconds': 600,
-                    'detail': 'Nothing installed. Confirm external mute and permanent replacement of NAM slot 001.'}
+                    'detail': f'Nothing installed. Confirm external mute and permanent writing to NAM slot{slot:03d}. No automatic preset capture selection.'}
 
     def commit(self, prepared_id, muted, flash, overwrite):
         if muted is not True or flash is not True or overwrite is not True:
@@ -98,9 +122,10 @@ class Installer:
             device = self._device(pending['expected_preset'])
             if device is not pending['device']:
                 raise t3.ToneError('Device connection changed after preview. Nothing installed.',409)
-            before, frames = device.export_nam_slot1()
-            if before.payload_sha256 != pending['before'].payload_sha256:
-                raise t3.ToneError('Slot 001 changed after preview. Nothing sent; prepare again.', 409)
+            slot = pending['slot']
+            before, frames = device.export_nam_slot(slot)
+            if before != pending['before']:
+                raise t3.ToneError(f'Slot{slot:03d} changed after preview. Nothing sent; prepare again.', 409)
             backup = self._backup(before, frames)
             # Front-panel changes are not serialized by the server lock.
             # Recheck the target after exporting/saving the recovery image.
@@ -108,15 +133,19 @@ class Installer:
             try:
                 with device.edit_session(external_audio_muted=True,
                                          expected_preset=pending['expected_preset']):
-                    after = device.install_nam_slot1(pending['compiled'], before.payload_sha256)
+                    device._nam_install_permit = (slot,pending['compiled'].source_sha256,before.payload_sha256)
+                    try:
+                        after = device.install_nam_slot(slot,pending['compiled'],before.payload_sha256)
+                    finally:
+                        device._nam_install_permit = None
             except Exception:
                 raise t3.ToneError('NAM installation/readback failed. Keep audio muted. '
                                    f'Recovery backup: {backup}. Nothing retried or stored as a preset.', 502) from None
-            result = {'ok': True, 'installed': True, 'name': after.name, 'slot': 1,
+            result = {'ok': True, 'installed': True, 'name': after.name, 'slot': slot,
                       'payload_sha256': after.payload_sha256, 'bytes_verified': after.byte_count,
                       'firmware': fw33_profile.KEY, 'backup': str(backup),
                       'preset_stored': False, 'audio_verified': False}
-            if (after.payload_sha256 != pending['compiled'].payload_sha256
+            if (after.slot != slot or after.empty or after.payload_sha256 != pending['compiled'].payload_sha256
                     or after.name != pending['compiled'].name or after.byte_count != 65536):
                 raise t3.ToneError(f'NAM readback mismatch. Recovery backup: {backup}. Keep audio muted.', 502)
         # The unit is verified even if account metadata cannot be persisted.
@@ -136,7 +165,7 @@ class Installer:
     def _backup(capture, frames):
         from .nam_memory import parse_export
         try:
-            check = parse_export(frames)
+            check = parse_export(frames,slot=capture.slot,allow_empty=True)
         except ValueError:
             raise t3.ToneError('Recovery export did not validate. Nothing installed.', 422) from None
         if check != capture:
@@ -146,7 +175,7 @@ class Installer:
         checkout = Path(__file__).resolve().parents[2]
         if directory == checkout or checkout in directory.parents:
             raise t3.ToneError('Persistent recovery backups must be outside the project.', 422)
-        filename = directory / ('slot001-before-' + secrets.token_hex(12) + '.syx')
+        filename = directory / (f'slot{capture.slot:03d}-before-' + secrets.token_hex(12) + '.syx')
         try:
             t3._write_private(filename, b''.join(bytes(frame) for frame in frames))
             stored = filename.read_bytes()

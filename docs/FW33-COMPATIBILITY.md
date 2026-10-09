@@ -17,7 +17,8 @@ date/checksum, FW33 final or a later beta does not enable it.
   use scenes1/2 and NAM A/B; other blocks stay on shared A. No splicing,
   capture selector, model/CAB/mixer or modifier writes on FW33.
 - Native NAM read/install: Windows, user-declared MK2, exact firmware and
-  slot001 only. Existing supported 48kHz SlimmableContainer v0.7 A2 geometry
+  slots001-256 after explicit destination confirmation. Existing supported
+  48kHz SlimmableContainer v0.7 A2 geometry
   with 1871/12146 finite weights. No downloaded code or Axe-Edit required.
   A creator's A2 label alone does not prove this geometry or tonal quality.
 - Install is separately permanent: local browser-CSRF boundary, three strict
@@ -27,9 +28,17 @@ date/checksum, FW33 final or a later beta does not enable it.
   finally. Unsupported MIDI backends decline before releasing input.
   Reconnection, profile, selected-model or memory changes invalidate approval;
   a matching slot hash on a different connection is not installation consent.
-  NAM memory is shared: replacing slot001 also changes other stored presets
+  NAM memory is shared: replacing a slot also changes other stored presets
   that reference it. An empty target does not prevent that effect; those
   references are not inventoried automatically. Review the overwrite warning.
+- Inventory reads all256 names serially and suggests the first explicitly
+  empty slot. A missing/malformed reply aborts inventory, not guessed emptiness.
+  Selected destinations are independently exported in full before preview and
+  again before commit; complete erased65536-byte memory is the empty state.
+  Changing the target invalidates browser consent; the single-use token binds
+  the actual slot and old full-memory state. A full bank requires a deliberate
+  occupied-slot choice, never an automatic overwrite. This installs a capture
+  in memory, not a new selector in a preset. Preset builds still require001.
 - Store is separately permanent and reviewed, same current allowed preset,
   exact captured 23-byte command and settled flash-name readback. No Store As,
   automatic reload, rollback or implicit writes from an AI recommendation.
@@ -39,7 +48,15 @@ on 2026-10-09 apply to the previous installation, not automatically this port.
 Before deploying this integrated adapter: new identity/read-only check, muted
 test-preset writes, independent Axe-Edit comparison, separately authorized
 NAM/Store validation and low-volume user listening/physical pedal acceptance.
-The Fractal remains OFF during today's offline tests. Remote GitHub CI and
-hardware regression must be recorded separately. Ordinary pip wheels remain
+The offline phase ran with the Fractal off. Subsequent muted native TC API
+tests on2026-10-09 installed the selected supported capture in authorized
+slots250 and256 with full65536-byte hash verification and valid recovery
+exports; NAM001 and the complete stored reference326 state stayed unchanged.
+Independent Axe-Edit NAM manager confirms the names at250/256 without import
+or Save; Axe-Edit is not the installer.
+The name inventory reads all256 slots in both populated and empty preset
+contexts. Address requests were independently captured from Axe-Edit before
+native writes. Source and browser tests are not physical sound acceptance.
+Remote GitHub CI and hardware regression are recorded separately. Ordinary pip wheels remain
 unsupported as complete apps under upstream's resource policy; use the source
 checkout/editable installation until a bundled distribution passes its own run.
