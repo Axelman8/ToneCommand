@@ -1,5 +1,11 @@
 # Axe-Fx III reference and NAM workspace, 2026-10-08
 
+Historical pre-installer workspace record. The 2026-10-09 source port adds
+separately confirmed native NAM installation for the exact measured Windows/
+MK2/FW33 profile only; see [current bounds](FW33-COMPATIBILITY.md) and
+[maintenance gates](AFX3-UPSTREAM-MAINTENANCE.md). Older search-only limitations
+below remain historical, not claims about the new candidate's installer.
+
 ## Implemented offline
 
 `/axefx3` now loads the exact FM9 stylesheet through `/axefx3.css` rather than

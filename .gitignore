@@ -41,6 +41,8 @@ tone_dir.json
 # names the owner gave their own user-cab slots.
 ir_service.json
 user_cabs.json
+# #221: the MIDI interface port this machine reaches its FM3 through.
+fm3_port.json
 
 # generated site (site/build.py); deployed to Cloudflare Pages, never committed
 site/dist/
@@ -64,3 +66,12 @@ handsoff-verifications.jsonl
 .handsoff-preflight.json
 .handsoff-analysis/
 .handsoff-digests/
+
+# the test console's run history (#214)
+.testruns/
+
+# Private NAM payloads/account state; never include them in a pull request.
+*.nam
+tone3000_tokens.json
+tone3000-account.dat
+backups/

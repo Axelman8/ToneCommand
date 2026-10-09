@@ -10,6 +10,7 @@ from fm9 import protocol as shared
 from fm9.device import SetResult
 from . import protocol, route_guard
 from . import audio_safety
+from . import fw33_profile
 
 
 def reframe(frame):
@@ -37,6 +38,11 @@ def fixture_left_frame():
 
 
 def valid_write(frame, reg):
+    if reg.firmware == fw33_profile.KEY:
+        frames = [reframe(shared.build_select_grid_cell(3, c)) for c in range(1,8)]
+        frames += [reframe(shared.build_set_grid_cell(3,c,e)) for c,e in enumerate(fw33_profile.NAM_ROUTE,1)]
+        frames += [reframe(shared.build_set_grid_routing(3,c,3)) for c in range(1,7)]
+        return frame in frames
     payload = frame[6:-2]
     sub = payload[:2]
     if sub == [0x30, 0] and len(payload) == 15:
@@ -80,16 +86,22 @@ def place(dev, position, effect_id):
     if type(row) is not int or type(col) is not int or row not in range(2, 6) or col not in range(1, 15):
         raise ValueError("Unverified grid position")
     family = dev.reg.family_of_effect_id(effect_id)
-    if not family or effect_id >= 128 or family[0] in audio_safety.BLOCKED_LOOP_FAMILIES:
+    measured_nam = (dev.reg.firmware == fw33_profile.KEY
+                    and getattr(dev,'_fw33_build_route',None) == fw33_profile.NAM_ROUTE
+                    and row == 3 and 1 <= col <= 7
+                    and effect_id == fw33_profile.NAM_ROUTE[col-1])
+    if not family or (effect_id >= 128 and not measured_nam) or family[0] in audio_safety.BLOCKED_LOOP_FAMILIES:
         raise ValueError("Unverified block or ambiguous grid alias")
+    if dev.reg.firmware == fw33_profile.KEY and not measured_nam:
+        raise PermissionError('FW33 placement is only available inside the exact empty NAM build')
     before = snapshot(dev.read_grid())
     if before.get((row, col), ())[:2] == (effect_id, False):
         return SetResult(True, "Block already present", None, effect_id)
     if (row, col) in before or any(v[0] == effect_id for v in before.values()):
         raise PermissionError("Will not overwrite or move an existing block")
-    dev._write(reframe(shared.build_select_grid_cell(row, col)))
+    _write(dev,reframe(shared.build_select_grid_cell(row, col)))
     time.sleep(.05)
-    dev._write(reframe(shared.build_set_grid_cell(row, col, effect_id)))
+    _write(dev,reframe(shared.build_set_grid_cell(row, col, effect_id)))
     for _ in range(4):
         time.sleep(.15)
         after = snapshot(dev.read_grid())
@@ -102,6 +114,10 @@ def place(dev, position, effect_id):
 
 
 def connect(dev, src_row, src_col, dest_row):
+    if dev.reg.firmware == fw33_profile.KEY and (
+            getattr(dev,'_fw33_build_route',None) != fw33_profile.NAM_ROUTE
+            or src_row != 3 or dest_row != 3 or src_col not in range(1,7)):
+        raise PermissionError('FW33 cables require the exact empty NAM build')
     if (any(type(v) is not int for v in (src_row, src_col, dest_row))
             or src_row not in range(2, 6) or dest_row not in range(2, 6)
             or src_col not in range(1, 14)):
@@ -115,7 +131,7 @@ def connect(dev, src_row, src_col, dest_row):
         return SetResult(True, "Cable already present", wanted_mask, wanted_mask)
     if before[dest][2] != 0:
         raise PermissionError("Will not replace an existing or parallel cable")
-    dev._write(reframe(shared.build_set_grid_routing(src_row, src_col, dest_row)))
+    _write(dev,reframe(shared.build_set_grid_routing(src_row, src_col, dest_row)))
     wanted = dict(before)
     wanted[dest] = (*before[dest][:2], wanted_mask)
     for _ in range(4):
@@ -132,11 +148,34 @@ def build(dev, required_route, actions):
     expected, actual = route_guard.planned_route(dev, dev.reg, required_route, actions)
     if actual == expected:
         return SetResult(True, "Existing complete route verified; reused without writes", actual, actual)
+    if dev.reg.firmware == fw33_profile.KEY:
+        if actual or tuple(expected) != fw33_profile.NAM_ROUTE:
+            raise PermissionError('FW33 permits only the exact empty NAM foundation')
+        dev._fw33_build_route = fw33_profile.NAM_ROUTE
+        try:
+            return _empty_build(dev,required_route,expected)
+        finally:
+            dev._fw33_build_route = None
+            dev._fw33_route_permit = None
     if actual:
         from . import insertion
         return insertion.build(dev, required_route, actions)
     # Only the historical Input 1 to Output 1 empty-grid build, no destructive
     # preset load or clear to make a nonempty preset appear to be empty.
+    return _empty_build(dev,required_route,expected)
+
+
+def _write(dev,frame):
+    if dev.reg.firmware != fw33_profile.KEY:
+        return dev._write(frame)
+    dev._fw33_route_permit = tuple(frame)
+    try:
+        return dev._write(frame)
+    finally:
+        dev._fw33_route_permit = None
+
+
+def _empty_build(dev,required_route,expected):
     for col, eid in enumerate(expected, 1):
         result = dev.place_block((3, col), eid)
         if not result.ok:

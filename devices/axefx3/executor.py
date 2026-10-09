@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 from fm9.device import SetResult
 from . import audio_safety, cab_selection, models, modifiers, pedal_control, protocol, route_guard, insertion
+from . import fw33_profile
 
 
 KINDS = {"add_block", "set_param", "set_type", "set_cab", "set_scene", "set_channel",
@@ -45,6 +46,8 @@ def resolve(reg, action):
         raise ValueError("Unsupported action; uploads, stores and global writes are not enabled")
     a = dict(action)
     kind = a["kind"]
+    if reg.firmware == fw33_profile.KEY and kind not in fw33_profile.BUILD_KINDS - {'store'}:
+        raise ValueError('Action is outside the measured FW33 numeric/NAM profile')
     result = Resolved(a)
     if kind == "rename_preset":
         result.value = preset_name(a.get("type_name") or "")
@@ -116,12 +119,15 @@ def prepare(dev, actions, required_route, expected_preset):
     if not isinstance(actions, list) or not actions or len(actions) > 512:
         raise ValueError("Plan must contain 1..512 explicit actions")
     resolved = [resolve(dev.reg, a) for a in actions]
-    if dev.firmware_label() != "32.06" or dev.reg.firmware != "32.06":
+    if dev.firmware_label() != dev.reg.firmware or dev.reg.firmware not in ('32.06', fw33_profile.KEY):
         raise ValueError("Firmware does not match the verified profile")
     preset = dev.current_preset()
     if not preset or preset[0] != expected_preset:
         raise ValueError("Target preset changed or could not be read")
     expected, actual = route_guard.planned_route(dev, dev.reg, required_route, actions)
+    if dev.reg.firmware == fw33_profile.KEY:
+        from . import fw33
+        return fw33.prepare(dev, resolved, expected, actual)
     if actual and actual != expected:
         insertion.plan(dev, required_route, actions)
     for item in resolved:

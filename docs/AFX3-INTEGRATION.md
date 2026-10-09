@@ -1,5 +1,14 @@
 # Axe-Fx III upstream integration
 
+## Current source candidate, 2026-10-09
+
+`integration/axefx3-upstream-20261009` now integrates upstream 1.5.14
+(`c2dae138272cbfb26096ff7d92e643eacf8c32ab`) with the isolated exact FW33
+NAM profile. See [current maintenance and release gates](AFX3-UPSTREAM-MAINTENANCE.md)
+and [FW33 compatibility](FW33-COMPATIBILITY.md). The sections below are
+historical FW32.06 milestones and are not acceptance of the refactored FW33 port.
+The owner installation and successful audible preset remain untouched.
+
 ## Status: controllers accepted; bounded text workspace pending full hardware acceptance
 
 Worktree: `integration/axefx3-upstream-20260929`, based on upstream

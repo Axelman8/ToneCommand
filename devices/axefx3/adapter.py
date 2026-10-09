@@ -30,6 +30,7 @@ class AxeFxIII:
     guard = sysex_guard("Axe-Fx III", (1, 8, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x13, 0x1F))
 
     def __init__(self, ports=None):
+        self._injected_ports = ports is not None
         if ports is None:
             from fm9 import midi_transport
             try:
@@ -84,6 +85,9 @@ class AxeFxIII:
             raise ValueError("Not a valid Axe-Fx III frame")
         self.guard.check(frame[5])
         fn, payload = frame[5], frame[6:-2]
+        if self.reg.firmware == '33.00-beta.20261006':
+            from . import fw33
+            fw33.check_frame(self, frame)
         readonly = ((fn in (8, 0x13) and payload == [])
                     or (fn in (0x0D, 0x1F) and len(payload) == 2)
                     or (fn == 0x0E and len(payload) == 1)
@@ -91,7 +95,7 @@ class AxeFxIII:
                     or (fn in (0x0A, 0x0B) and len(payload) == 3 and payload[2] == 127)
                     or (fn == 1 and len(payload) == 6 and payload[:2] == [0x10, 0]
                         and (shared.decode14(payload[4], payload[5]) != 0
-                             or (self.reg.firmware=='32.06' and
+                             or (self.reg.firmware in SUPPORTED_FIRMWARE and
                                  shared.decode14(payload[2],payload[3]) in protocol.NUMERIC_ZERO_EFFECTS)))
                     or frame == grid.reframe(shared.build_request_grid_layout()))
         if not readonly:
@@ -158,6 +162,9 @@ class AxeFxIII:
                 elif payload[:2] in ([0x30, 0], [0x32, 0], [0x35, 0]):
                     if not grid.valid_write(frame, self.reg):
                         raise PermissionError("Unverified/destructive grid frame")
+                elif payload[:2] == [0x26, 0] and self.reg.firmware == '33.00-beta.20261006':
+                    if getattr(self, '_store_permit', None) != tuple(frame):
+                        raise PermissionError('Store requires its bounded same-slot operation')
                 elif payload[:2] not in ([0x28, 0], [0x2B, 0]):
                     raise PermissionError("Editor command has not been enabled for Axe-Fx III")
             elif not (fn == 0x0C and len(payload) == 1 and payload[0] in range(8)) \
@@ -184,9 +191,10 @@ class AxeFxIII:
         return None
 
     def firmware_label(self):
+        from .fw33_profile import identity_key
         got = self._request(protocol.envelope(8, []),
-                            lambda d: d[5:7] if d[4] == 8 and len(d) >= 8 else None)
-        return f"{got[0]}.{got[1]:02d}" if got else ""
+                            lambda d: tuple(d) if d[4] == 8 and len(d) >= 8 else None)
+        return identity_key(got) or (f"{got[5]}.{got[6]:02d}" if got else "")
 
     def current_preset(self):
         return self._request(protocol.envelope(0x0D, [127, 127]), shared.parse_patch_name)
@@ -277,7 +285,7 @@ class AxeFxIII:
 
     def read_grid(self, timeout=2.0):
         return self._request(grid.reframe(shared.build_request_grid_layout()),
-                             shared.parse_grid_layout, timeout)
+                             protocol.parse_grid_layout, timeout)
 
     def read_modifier(self, slot_1based):
         return self.bulk_read(modifiers.slot_eid(slot_1based))
@@ -414,6 +422,9 @@ class AxeFxIII:
             return "Firmware changed; nothing written"
         if type(channel) is not int or channel not in range(4):
             return "Channel unreadable; nothing written"
+        if self.reg.firmware == '33.00-beta.20261006':
+            from . import fw33
+            return fw33.domain_error(self, spec, channel)
         return None
 
     def _delay_tempo_word(self, spec, channel):
@@ -438,6 +449,8 @@ class AxeFxIII:
         word = self._delay_tempo_word(spec, channel)
         if word == 0 and str(shown).strip().upper() == "NONE":
             return None
+        if self.reg.firmware != '32.06':
+            return 'FW33 delay time requires independently verified Tempo NONE; nothing written'
         if (type(word) is not int or not 0 < word < 65535 or not shown
                 or self.get_channel(spec.effect_id) != channel):
             return "Delay tempo/channel unreadable; time not written"
@@ -467,7 +480,8 @@ class AxeFxIII:
             if before is None:
                 return SetResult(False, "Display unreadable; nothing written", None, None)
             from .tone_controls import domain_error
-            control_error=domain_error(self,spec,channel)
+            control_error = (self._set_domain_guard(spec, channel)
+                             if self.reg.firmware != '32.06' else domain_error(self,spec,channel))
             if control_error:
                 return SetResult(False,control_error,before,None)
             tempo_error = self._prepare_delay_milliseconds(spec, channel)
@@ -490,6 +504,8 @@ class AxeFxIII:
     def set_param_wire(self, spec, wire):
         """Exact restore, with no guessed ordinal/alternate-opcode fallback."""
         self.reg.validate_spec(spec)
+        if self.reg.firmware != '32.06':
+            return SetResult(False, 'FW33 raw restore is not exposed by this adapter port', None, None)
         if type(wire) is not int or not 0 <= wire <= 65534:
             return SetResult(False, "Invalid raw restore value", None, None)
         if not evidence.afx3_bulk_restore_supported(spec, self.reg.firmware):
@@ -541,6 +557,8 @@ class AxeFxIII:
             return models.read(self, family, effect_id)
 
     def set_cab(self, effect_id, bank, ordinal, side="left"):
+        if self.reg.firmware != '32.06':
+            raise PermissionError('FW33 cab selection is not independently measured')
         with self._lock:
             self._check_edit_target()
             if bank == 2 and ordinal >= 512 and not self.reg.cab_catalog.user2_enabled:
@@ -548,6 +566,8 @@ class AxeFxIII:
             return cab_selection.select(self, effect_id, bank, ordinal, side)
 
     def set_model(self, family, effect_id, name):
+        if self.reg.firmware != '32.06':
+            raise PermissionError('FW33 model selection is not independently measured')
         with self._lock:
             self._check_edit_target()
             return models.select(self, family, effect_id, name)
@@ -600,4 +620,25 @@ class AxeFxIII:
         raise PermissionError("Preset reload is not enabled in the integration adapter")
 
     def store_preset(self, slot):
+        if self.reg.firmware == '33.00-beta.20261006':
+            from . import fw33
+            return fw33.store(self, slot)
         raise PermissionError("Permanent storage is not enabled in the integration adapter")
+
+    def read_nam_slot1(self):
+        from . import nam_memory
+        return self._nam_memory_read(nam_memory.read_slot1)
+
+    def export_nam_slot1(self):
+        from . import nam_memory
+        return self._nam_memory_read(nam_memory.export_slot1)
+
+    def _nam_memory_read(self, read):
+        from . import fw33
+        with self._lock:
+            return fw33.memory_read(self, read)
+
+    def install_nam_slot1(self, compiled, expected_sha256):
+        from . import fw33
+        with self._lock:
+            return fw33.install(self, compiled, expected_sha256)

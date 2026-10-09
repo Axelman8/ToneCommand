@@ -86,7 +86,8 @@ def fetch_audio(url):
     for _ in range(4):
         public_url(url)
         try:
-            with pinned_opener(url).open(Request(url, headers={'User-Agent': 'ToneCommand reference audio'}), timeout=30) as response:
+            opener = pinned_opener(url)
+            with opener.open(Request(url, headers={'User-Agent': 'ToneCommand reference audio'}), timeout=30) as response:
                 data = response.read(MAX_BYTES + 1)
                 if len(data) > MAX_BYTES:
                     raise ValueError('Audio exceeds 40 MiB. Upload a shorter clip.')

@@ -42,6 +42,24 @@ def current_version() -> str:
     override = os.environ.get("TONECOMMAND_VERSION_OVERRIDE", "").strip()
     if override:
         return override
+    # In a repo checkout, pyproject.toml IS the running version. Installed
+    # metadata only changes when `pip install -e .` is re-run, so after any
+    # version bump it reports the OLD number and the banner nags about an
+    # update the player already has, with the button greyed out because the
+    # same checkout is not on main. Reported as "update and restart still
+    # greyed out", and the banner was the wrong half of that complaint.
+    root = Path(__file__).resolve().parent.parent
+    pyproject = root / "pyproject.toml"
+    if pyproject.is_file():
+        try:
+            for line in pyproject.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if line.startswith("version") and "=" in line:
+                    got = line.split("=", 1)[1].strip().strip('"\'')
+                    if got:
+                        return got
+        except OSError:
+            pass            # fall through to metadata; never fail a page over this
     try:
         from importlib.metadata import version
         return version("tonecommand")
@@ -122,7 +140,10 @@ def repo_state(root: Path) -> dict:
         return subprocess.run(["git", "-C", str(root), *args],
                               capture_output=True, text=True, timeout=8)
     branch = g("rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
-    dirty = g("status", "--porcelain").stdout.strip()
+    # Tracked changes only (#214). An untracked file (the test console's
+    # .testruns/, a Handsoff run file) cannot be lost by a fast-forward pull,
+    # and a pull that would overwrite one refuses on its own and names it.
+    dirty = g("status", "--porcelain", "--untracked-files=no").stdout.strip()
     return {"git": True, "branch": branch, "clean": not dirty}
 
 

@@ -3,6 +3,8 @@ const viewIds={planPanel:'pane-plan',review:'pane-review',confirmPanel:'pane-con
 const el=id=>document.getElementById(viewIds[id]||id);
 let state=null, proposal=null, busy=false;
 let audioReference=null;
+let namAccount=null,namSelection=null,namPreview=null;
+let storePreview=null;
 let currentStage=0;
 const note=text=>{el('status').textContent=text;};
 const stageNames=['request','plan','review','confirm','send'];
@@ -21,18 +23,31 @@ function stage(index){
 function controls(){
   for(const id of ['refresh','generate','cabImport','prompt','scenes','wah','cabKind','cabFile','discard','variant','deviceChoice','connectDevice','newDesign','audioFile','namQuery','namFormat','namSearch','namLogin','namWithRequest','editRequest','toReview','backPlan','toConfirm','backReview','returnRequest']) el(id).disabled=busy;
   el('wahMode').disabled=busy||!el('wah').value;
-  el('generate').disabled=busy||el('deviceChoice').value!=='axefx3'||!state?.connected||!!state.route_problem||!state.cab_count;
+  const fw33=state?.firmware==='33.00-beta.20261006';
+  const maxScenes=fw33?(state.route?.length?2:1):4;
+  for(const option of el('scenes').options)option.disabled=Number(option.value)>maxScenes;
+  if(Number(el('scenes').value)>maxScenes)el('scenes').value=String(maxScenes);
+  el('generate').disabled=busy||el('deviceChoice').value!=='axefx3'||!state?.connected||!!state.route_problem||(!fw33&&!state.cab_count);
+  for(const id of ['namSaveKey','namDisconnect','namSuggest','namKey'])el(id).disabled=busy;
+  el('namInstallPrepare').disabled=busy||!namSelection?.model||!namAccount?.installation_supported||!state?.connected;
+  el('namInstallCommit').disabled=busy||!namPreview||!el('namInstallMute').checked||!el('namInstallFlash').checked||!el('namInstallOverwrite').checked;
+  el('wah').disabled=busy||fw33; if(fw33)el('wah').value='';
+  el('wahMode').disabled=busy||fw33||!el('wah').value;
+  el('storePrepare').disabled=busy||!fw33||!state?.connected;
+  el('storeCommit').disabled=busy||!storePreview||!el('storeMute').checked||!el('storeFlash').checked;
   el('send').disabled=busy||currentStage!==3||el('deviceChoice').value!=='axefx3'||!proposal||!el('confirmed').checked||!el('muted').checked;
   stage(currentStage);
-  el('controllerHint').textContent=!el('wah').value?'Geen nieuwe controllerkoppeling. Bestaande Auto Engage blijft behouden en kan de scene-bypass beinvloeden.':
+  el('controllerHint').textContent=fw33?'FW33 NAM: eerst 1 scene vanuit leeg; daarna maximaal 2 met NAM A/B. Nieuwe controllerkoppelingen zijn voor dit profiel nog niet geverifieerd.':!el('wah').value?'Geen nieuwe controllerkoppeling. Bestaande Auto Engage blijft behouden en kan de scene-bypass beinvloeden.':
     el('wahMode').value==='Fast Pos'?'Fast Pos: pedaalbeweging kan de Wah ook inschakelen in een scene met Wah uit. Kies Off voor aan/uit via de scenes.':
     el('wahMode').value==='Off'?'Off: het pedaal stuurt de Wah-filterstand, maar schakelt de Wah niet automatisch aan of uit.':
     'Bestaande Auto Engage-modus blijft behouden. Bij een nieuwe koppeling gebruikt het apparaat zijn standaard; controleer het gedrag.';
 }
 function invalidate(){proposal=null;stage(0);el('confirmed').checked=el('muted').checked=false;
+  clearNamPreview();
+  storePreview=null;el('storeMute').checked=el('storeFlash').checked=false;el('storeSummary').textContent='';
   el('requestPreview').textContent=el('prompt').value.slice(0,160)+(el('prompt').value.length>160?'...':'');controls();}
 async function api(name,body){
-  const r=await fetch('/api/axefx3/'+name,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const r=await fetch('/api/axefx3/'+name,body===undefined?{headers:{'X-ToneCommand':'1'}}:{method:'POST',headers:{'Content-Type':'application/json','X-ToneCommand':'1'},body:JSON.stringify(body)});
   const data=await r.json();
   if(!r.ok)throw new Error(typeof data.detail==='string'?data.detail:(data.error||'Verzoek geweigerd. Lees de status opnieuw.'));
   return data;
@@ -56,6 +71,7 @@ async function refresh(){
     const num=document.createElement('span');num.className='n';num.textContent=String(i+1);
     const name=document.createElement('span');name.className='nm';name.textContent=state.scene_names?.[i]||'';scene.append(num,name);el('sceneRack').append(scene);
   }
+  if(el('namPanel').open)await accountStatus();
   note(state.route_problem||(state.connected?'Status uitgelezen. Niets verzonden.':'Nog niet verbonden.'));
 }
 el('refresh').onclick=()=>run(refresh);
@@ -70,6 +86,19 @@ el('toReview').onclick=()=>navigate(2);el('backPlan').onclick=()=>navigate(1);
 el('toConfirm').onclick=()=>navigate(3);el('backReview').onclick=()=>navigate(2);
 el('editRequest').onclick=()=>{navigate(0);el('requestPanel').open=true;el('prompt').focus();};
 el('returnRequest').onclick=()=>navigate(0);
+el('storePrepare').onclick=()=>run(async()=>{
+  await api('discard',{});storePreview=await api('store/prepare',{expected_preset:state.preset});
+  el('storeMute').checked=el('storeFlash').checked=false;
+  el('storeSummary').textContent=`Preset ${storePreview.preset}: ${storePreview.replaces} -> ${storePreview.name}. Permanent. Nog niets opgeslagen.`;
+});
+el('storeMute').onchange=el('storeFlash').onchange=controls;
+el('storeCommit').onclick=()=>run(async()=>{
+  const token=storePreview?.token;
+  if(!token||!el('storeMute').checked||!el('storeFlash').checked)throw new Error('Bevestig doelopslag en externe demping.');
+  storePreview=null;
+  const result=await api('store',{token,external_audio_muted:true,confirm_permanent_write:true});
+  el('storeSummary').textContent=`Opgeslagen: preset ${result.preset} ${result.name}. Geen herlaad- of luistertest uitgevoerd.`;
+});
 el('deviceChoice').onchange=()=>{invalidate();note('Klik VERBIND om van apparaat te wisselen. Tot dan verandert de MIDI-verbinding niet.');};
 el('variant').onchange=()=>run(async()=>{
   invalidate();if(!el('variant').value)return;
@@ -100,14 +129,55 @@ function showCaptures(result){
   }
   if(!result.candidates?.length)el('namResults').textContent='Geen kandidaten gevonden. TC verzint geen capture.';
 }
-el('namSearch').onclick=()=>run(async()=>{showCaptures(await api('search',{query:el('namQuery').value,format:el('namFormat').value}));});
+async function accountStatus(){
+  namAccount=await api('tone3000/status');namSelection=namAccount.selected;
+  el('namStatus').textContent=namAccount.connected?'Account verbonden. '+(namAccount.reason||''):namAccount.configured?'Key opgeslagen. Klik SIGN IN.':'Vul eerst je publishable client key in.';
+  el('namSelected').textContent=namSelection?.model?`Geselecteerd: ${namSelection.model.name}. Selectie is geen installatie.`:'Nog geen NAM-model geselecteerd.';
+  controls();
+}
+function clearNamPreview(){namPreview=null;el('namInstallPanel').hidden=true;
+  for(const id of ['namInstallMute','namInstallFlash','namInstallOverwrite'])el(id).checked=false;}
+async function showAccountTones(tones){
+  el('namResults').replaceChildren();
+  for(const tone of tones){
+    const button=document.createElement('button');button.textContent=`${tone.title} | ${tone.creator?.username||'creator'}`;
+    button.onclick=()=>run(async()=>{
+      const detail=await api('tone3000/tones/'+Number(tone.id));el('namResults').replaceChildren();
+      const claim=document.createElement('p');claim.textContent=`${detail.tone?.title||tone.title}: ${detail.tone?.description||''} (creatorclaim, niet gemeten)`;el('namResults').append(claim);
+      for(const model of detail.models||[]){const choose=document.createElement('button');choose.textContent='SELECT '+model.name;
+        choose.onclick=()=>run(async()=>{invalidate();clearNamPreview();await api('tone3000/select',{tone_id:Number(tone.id),model_id:Number(model.id)});await accountStatus();});el('namResults').append(choose);}
+    });el('namResults').append(button);
+  }
+  if(!tones.length)el('namResults').textContent='Geen kandidaten gevonden. Probeer een versterkernaam of andere zoekterm.';
+}
+el('namPanel').addEventListener('toggle',()=>{if(el('namPanel').open&&!busy)run(accountStatus);});
+el('namSaveKey').onclick=()=>run(async()=>{await api('tone3000/config',{client_id:el('namKey').value.trim()});el('namKey').value='';await accountStatus();});
+el('namDisconnect').onclick=()=>run(async()=>{clearNamPreview();await api('tone3000/disconnect',{});await accountStatus();});
+el('namSearch').onclick=()=>run(async()=>{
+  if(el('namFormat').value==='ir'){showCaptures(await api('search',{query:el('namQuery').value,format:'ir'}));return;}
+  const result=await api('tone3000/tones?query='+encodeURIComponent(el('namQuery').value));await showAccountTones(result.data||[]);
+});
+el('namSuggest').onclick=()=>run(async()=>{const result=await api('tone3000/suggest',{query:el('namQuery').value,prompt:el('prompt').value.slice(0,4000)});
+  await showAccountTones(result.tone?[result.tone]:[]);note(result.reason+' Nog niets geselecteerd of geïnstalleerd.');});
 el('namLogin').onclick=()=>run(async()=>{
-  const r=await fetch('/api/tone3000/login');const d=await r.json();
-  if(!r.ok)throw new Error(d.error||d.detail||'TONE3000-aanmelding is nog niet geconfigureerd.');
-  if(d.redirect_uri&&new URL(d.redirect_uri).origin!==location.origin)throw new Error('TONE3000-aanmelding vereist de integratie op de geregistreerde poort 8909. Deze tweede-poortpreview vervangt je bestaande TC niet.');
+  const d=await api('tone3000/auth/start',{mode:'signin'});
   const url=new URL(d.url);
   if(url.origin!=='https://www.tone3000.com')throw new Error('Ongeldige aanmeldlink.');
   location.href=url.href;
+});
+el('namInstallPrepare').onclick=()=>run(async()=>{
+  if(!namSelection?.model||!state?.connected)throw new Error('Selecteer een model en lees je lege doelpreset uit.');
+  invalidate();clearNamPreview();await api('discard',{});
+  namPreview=await api('tone3000/install/prepare',{model_id:namSelection.model.id,expected_preset:state.preset});
+  el('namInstallSummary').textContent=`NAM 001: ${namPreview.existing_name} -> ${namPreview.name}. Permanent; herstelbackup wordt vóór installatie gecontroleerd. Preset ${namPreview.expected_preset} wordt niet opgeslagen.`;
+  el('namInstallPanel').hidden=false;
+});
+for(const id of ['namInstallMute','namInstallFlash','namInstallOverwrite'])el(id).onchange=controls;
+el('namInstallCommit').onclick=()=>run(async()=>{
+  const token=namPreview?.prepared_id;if(!token||!el('namInstallMute').checked||!el('namInstallFlash').checked||!el('namInstallOverwrite').checked)throw new Error('Bevestig de drie installatievoorwaarden.');
+  clearNamPreview();invalidate();
+  const result=await api('tone3000/install',{prepared_id:token,external_audio_muted:true,confirm_permanent_write:true,confirm_overwrite:true});
+  await accountStatus();await refresh();note(`${result.bytes_verified} NAM-bytes gecontroleerd. Geen preset opgeslagen; audio blijft gedempt.`);
 });
 for(const id of ['namQuery','namWithRequest','audioFile'])el(id).addEventListener('input',()=>{audioReference=null;invalidate();});
 function requestLinks(text){return [...new Set((text.match(/https?:\/\/[^\s<>"\]]+/g)||[]).map(x=>x.replace(/[).,;]+$/,'')))];}
@@ -160,6 +230,15 @@ async function analyseRequestAudio(){
 }
 function showDesign(plan){
   const design=plan.design, controller=plan.controller;
+  if(plan.mode==='nam'){
+    el('toneChoice').textContent=`NAM 001: ${plan.capture.name} | Cab ${design.cab_active?'bestaand behouden':'bypassed'}`;
+    el('controllerChoice').textContent='FW33 controllerwrites niet gemeten; geen nieuwe koppeling.';
+    el('planWarnings').replaceChildren();for(const warning of plan.warnings||[]){const li=document.createElement('li');li.textContent=warning;el('planWarnings').append(li);}
+    el('sceneTable').hidden=false;el('sceneRows').replaceChildren();
+    for(const [i,scene] of design.scenes.entries()){const tr=document.createElement('tr');
+      for(const value of [`${i+1}. ${scene.name} / ${'AB'[i]}`,`NAM input ${scene.nam.input_gain} dB / level ${scene.nam.level} dB`,'Niet in route',scene.chorus?'Aan (gedeeld A)':'Uit',scene.delay?`${design.delay.time_ms} ms (gedeeld A)`:'Uit',scene.reverb?'Aan (gedeeld A)':'Uit','Geen onbewezen extra pedals']){const td=document.createElement('td');td.textContent=value;tr.append(td);}el('sceneRows').append(tr);
+    }return;
+  }
   const cabs=(plan.cab_choices||[]).map(cab=>`${cab.side}: ${cab.name} (${cab.position})`).join(' | ');
   el('toneChoice').textContent=cabs?`Amp: ${design?.amp_model||'?'} | ${cabs}`:design?`Amp: ${design.amp_model} | IR1: wire-bank ${design.cab_left.bank}, slot ${design.cab_left.slot}`+
     (design.cab_right?` | IR2: bank ${design.cab_right.bank}, slot ${design.cab_right.slot}`:' | IR2-4 gedempt'):'';

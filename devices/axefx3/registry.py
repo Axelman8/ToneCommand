@@ -7,9 +7,10 @@ from importlib.resources import files
 
 from fm9.registry import ParamSpec as BaseParamSpec, Registry as BaseRegistry
 from .evidence import AXE_FX_III_PARAM_DEFINITIONS
+from . import fw33_profile
 
 
-SUPPORTED_FIRMWARE = frozenset({"32.06"})
+SUPPORTED_FIRMWARE = frozenset({"32.06", fw33_profile.KEY})
 
 
 @dataclass
@@ -53,7 +54,9 @@ class Registry(BaseRegistry):
         apply(self, None)
         if firmware not in SUPPORTED_FIRMWARE:
             return
-        for family, definitions in AXE_FX_III_PARAM_DEFINITIONS.items():
+        self.definitions = (fw33_profile.definitions(AXE_FX_III_PARAM_DEFINITIONS)
+                            if firmware == fw33_profile.KEY else AXE_FX_III_PARAM_DEFINITIONS)
+        for family, definitions in self.definitions.items():
             for name, definition in definitions.items():
                 self.params[family, definition["pid"]] = {
                     "name": name, "displayLabel": definition["label"],
@@ -62,7 +65,7 @@ class Registry(BaseRegistry):
                 }
         data = json.loads(files("devices.axefx3").joinpath("data", "axe_fx_iii_amp_models.json").read_text(
             encoding="utf-8"))
-        self.amp_roster = dict(data["firmware"][firmware]["models"])
+        self.amp_roster = dict(data["firmware"]["32.06"]["models"])
 
     def spec(self, family: str, param_id: int, instance: int = 1) -> ParamSpec:
         if type(param_id) is not int or type(instance) is not int:
@@ -70,7 +73,9 @@ class Registry(BaseRegistry):
         entry = self.params.get((family, param_id))
         if entry is None:
             raise KeyError(f"No verified Axe-Fx III {self.firmware} parameter {family}/{param_id}")
-        definition = AXE_FX_III_PARAM_DEFINITIONS[family][entry["name"]]
+        definition = self.definitions[family][entry["name"]]
+        if self.firmware == fw33_profile.KEY and instance != 1:
+            raise ValueError("Only measured first instances are supported on FW33")
         if family == "DISTORT" and instance not in (1, 2):
             raise ValueError("Axe-Fx III has Amp 1 and Amp 2 only")
         if family == "CHORUS" and instance != 1:
@@ -106,9 +111,13 @@ class Registry(BaseRegistry):
     def selectable_amp_models(self) -> dict[str, str]:
         # Model ordinal zero needs separate evidence; do not reuse FM9's
         # alternate setter just because it works on that different unit.
-        return {k: v for k, v in self.amp_roster.items() if k != "0"}
+        return {k: v for k, v in self.amp_roster.items() if k != "0"} if self.firmware == '32.06' else {}
 
     def effect_id(self, family: str, instance: int = 1) -> int:
+        if family == 'NAM':
+            if type(instance) is not int or instance != 1 or self.firmware != fw33_profile.KEY:
+                raise ValueError('NAM requires the exact FW33 first-instance profile')
+            return 206
         if type(instance) is not int or family == "GLOBAL":
             raise ValueError("Not a writable Axe-Fx III block address")
         if family == "DISTORT" and instance not in (1, 2):
@@ -122,10 +131,17 @@ class Registry(BaseRegistry):
     def family_of_effect_id(self, eid: int):
         if type(eid) is not int:
             return None
+        if eid == 206 and self.firmware == fw33_profile.KEY:
+            return ('NAM', 1)
         found = super().family_of_effect_id(eid)
         if found and (found[0] == "GLOBAL" or (found[0] == "DISTORT" and found[1] > 2)):
             return None
         return found
+
+    def resolve_block(self, name: str, instance: int = 1):
+        if name.strip().lower() in ('nam', 'nam player'):
+            return 'NAM', self.effect_id('NAM', instance)
+        return super().resolve_block(name, instance)
 
     def import_cab_names(self, text, kind, *, replace=False):
         count = self.cab_catalog.import_text(text, kind, replace=replace)

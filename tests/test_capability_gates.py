@@ -167,8 +167,9 @@ def _stub_world(monkeypatch, tmp_path) -> list[str]:
     log = tmp_path / "diag.jsonl"
     real_pkg = diagnostics.package_for_sharing
     monkeypatch.setattr(server.diagnostics, "package_for_sharing",
-                        lambda scope=None, limit=10, path=None:
-                            real_pkg(scope=scope, limit=limit, path=log))
+                        lambda scope=None, limit=10, path=None, note="":
+                            real_pkg(scope=scope, limit=limit, path=log,
+                                     note=note))
     real_log = diagnostics.log_error
     monkeypatch.setattr(server.diagnostics, "log_error",
                         lambda scope, message, path=None, **kw:
@@ -206,6 +207,8 @@ def _stub_world(monkeypatch, tmp_path) -> list[str]:
     monkeypatch.setattr(describe, "read_source", lambda raw, on_stage=None: {
         "text": "a bright clean tone", "kind": "text", "url": None,
         "title": "", "notes": ""})
+    monkeypatch.setattr(describe, "_ask", lambda prompt, cancel=None:
+                        '{"ops": [{"op": "set_node", "id": "ts", "label": "Klon"}]}')
     monkeypatch.setattr(describe, "extract", lambda text, cancel=None: {
         "found": True, "summary": "bright clean", "stated": [], "vague": [],
         "quotes": []})
@@ -300,6 +303,20 @@ def _table(sim) -> list[dict]:
         ("POST", "/api/axefx3/plan", {}, {"prompt":"test preset","expected_preset":324,"scenes":4}, None),
         ("POST", "/api/axefx3/discard", {}, {}, None),
         ("POST", "/api/axefx3/send", {}, {"token":"none","target_confirmed":True,"external_audio_muted":True}, None),
+        ("GET", "/api/axefx3/tone3000/status", {}, None, None),
+        ("POST", "/api/axefx3/tone3000/config", {}, {"client_id":""}, None),
+        ("POST", "/api/axefx3/tone3000/auth/start", {}, {}, None),
+        ("POST", "/api/axefx3/tone3000/disconnect", {}, {}, None),
+        ("GET", "/api/axefx3/tone3000/tones", {}, None, None),
+        ("GET", "/api/axefx3/tone3000/tones/{tone_id}", {"tone_id":1}, None, None),
+        ("POST", "/api/axefx3/tone3000/select", {}, {"tone_id":1}, None),
+        ("POST", "/api/axefx3/tone3000/selection/clear", {}, {}, None),
+        ("GET", "/api/axefx3/tone3000/download/{model_id}", {"model_id":1}, None, None),
+        ("POST", "/api/axefx3/tone3000/suggest", {}, {"query":"test"}, None),
+        ("POST", "/api/axefx3/tone3000/install/prepare", {}, {"model_id":1,"expected_preset":133}, None),
+        ("POST", "/api/axefx3/tone3000/install", {}, {"prepared_id":"x"*32}, None),
+        ("POST", "/api/axefx3/store/prepare", {}, {"expected_preset":133}, None),
+        ("POST", "/api/axefx3/store", {}, {"token":"x"*32}, None),
         ("GET", "/api/controllers/state", {}, None, None),
         ("POST", "/api/controllers/connect", {}, {}, None),
         ("POST", "/api/controllers/disconnect", {}, {}, None),
@@ -313,6 +330,10 @@ def _table(sim) -> list[dict]:
         ("POST", "/api/describe/read", {}, {"source": "a bright clean tone"}, None),
         ("POST", "/api/describe/read/stream", {}, {"source": "a bright clean tone"}, None),
         ("POST", "/api/describe/build", {}, {"spec": {"summary": "bright clean"}}, None),
+        ("POST", "/api/rig/correct", {}, {"graph": {"nodes": [{"id": "ts", "role": "drive"}], "edges": []},
+                                          "text": "that pedal is a Klon"}, None),
+        ("POST", "/api/rig/compare", {}, {"graph": {"nodes": [{"id": "ts", "role": "drive"}], "edges": []}},
+         None),
         ("POST", "/api/describe/build/stream", {}, {"spec": {"summary": "bright clean"}}, None),
         ("POST", "/api/plan", {}, {"prompt": "a bit more drive"}, None),
         ("GET", "/api/tone-dir", {}, None, None),
@@ -429,6 +450,8 @@ def _table(sim) -> list[dict]:
         ("GET", "/api/ir/audition/integrity", {}, None, None),
         ("POST", "/api/ir/config", {}, {"url": ""}, None),
         ("GET", "/api/ai-settings", {}, None, None),
+        ("GET", "/api/fm3/port", {}, None, None),
+        ("POST", "/api/fm3/port", {}, {"port": ""}, None),
         ("GET", "/api/ai-settings/models", {}, None, None),
         ("GET", "/api/ai-settings/setup", {}, None, None),
         ("POST", "/api/chat", {}, {"messages": [{"role": "user", "content": "hi"}]}, None),
@@ -474,10 +497,16 @@ EXTRA_PROBES = [
 
 def _registered_routes() -> set[tuple[str, str]]:
     out = set()
-    for r in server.app.routes:
-        if isinstance(r, APIRoute):
-            for m in r.methods:
-                out.add((m, r.path))
+    def visit(routes):
+        for r in routes:
+            if isinstance(r, APIRoute):
+                for m in r.methods:
+                    out.add((m, r.path))
+            elif getattr(r, 'original_router', None) is not None:
+                # Recent FastAPI preserves included routers lazily. Their
+                # API routes must not disappear from substitution coverage.
+                visit(r.original_router.routes)
+    visit(server.app.routes)
     return out
 
 
@@ -708,9 +737,9 @@ def test_audit_counts_are_reported_honestly():
     blocks = _except_exception_blocks(ast.parse(SERVER.read_text(encoding="utf-8")))
     reraised = sum(1 for _h, before, _b in blocks.values()
                    if _handles_decline_first(before))
-    assert len(blocks) == 88
+    assert len(blocks) == 91          # #230: the IR-2 rig build's planner call
     assert reraised == 36
-    assert len(blocks) - reraised == 52
+    assert len(blocks) - reraised == 55
 
 
 def test_capability_declined_is_its_own_type_and_the_handler_shapes_the_409(world):

@@ -12,6 +12,15 @@ are planned for later chunks.
 ToneCommand runs on **macOS, Windows and Linux**. macOS is the tested path;
 Windows and Linux are documented and expected to work. Pick your OS below.
 
+## Supported installs
+
+ToneCommand runs from a **checkout** (clone the repository, then
+`pip install -e .` inside it, exactly as below) or from the **bundled app**.
+A plain `pip install .` (or installing the wheel) is not supported yet: the
+wheel does not carry the data the app reads (`config/`, `ui/`, `recipes/`),
+so it stops at startup with one line saying so rather than crashing (#177).
+Making that install work is part of #208.
+
 ## macOS
 
 Tested on Apple Silicon with Python 3.12 and an FM9 connected over USB, on
@@ -192,8 +201,9 @@ HeadRush, and the ToneX (read-only by design).
 
 Hardware: developed and regression-tested on an FM9 Mk II Turbo. Other
 FM9 variants share the model byte and should behave identically, but are
-untested. Axe-Fx III and FM3 use different model bytes and are not
-supported. Firmware outside 11.x / 12.00 is untested; the editor
+untested. The FM3 has no MIDI over USB and needs a USB MIDI interface on its
+5-pin MIDI ports (see DEVICES.md, #221); the Axe-Fx III uses a different
+model byte and is not supported. Firmware outside 11.x / 12.00 is untested; the editor
 protocol is unofficial and firmware-sensitive, and the hardware
 regression suite passing is the green light after any update. The
 original protocol feasibility findings, with the exact commands and

@@ -23,6 +23,11 @@ from fastapi.responses import (FileResponse, JSONResponse, Response,
                                StreamingResponse)
 from pydantic import BaseModel
 
+# #177: a plain wheel install has no config/, ui/ or recipes/; say so in one
+# line before any import below reads a catalog that is not there.
+from fm9.paths import require_supported_install
+require_supported_install()
+
 from fm9.adapter import (CAPABILITY_PROTOCOLS, UNDECLARED, Capabilities,
                          DeviceAdapter)
 from fm9.device import FM9, FM9NotFound, get_cab_slots, get_store_slots
@@ -140,6 +145,8 @@ DEVICE_KINDS = {
     "tonex": "IK Multimedia ToneX",
     "axefx3": "Axe-Fx III (controllers)",
     "ir2": "BOSS IR-2",
+    # #212: read-only through the FM9 module, addressed as an FM3.
+    "fm3": "Fractal FM3",
 }
 #: Chosen explicitly, by kind, through /api/device/select. None means no
 #: choice has been made, which is only a problem when there is a choice.
@@ -163,18 +170,40 @@ def available_devices() -> list[dict]:
     # opt-in the same way the others are.
     if os.environ.get("TONECOMMAND_IR2_SIM") == "1" or _ir2_port_present():
         out.append({"kind": "ir2", "label": DEVICE_KINDS["ir2"]})
+    # #212: an FM3 is listed when DPDP sees its port, like the IR-2.
+    if os.environ.get("TONECOMMAND_FM3_SIM") == "1" or _fm3_port_present():
+        out.append({"kind": "fm3", "label": DEVICE_KINDS["fm3"]})
     return out
 
 
-def _ir2_port_present() -> bool:
-    """True when a BOSS IR-2 is on the MIDI bus. Cheap and never raises: a
-    missing MIDI binding means no IR-2, not a broken device list."""
+def _fm3_port_present() -> bool:
+    from fm9 import midi_transport
     try:
-        import rtmidi
-        from devices.ir2.client import PORT_HINT
-        return any(PORT_HINT in n.lower() for n in rtmidi.MidiIn().get_ports())
-    except Exception:      # noqa: BLE001  device discovery must never fail the page
+        if midi_transport.load_fm3_binding()["source"] in ("env", "file"):
+            return True
+    except midi_transport.TransportError:
         return False
+    return any(d["kind"] == "fm3" for d in detected_devices())
+
+
+def _ir2_port_present() -> bool:
+    """True when a BOSS IR-2 is on the MIDI bus, by the catalog's own pattern
+    (#209), so there is one matcher for every device."""
+    return any(d["kind"] == "ir2" for d in detected_devices())
+
+
+def detected_devices() -> list[dict]:
+    """#209: every catalog device whose port is on the MIDI bus right now,
+    supported or not. Reads port NAMES only: nothing is opened and nothing
+    is sent, so a device ToneCommand has no adapter for is named without a
+    byte reaching it. Never raises: a missing MIDI binding means nothing
+    detected, not a broken page."""
+    try:
+        from devices import catalog
+        from fm9 import midi_transport
+        return catalog.recognise(midi_transport.port_names())
+    except Exception:      # noqa: BLE001  device discovery must never fail the page
+        return []
 
 
 def device_target() -> tuple[str | None, list[dict]]:
@@ -220,6 +249,17 @@ def _build_context(kind: str) -> DeviceContext:
         # with, exactly as the ToneX context does; nothing reads it here.
         return DeviceContext("ir2", FM9_REGISTRY, IR2Adapter(client=client),
                              DEVICE_KINDS["ir2"])
+    if kind == "fm3":
+        # #212: the FM9 module addressed as an FM3, read-only at its port.
+        # The FM9 registry is lent for the status dump's block names; no
+        # parameter value is read through it on this device.
+        from fm9.device import FM3
+        if os.environ.get("TONECOMMAND_FM3_SIM") == "1":
+            from fm9.sim import SimFM3
+            adapter = SimFM3(FM9_REGISTRY)
+        else:
+            adapter = FM3(FM9_REGISTRY)
+        return DeviceContext("fm3", FM9_REGISTRY, adapter, DEVICE_KINDS["fm3"])
     if kind == "tonex":
         # No registry of its own yet: the pedal's surface is captures, not
         # blocks and parameters. The FM9 registry is lent so the device-blind
@@ -237,7 +277,8 @@ def device_block() -> dict:
     kind, avail = device_target()
     active = device_context().kind
     return {"active": active, "label": DEVICE_KINDS.get(active, active),
-            "selected": kind, "available": avail, "ambiguous": kind is None}
+            "selected": kind, "available": avail, "ambiguous": kind is None,
+            "detected": detected_devices()}
 
 
 @app.get("/api/device")
@@ -268,6 +309,15 @@ def api_device_select(body: dict):
                           "send or discard it before switching"},
                 status_code=409)
         if kind != device_context().kind:
+            # #212: build first, so a device that will not open is reported
+            # in words (and logged for Report a problem) and the current
+            # device is left exactly as it was.
+            try:
+                ctx = _build_context(kind)
+            except Exception as e:      # noqa: BLE001  any failure to open is reported, never raised
+                note_connection(False, f"{DEVICE_KINDS.get(kind, kind)}: {e}")
+                return JSONResponse({"error": f"could not open the {DEVICE_KINDS.get(kind, kind)}: {e}"},
+                                    status_code=503)
             if device_context().kind == "fm9":
                 drop_fm9()
             elif device_context().adapter is not None:
@@ -275,9 +325,41 @@ def api_device_select(body: dict):
                     device_context().adapter.close()
                 except Exception:      # noqa: BLE001  a dead handle is being dropped anyway
                     pass
-            select_device_context(_build_context(kind))
+            select_device_context(ctx)
+            note_connection(True)
         _selected_kind["kind"] = kind
     return {"ok": True, "selected": kind, "active": device_context().kind}
+
+
+@app.get("/api/fm3/port")
+def api_fm3_port():
+    """#221: current binding and visible names, without opening any port."""
+    from fm9 import midi_transport
+    binding = midi_transport.load_fm3_binding()
+    return {"port": binding["port"],
+            "source": None if binding["source"] == "none" else binding["source"],
+            "fixed": binding["source"] == "env",
+            # only names a save can accept: present as both an input and an output
+            "ports": [name for name in dict.fromkeys(midi_transport.port_names())
+                      if name in set(midi_transport.output_names())]}
+
+
+@app.post("/api/fm3/port")
+def api_fm3_port_save(body: dict):
+    """#221: save and replace an open FM3 under the device-switch lock."""
+    import os
+    from fm9 import midi_transport
+    with _lock:
+        try:
+            binding = midi_transport.save_fm3_binding(body.get("port"))
+        except midi_transport.TransportError as e:
+            status = 409 if midi_transport.FM3_PORT_ENV in os.environ else 400
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=status)
+        ctx = device_context()
+        reconnected = False
+        if ctx.kind == "fm3" and ctx.adapter is not None:
+            reconnected = _reconnect_device("fm3", lock_held=True)["connected"]
+        return {"ok": True, **binding, "reconnected": reconnected}
 
 
 _lock = threading.Lock()
@@ -533,6 +615,11 @@ def get_fm9() -> DeviceAdapter:
         raise CapabilityDeclined("controller_workspace_only", "get_fm9")
     if ctx.kind != "fm9" or ctx.adapter is not None:
         if ctx.adapter is None:
+            if ctx.kind == "fm3":
+                # #221 review: a dropped FM3 keeps its interface guidance in
+                # the polls (and so in Report a problem), not a bare notice.
+                from fm9 import midi_transport
+                raise FM9NotFound(midi_transport.fm3_connection_failure("missing"))
             raise FM9NotFound(f"no {ctx.kind} adapter is connected")
         return GatedDevice(ctx.adapter)
     if _fm9 is None:
@@ -2106,11 +2193,19 @@ def api_link_stream():
     """
     def work(emit, cancel):
         last = None
+        last_kinds = None
         while not cancel.is_set():
             present = _fm9_port_present()
             if present != last:
                 emit("link", {"present": present})
                 last = present
+            # #209: every recognised device, so the page can greet one that
+            # arrives (and name one it cannot drive) within about a second.
+            detected = detected_devices()
+            kinds = [d["kind"] for d in detected]
+            if kinds != last_kinds:
+                emit("devices", {"detected": detected})
+                last_kinds = kinds
             cancel.wait(1.0)
 
     return _stream_response(work, final=())
@@ -2125,20 +2220,71 @@ def api_reconnect():
     the server started. This drops the handle, rescans, and reports what it
     found, which is also the honest answer when it finds nothing.
     """
+    kind = device_context().kind
+    if kind != "fm9":
+        return _reconnect_device(kind)
     with _lock:
         drop_fm9()
         rescan_midi()
         try:
             snap = snapshot(get_fm9())
         except FM9NotFound as e:
+            note_connection(False, str(e))
             drop_fm9()
             return {"connected": False, "why": str(e)}
         except CapabilityDeclined:
             raise
         except Exception as e:
+            note_connection(False, str(e))           # #212: in the report too
             drop_fm9()
             return {"connected": False, "why": str(e)}
+    note_connection(True)
     return {"connected": True, "preset": snap.get("preset")}
+
+
+#: #212: the last connection failure written to the diagnostics log, so a
+#: five second poll failing the same way does not write it every time. A
+#: different failure is written; a success resets it, so the same failure
+#: after a recovery is written again.
+_last_connection_failure: dict = {"message": None}
+
+
+def note_connection(ok: bool, message: str = "") -> None:
+    """Record a connection outcome for Report a problem (#212)."""
+    if ok:
+        _last_connection_failure["message"] = None
+        return
+    if message == _last_connection_failure["message"]:
+        return
+    _last_connection_failure["message"] = message
+    diagnostics.log_error("connection", message, device=device_context().kind)
+
+
+def _reconnect_device(kind: str, *, lock_held: bool = False) -> dict:
+    """#209: the selected device that is not the FM9, connected afresh. A
+    replug leaves its MIDI handles dead (the IR-2's client holds the ports it
+    opened), so the old adapter is closed and the context rebuilt. Opening
+    the ports is all this proves; the state read that follows is what proves
+    the device answers. The binding route already holds _lock across its
+    save and reconnect, and passes lock_held to keep them atomic."""
+    with contextlib.nullcontext() if lock_held else _lock:
+        old = device_context().adapter
+        if old is not None:
+            with contextlib.suppress(Exception):    # a dead handle is being dropped anyway
+                old.close()
+        rescan_midi()
+        try:
+            select_device_context(_build_context(kind))
+        except Exception as e:      # noqa: BLE001  any failure to open is reported, never raised
+            # #212 review: the old adapter was closed above, so the context
+            # must not keep pointing at it; the next read says not connected
+            # instead of reading through a dead handle, and the report agrees.
+            ctx = device_context()
+            select_device_context(DeviceContext(ctx.kind, ctx.registry, None, ctx.label))
+            note_connection(False, f"{DEVICE_KINDS.get(kind, kind)}: {e}")
+            return {"connected": False, "why": str(e)}
+    note_connection(True)
+    return {"connected": True}
 
 
 def _named_param_state(adapter, device: dict) -> dict:
@@ -2157,9 +2303,13 @@ def _named_param_state(adapter, device: dict) -> dict:
         rows.append({"name": spec["name"], "value": value,
                      "lo": spec["lo"], "hi": spec["hi"],
                      "options": spec["options"]})
+    # NOT "params": that key is the FM9's own block/parameter metadata, and
+    # renderParams() read this list as if it were that dict and threw, which
+    # landed in refresh()'s catch and painted the header OFFLINE for a pedal
+    # that was answering perfectly.
     return {"connected": True, "gig_mode": _gig_mode["on"], "device": device,
             "preset": {"number": number, "editor": number, "name": str(amp)},
-            "params": rows,
+            "device_params": rows,
             "observed": adapter.observed_changes()
             if hasattr(adapter, "observed_changes") else []}
 
@@ -2178,18 +2328,25 @@ def api_state():
         if getattr(adapter, "capabilities", None) and \
                 adapter.capabilities().has_named_params:
             try:
-                return _named_param_state(adapter, device)
+                out = _named_param_state(adapter, device)
+                note_connection(True)
+                return out
             except CapabilityDeclined:
                 raise
             except Exception as e:      # noqa: BLE001  reported, not swallowed
+                note_connection(False, str(e))           # #212: in the report too
                 return JSONResponse({"connected": False, "error": str(e),
                                      "gig_mode": _gig_mode["on"],
                                      "device": device}, status_code=200)
         try:
             snap = snapshot(get_fm9())
             snap["device"] = device
+            # #212: the page offers no sound-changing control for this device.
+            snap["read_only"] = device_context().kind == "fm3"
+            note_connection(True)
             return snap
-        except FM9NotFound:
+        except FM9NotFound as e:
+            note_connection(False, str(e))
             drop_fm9()
             # gig_mode rides along even unplugged, so the pill in the header
             # stays true while the rig is off.
@@ -2197,19 +2354,57 @@ def api_state():
         except CapabilityDeclined:
             raise
         except Exception as e:
+            note_connection(False, str(e))
             drop_fm9()
             return JSONResponse({"connected": False, "error": str(e),
                                  "gig_mode": _gig_mode["on"], "device": device}, status_code=500)
 
 
 class DescribeBody(BaseModel):
-    source: str
+    source: str = ""
+    #: #227: a picture of a rig, base64 or a data URL; `source` is then the
+    #: player's note about it.
+    image: str | None = None
+
+
+def _read_spec(body: DescribeBody, on_stage=None, cancel=None) -> dict:
+    """A source (text, page, video) or a picture (#227) into a spec, with
+    where it came from attached. Raises describe.SourceError in words."""
+    if body.image or describe.looks_like_image_link(body.source):
+        url = None if body.image else body.source.strip()
+        if body.image:
+            data = describe.decode_image(body.image)
+        else:
+            if on_stage:
+                on_stage("fetch", "fetching the picture")
+            data = describe.fetch_image(url)
+        if on_stage:
+            on_stage("extract", "reading the picture")
+        spec = describe.extract_image(data, note="" if url else body.source, cancel=cancel)
+        spec["source"] = {"kind": "image", "url": url, "title": "", "notes": []}
+        spec["words"] = 0
+        return spec
+    # The non-streaming route has always called this without on_stage.
+    src = (describe.read_source(body.source, on_stage=on_stage) if on_stage
+           else describe.read_source(body.source))
+    if cancel is not None and cancel.is_set():
+        raise describe.SourceCancelled("stopped")
+    if on_stage:
+        on_stage("extract", "working out what tone it describes")
+    spec = (describe.extract(src["text"], cancel=cancel) if cancel is not None
+            else describe.extract(src["text"]))
+    spec["source"] = {k: src[k] for k in ("kind", "url", "title", "notes")}
+    spec["words"] = len(src["text"].split())
+    return spec
 
 
 class BuildBody(BaseModel):
     spec: dict
     scenes: int | None = None
     name: str | None = None
+    #: #228: how faithful a build from a rig view is: closest (default),
+    #: faithful or simplified. Ignored when the source gave no rig.
+    mode: str = "closest"
 
 
 @app.get("/api/describe/ready")
@@ -2228,7 +2423,9 @@ def api_describe_ready():
         video = False
     can_transcribe, why = describe.whisper_ready()
     return {"youtube": video, "transcribe": can_transcribe, "note": why,
-            "model": describe.whisper_model_name()}
+            "model": describe.whisper_model_name(),
+            # #227: pictures are read by the Claude CLI, the only source reader
+            "images": bool(planner.find_claude_cli())}
 
 
 @app.post("/api/describe/read")
@@ -2241,8 +2438,7 @@ def api_describe_read(body: DescribeBody):
     rather than staring at a spinner for four minutes.
     """
     try:
-        src = describe.read_source(body.source)
-        spec = describe.extract(src["text"])
+        spec = _read_spec(body)
     except describe.SourceError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
     except Exception as exc:
@@ -2252,8 +2448,7 @@ def api_describe_read(body: DescribeBody):
         return JSONResponse(
             {"error": spec.get("why") or "that source does not describe a tone",
              "found": False}, status_code=422)
-    spec["source"] = {k: src[k] for k in ("kind", "url", "title", "notes")}
-    spec["words"] = len(src["text"].split())
+    _with_rig_explain(spec)
     return spec
 
 
@@ -2272,14 +2467,11 @@ def api_describe_read_stream(body: DescribeBody):
     """
     def work(emit, cancel):
         try:
-            src = describe.read_source(
-                body.source,
-                on_stage=lambda k, n: emit("stage", {"key": k, "note": n}))
+            spec = _read_spec(
+                body, on_stage=lambda k, n: emit("stage", {"key": k, "note": n}),
+                cancel=cancel)
             if cancel.is_set():
                 return
-            emit("stage", {"key": "extract",
-                           "note": "working out what tone it describes"})
-            spec = describe.extract(src["text"], cancel=cancel)
         except describe.SourceCancelled:
             return
         except describe.SourceError as exc:
@@ -2292,17 +2484,137 @@ def api_describe_read_stream(body: DescribeBody):
             emit("error", spec.get("why")
                  or "that source does not describe a tone")
             return
-        spec["source"] = {k: src[k] for k in ("kind", "url", "title", "notes")}
-        spec["words"] = len(src["text"].split())
+        _with_rig_explain(spec)
         emit("spec", spec)
 
     return _stream_response(work, final=("spec", "error"))
+
+
+def _with_rig_explain(spec: dict) -> None:
+    """#226: the rig in plain lines, beside the graph the page draws."""
+    from fm9 import riggraph
+    spec["rig_explain"] = riggraph.explain(spec["rig"]) if spec.get("rig") else []
+
+
+class RigCorrectBody(BaseModel):
+    graph: dict
+    text: str
+
+
+@app.post("/api/rig/correct")
+def api_rig_correct(body: RigCorrectBody):
+    """#226: correct how a rig was read, in words. The reader turns the
+    sentence into structured edits, applied all or nothing; a refusal leaves
+    the graph as it was and says why. Reads and writes no device."""
+    from fm9 import riggraph
+    try:
+        graph, changed = describe.correct(body.graph, body.text)
+    except riggraph.RigGraphError as exc:
+        return JSONResponse({"error": str(exc), "graph": body.graph}, status_code=400)
+    except describe.SourceError as exc:
+        return JSONResponse({"error": str(exc), "graph": body.graph}, status_code=502)
+    return {"graph": graph, "changed": changed, "explain": riggraph.explain(graph)}
+
+
+class RigCompareBody(BaseModel):
+    graph: dict
+    mode: str = "closest"
+
+
+@app.post("/api/rig/compare")
+def api_rig_compare(body: RigCompareBody):
+    """#229: is the loaded preset the same as this rig? Read-only. Exactly
+    three reads under the device lock (the loaded scene's number, the grid,
+    the status dump) and no write; the differences come back in words, and
+    closing them is the ordinary build, which the player asks for."""
+    from fm9 import riggraph, rigcompile
+    from fm9.adapter import Topology
+    ad = device_context().adapter
+    if ad is not None and ad.capabilities().topology != Topology.CONSTRUCTED:
+        label = device_context().label or "this device"
+        return JSONResponse({"error": f"The {label} has no routing grid to compare a rig with."},
+                            status_code=409)
+    try:
+        compiled = rigcompile.compile(body.graph, body.mode)
+    except riggraph.RigGraphError as exc:
+        return JSONResponse({"error": f"that rig cannot be compared: {exc}"}, status_code=400)
+    with _lock:
+        try:
+            fm9 = get_fm9()
+            named = fm9.scene_name()          # one scene query: (number, name)
+            loaded = named[0] if named else None
+            grid = _grid_reading(fm9)
+        except CapabilityDeclined:
+            raise
+        except FM9NotFound:
+            drop_fm9()
+            return JSONResponse({"error": "No FM9 is connected, so there is no loaded preset to compare."},
+                                status_code=409)
+    have = {sc["n"] for sc in compiled["scenes"]}
+    scene = loaded if loaded in have else 1
+    out = rigcompile.compare(compiled, grid, scene)
+    out["loaded_scene"] = loaded
+    out["note"] = (f"Compared with scene {loaded}, the scene loaded now." if scene == loaded else
+                   f"The loaded scene is {loaded}; the rig has no scene {loaded}, so its "
+                   f"first scene is compared.")
+    return out
+
+
+def _describe_build_for_device(body: BuildBody, spec: dict, dev, on_status=None, cancel=None):
+    """#230: a source built on a device that declares named parameters. A rig
+    is compiled against what the device publishes (rigcompile.compile_for_params)
+    and the brief names each kept piece as its parameter and the gear the
+    device lacks; a source with no rig (#235) gets the same brief without
+    those. The plan comes from the device's own prompt, schema and validator,
+    then the same validation every plan gets. No FM9 is read."""
+    from fm9 import riggraph, rigcompile
+    from devices.ir2 import planning as devplan
+    label = device_context().label or "this device"
+    compiled = {}
+    if spec.get("rig"):
+        try:
+            compiled = rigcompile.compile_for_params(spec["rig"], dev.named_params(), label, body.mode)
+        except riggraph.RigGraphError as exc:
+            return {"error": f"that rig cannot be built: {exc}"}
+    if compiled.get("blockers"):
+        return {"error": f"That rig cannot be built faithfully on the {label}: "
+                         + " ".join(compiled["blockers"])
+                         + " Choose closest tone to build the nearest sound it has.",
+                "blockers": compiled["blockers"]}
+    brief = describe.brief_for_device(spec, compiled, label)
+    try:
+        if not _hold_settings(cancel, on_status):
+            return {"error": "stopped"}
+        try:
+            result = planner.plan(brief, devplan.device_state(dev), devplan.param_reference(dev),
+                                  system=devplan.SYSTEM, shape=devplan.SHAPE,
+                                  schema=devplan.SCHEMA, validate=devplan.validate)
+        finally:
+            _settings_lock.release()
+    except Exception as exc:
+        diagnostics.log_error("planner", str(exc))
+        return {"error": f"planner failed: {exc}"}
+    result["actions"] = [a for a in result.get("actions", [])
+                         if a.get("kind") not in describe.FORBIDDEN_KINDS]
+    result["from_source"] = {"summary": spec.get("summary"), "stated": spec.get("stated") or [],
+                             "vague": spec.get("vague") or [], "quotes": spec.get("quotes") or [],
+                             "source": spec.get("source") or {}}
+    for a in result.get("actions", []):
+        errs, warns = validate_action(Action(**{k: v for k, v in a.items() if k in Action.model_fields}))
+        a["validation_errors"] = errs
+        a["validation_warnings"] = warns
+    if compiled:
+        result["fidelity"] = rigcompile.fidelity(compiled, spec["rig"], result.get("actions", []),
+                                                 spec.get("stated") or [])
+    return result
 
 
 @app.post("/api/describe/build")
 def api_describe_build(body: BuildBody):
     """Pass two, in one request. Kept for callers that cannot hold a stream."""
     result = _describe_build_for(body)
+    if isinstance(result, dict) and result.get("blockers"):
+        return JSONResponse(result, status_code=409)          # #228: faithful cannot be
     if isinstance(result, dict) and "error" in result and len(result) == 1:
         return JSONResponse(result, status_code=502)
     return result
@@ -2339,7 +2651,30 @@ def _describe_build_for(body: BuildBody, on_count=None, cancel=None,
     streaming twin cannot drift from the blocking one.
     """
     spec = body.spec or {}
-    brief = describe.brief_from(spec, scenes=body.scenes, name=body.name)
+    # #230, #235: on a device that names its parameters (the IR-2) a source
+    # is built from what that device publishes, with its own planner, rig or
+    # no rig, and never reads an FM9.
+    _dev = device_context().adapter
+    if _dev is not None and getattr(_dev, "capabilities", None) \
+            and _dev.capabilities().has_named_params:
+        return _describe_build_for_device(body, spec, _dev, on_status, cancel)
+    # #228: with a rig view, the chain is compiled before any model runs, and
+    # a faithful build that cannot be faithful is refused here, in words.
+    compiled = None
+    if spec.get("rig"):
+        from fm9 import riggraph, rigcompile
+        try:
+            compiled = rigcompile.compile(spec["rig"], body.mode, scenes=body.scenes)
+        except riggraph.RigGraphError as exc:
+            return {"error": f"that rig cannot be built: {exc}"}
+        if compiled["blockers"]:
+            return {"error": "That rig cannot be built faithfully on the FM9 yet: "
+                             + " ".join(compiled["blockers"])
+                             + " Choose closest tone to build the nearest single path.",
+                    "blockers": compiled["blockers"]}
+        brief = describe.brief_from_rig(spec, compiled, name=body.name)
+    else:
+        brief = describe.brief_from(spec, scenes=body.scenes, name=body.name)
 
     offline = False
     with _lock:
@@ -2446,12 +2781,21 @@ def _describe_build_for(body: BuildBody, on_count=None, cancel=None,
         errs, warns = validate_action(Action(**a))
         a["validation_errors"] = errs
         a["validation_warnings"] = warns
+        # #228: the cab by name, as /api/plan does, so the review and the
+        # fidelity report say which cab rather than "bank 3 - ordinal 61"
+        if a.get("kind") == "set_cab" and a.get("value") is not None:
+            a["cab_name"] = cab_label(a.get("bank"), a.get("value"))
         if a.get("block"):
             try:
                 a["effect_id"] = reg.resolve_block(
                     a["block"], int(a.get("instance") or 1))[1]
             except Exception:
                 pass
+    # #228: the rig, read back against the validated plan.
+    if compiled is not None:
+        from fm9 import rigcompile
+        result["fidelity"] = rigcompile.fidelity(compiled, spec["rig"], result.get("actions", []),
+                                                 spec.get("stated") or [])
     return result
 
 
@@ -2506,8 +2850,8 @@ def _name_the_build(result: dict, name: str | None,
 def api_plan(body: PromptBody):
     """The plan, in one request. Kept for callers that cannot hold a stream."""
     result = _plan_for(body)
-    if isinstance(result, dict) and "ambiguous_device" in result:
-        return JSONResponse(result, status_code=409)        # #94: say which
+    if isinstance(result, dict) and ("ambiguous_device" in result or result.get("read_only")):
+        return JSONResponse(result, status_code=409)        # #94: say which; #212: read-only
     if isinstance(result, dict) and "error" in result and len(result) == 1:
         return JSONResponse(result, status_code=502)
     return result
@@ -2782,6 +3126,12 @@ def _plan_for(body: PromptBody, on_count=None, cancel=None, on_status=None):
         return {"error": "say which device this build is for: "
                          + ", ".join(d["label"] for d in avail),
                 "ambiguous_device": [d["kind"] for d in avail]}
+    # #212: the FM3 is read-only; every action the planner writes is
+    # FM9-shaped, so nothing is planned for it, in words, before any model
+    # is asked.
+    if kind == "fm3":
+        from fm9.device import FM3_READ_ONLY
+        return {"error": FM3_READ_ONLY, "read_only": True}
     # #84: a new plan reads the rig as it is; an audition still hanging in
     # the edit buffer would be read as the player's cab. Put it back first.
     with _lock:
@@ -2845,6 +3195,20 @@ def _plan_for(body: PromptBody, on_count=None, cancel=None, on_status=None):
                     pass
         return result
 
+    # #198: a device with named parameters is planned for with its own
+    # prompt, vocabulary and schema, and this has to happen BEFORE the
+    # snapshot below. `snapshot` reads a preset, eight scenes and a block
+    # grid, and an IR-2 declines all three, so every request a player typed
+    # with that pedal selected answered 500. The state route was made
+    # device-aware and this path was not, which is the whole bug.
+    _dev = device_context().adapter
+    if getattr(_dev, "capabilities", None) and \
+            _dev.capabilities().has_named_params:
+        from devices.ir2 import planning as devplan
+        return planner.plan(body.prompt, devplan.device_state(_dev),
+                            devplan.param_reference(_dev),
+                            system=devplan.SYSTEM, shape=devplan.SHAPE,
+                            schema=devplan.SCHEMA, validate=devplan.validate)
     offline = False
     with _lock:
         try:
@@ -5656,43 +6020,49 @@ def api_grid():
     """
     with _lock:
         try:
-            fm9 = get_fm9()
-            cells = fm9.read_grid() or []
-            status = fm9.status_dump() or []
-            st = {b.effect_id: b for b in status}
-            w = path_audit.walk(cells, st, reg)
-            live, resolved = w["live"], w["resolved"]
-            out = []
-            for c in cells:
-                if c.effect_id is None and not c.is_shunt:
-                    continue
-                eid = resolved.get((c.row, c.col)) if c.effect_id else None
-                fam = reg.family_of_effect_id(eid) if eid else None
-                blk = st.get(eid) if eid else None
-                out.append({
-                    "row": c.row, "col": c.col,
-                    "shunt": bool(c.effect_id is None and c.is_shunt),
-                    "effect_id": eid,
-                    "family": fam[0] if fam else None,
-                    "instance": fam[1] if fam else None,
-                    "label": (f"{FRIENDLY.get(fam[0], fam[0])} {fam[1]}"
-                              if fam else None),
-                    "bypassed": bool(blk.bypassed) if blk else None,
-                    "channel": "ABCD"[blk.channel] if blk else None,
-                    # feeds names the cells one column left that reach this
-                    # one, resolved here so the browser never has to know how
-                    # the cable bitmask is packed
-                    "feeds": [r for r in range(8)
-                              if c.cable_in_mask & (1 << (r + 1))],
-                    "live": (c.row, c.col) in live,
-                })
-            return {"cells": out, "alive": w["alive"], "why": w["why"],
-                    "rows": 1 + max((c["row"] for c in out), default=0),
-                    "cols": 1 + max((c["col"] for c in out), default=0)}
+            return _grid_reading(get_fm9())
         except CapabilityDeclined:
             raise
         except Exception as e:
             return {"error": str(e)}
+
+
+def _grid_reading(fm9) -> dict:
+    """One grid read and one status dump, walked: /api/grid's body, shared
+    with /api/rig/compare (#229) so the two cannot read the grid differently.
+    The caller holds _lock."""
+    cells = fm9.read_grid() or []
+    status = fm9.status_dump() or []
+    st = {b.effect_id: b for b in status}
+    w = path_audit.walk(cells, st, reg)
+    live, resolved = w["live"], w["resolved"]
+    out = []
+    for c in cells:
+        if c.effect_id is None and not c.is_shunt:
+            continue
+        eid = resolved.get((c.row, c.col)) if c.effect_id else None
+        fam = reg.family_of_effect_id(eid) if eid else None
+        blk = st.get(eid) if eid else None
+        out.append({
+            "row": c.row, "col": c.col,
+            "shunt": bool(c.effect_id is None and c.is_shunt),
+            "effect_id": eid,
+            "family": fam[0] if fam else None,
+            "instance": fam[1] if fam else None,
+            "label": (f"{FRIENDLY.get(fam[0], fam[0])} {fam[1]}"
+                      if fam else None),
+            "bypassed": bool(blk.bypassed) if blk else None,
+            "channel": "ABCD"[blk.channel] if blk else None,
+            # feeds names the cells one column left that reach this
+            # one, resolved here so the browser never has to know how
+            # the cable bitmask is packed
+            "feeds": [r for r in range(8)
+                      if c.cable_in_mask & (1 << (r + 1))],
+            "live": (c.row, c.col) in live,
+        })
+    return {"cells": out, "alive": w["alive"], "why": w["why"],
+            "rows": 1 + max((c["row"] for c in out), default=0),
+            "cols": 1 + max((c["col"] for c in out), default=0)}
 
 
 class ClearBody(BaseModel):
@@ -6278,11 +6648,16 @@ def api_tone3000_login(prompt: str | None = None, tone_id: int | None = None):
 
 
 @app.get("/api/tone3000/callback")
-def api_tone3000_callback(code: str | None = None, state: str | None = None,
+def api_tone3000_callback(request: Request, code: str | None = None, state: str | None = None,
                           tone_id: int | None = None, error: str | None = None):
     """TONE3000 sends the browser back here. The state must be the one we
     sent; an error parameter stores nothing; the code is exchanged and
     the tokens kept at 0600. Then back to the app with a one-line note."""
+    from devices.axefx3 import tone3000_routes as afx3_tone3000
+    with afx3_tone3000.t3.client.lock:
+        afx3_login = state in afx3_tone3000.t3.client.pending if state else False
+    if request.cookies.get(afx3_tone3000.COOKIE) or afx3_login:
+        return afx3_tone3000.callback(request)
     pending = _t3k_consume_pending()
     if error:
         return RedirectResponse(f"/?tone3000=refused:{error}", status_code=302)
@@ -6560,13 +6935,14 @@ def api_version_check():
 
 
 @app.get("/api/diagnostics/share-package")
-def api_diagnostics_share_package(scope: str | None = None):
+def api_diagnostics_share_package(scope: str | None = None,
+                                  note: str | None = None):
     """Issue #108: the scrubbed local error log packaged as a pre-filled
     GitHub issue for the player to READ before deciding anything. This makes
     no network call and sends nothing: it returns text and a URL, and the only
     way anything leaves the machine is the player opening that URL themselves
     from the settings drawer's second, separate button."""
-    pkg = diagnostics.package_for_sharing(scope=scope)
+    pkg = diagnostics.package_for_sharing(scope=scope, note=note or "")
     return {"title": pkg["title"], "body": pkg["body"], "url": pkg["url"],
             "entries": pkg["entry_count"]}
 
@@ -7787,6 +8163,8 @@ from devices.axefx3.controller_ui import register as _register_controller_ui
 from devices.axefx3.tone_ui import register as _register_afx3_tone_ui
 _controller_reviews = _register_controller_ui(app, _sys.modules[__name__])
 _afx3_tone_reviews = _register_afx3_tone_ui(app, _sys.modules[__name__])
+from devices.axefx3.nam_ui import register as _register_afx3_nam_ui
+_afx3_nam_installer = _register_afx3_nam_ui(app, _sys.modules[__name__])
 
 
 def main():
@@ -7806,9 +8184,6 @@ def main():
         raise ValueError("TONECOMMAND_PORT must be an integer from 1 to 65535")
     uvicorn.run(app, host="127.0.0.1", port=port)
 
-
-if __name__ == "__main__":
-    main()
 
 
 @app.post("/api/plan/revise")
@@ -7844,3 +8219,11 @@ def api_plan_revise(body: ApplyBody):
         out["tone_coverage"] = {"status": "unknown", "checks_run": 0,
                                 "why": "the tone review did not run"}
     return out
+
+
+# Last, after every route: started as `python server.py`, main() blocks in
+# uvicorn, and a route defined below this line would never be registered
+# (found 2026-10-08: /api/plan/revise answered 404, so a re-reviewed plan
+# could not be sent from a server started that way).
+if __name__ == "__main__":
+    main()

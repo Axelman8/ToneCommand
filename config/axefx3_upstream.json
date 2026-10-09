@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "upstream_url": "https://github.com/monzta1/ToneCommand.git",
+  "upstream_branch": "main",
+  "audited_commit": "c2dae138272cbfb26096ff7d92e643eacf8c32ab",
+  "audited_version": "1.5.14",
+  "integration_foundation": "c2dae138272cbfb26096ff7d92e643eacf8c32ab",
+  "foundation_version": "1.5.14",
+  "previous_foundation": "3c97d6cff34c8b9ca842b79bed21154052411047",
+  "integration_status": "source-integrated-hardware-and-remote-ci-pending",
+  "working_checkpoint": "939e3ef8cab2a64c7ce043c213314b9ebe02539a",
+  "rules": [
+    {"name": "fx3-hardware-boundary", "paths": ["fm9/device.py", "fm9/protocol.py", "fm9/editbuffer.py", "fm9/registry.py", "fm9/route_build.py", "fm9/scratch_build.py", "fm9/firmware_compat.py", "fm9/fw33_profile.py", "fm9/nam_*.py", "devices/axefx3/**"], "policy": "manual-hardware-review"},
+    {"name": "fx3-account-and-audio", "paths": ["fm9/tone3000*.py", "fm9/audio_source.py", "fm9/cab_catalog.py", "fm9/cab_mix.py", "ui/tone3000.js"], "policy": "preserve-and-reconcile"},
+    {"name": "shared-planning-and-ui", "paths": ["fm9/planner.py", "fm9/describe.py", "fm9/rig*.py", "fm9/plan*.py", "server.py", "ui/**", "devices/catalog.json", "devices/__init__.py", "fm9/adapter.py"], "policy": "port-and-regression"},
+    {"name": "tests-and-release", "paths": ["tests/**", ".github/**", "pyproject.toml", "*.md", "docs/**", "tools/**", "config/**"], "policy": "review-and-test"}
+  ]
+}

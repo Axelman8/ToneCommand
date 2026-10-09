@@ -2,15 +2,15 @@
 import secrets
 import time
 
-from . import executor, modifiers, route_guard
+from . import executor, modifiers, route_guard, fw33_profile
 from .controller_review import digest
 
 
 def snapshot(dev):
     with dev._lock:
         preset, scene, fw = dev.current_preset(), dev.current_scene(), dev.firmware_label()
-        if not preset or type(scene) is not int or fw != '32.06' or dev.reg.firmware != fw:
-            raise ValueError('Current preset/scene or verified firmware 32.06 is unavailable.')
+        if not preset or type(scene) is not int or fw not in ('32.06',fw33_profile.KEY) or dev.reg.firmware != fw:
+            raise ValueError('Current preset/scene or exact verified firmware is unavailable.')
         blocks, grid = dev.status_dump(), dev.read_grid()
         if blocks is None or grid is None:
             raise ValueError('Block/grid read failed; nothing sent.')
@@ -28,7 +28,13 @@ def snapshot(dev):
             raise ValueError('Scene names could not be read.')
         if dev.current_preset() != preset or dev.current_scene() != scene:
             raise ValueError('Preset/scene changed during reading; refresh first.')
+        capture = dev.read_nam_slot1() if fw == fw33_profile.KEY else None
+        if dev.current_preset() != preset or dev.current_scene() != scene:
+            raise ValueError('Target changed during NAM reading; nothing sent')
         return dict(preset=preset, scene=scene, firmware=fw, blocks=blocks, grid=grid,
+                    variant=getattr(dev.reg,'hardware_variant',None),
+                    nam=(dict(name=capture.name,slot=capture.slot,sha256=capture.payload_sha256,
+                              bytes=capture.byte_count) if capture else None),
                     modifiers=entries, bulk=bulk, scene_names=names,
                     cabs=sorted((b,o,n) for (b,o),n in dev.reg.cab_catalog.names.items()))
 
@@ -41,6 +47,7 @@ def public_state(state, reg):
         ids, problem = None, str(exc)
     return dict(preset=state['preset'][0], name=state['preset'][1], scene=state['scene'],
         firmware=state['firmware'], route=route_guard.labels(ids,reg) if ids else [],
+        nam=state.get('nam'),
         route_problem=problem, cab_count=len(state['cabs']),
         scene_names=state['scene_names'],
         warning='Scenes 5-8 can share edited channels. Their mappings are not inferred; '

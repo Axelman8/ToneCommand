@@ -4,6 +4,25 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Integrated upstream 1.5.14 shared planner, rig graph/compile, CLI UTF-8,
+  device discovery and account file protection into the FX3 integration branch.
+  The working owner installation is not replaced by this source integration.
+- Isolated exact FW33 beta profile, native MK2 NAM slot001 reader/converter/
+  two-phase installer and TONE3000 account service in `devices/axefx3`.
+  NAM206 and Chorus78 retain full grid IDs. The reviewed NAM builder supports
+  an empty scene1/A foundation and existing exact-route scenes1/2 with NAM A/B.
+  Account suggestions use the configured AI provider; no implicit download,
+  installation, model/CAB/modifier write or preset Store. Native installation
+  needs three separate acknowledgments, a private verified recovery export,
+  a single-use preview and full-memory readback. Store is a separate same-slot
+  review. This port needs its own muted hardware regression before deployment.
+- Added repeatable read-only upstream checks, publication tripwire, PR template
+  and FX3 browser/public-tree CI gate while retaining upstream shards and the
+  required `tests` check. The newly built evidence-derived KB remains local
+  and gitignored, with a public-facts bootstrap for fresh checkouts; no NAM
+  weights, tokens, presets or private captures ship. New readbacks invalidate
+  NAM/Store tickets; reconnection/profile changes invalidate server reviews.
+
 ### Changed
 - Use the actual FM9 stylesheet and console layout for the bounded Axe-Fx III
   workspace. Request, Plan, Review, Confirm and Send are separate screens with
@@ -27,7 +46,8 @@ Notable changes to ToneCommand. Dates are UTC.
 ### Added
 - User-declared Axe-Fx III MK1/MK2 selection and conservative cab/NAM memory
   policy. MK1 on unverified NAM-era firmware cannot import or select User2 as
-  cabs; MK2 keeps separate storage metadata. No NAM install gate is enabled.
+  cabs; MK2 keeps separate storage metadata. Generic NAM installation remains
+  blocked; the exact measured FW33 beta profile is described above.
 - Audio links inside AFX3 requests and local audio-file measurements in Chrome.
   Public HTTPS YouTube/SoundCloud and bounded direct audio downloads feed local
   RMS, peak, crest and sampled spectrum measurements, not waveform hearing or
@@ -149,6 +169,487 @@ Notable changes to ToneCommand. Dates are UTC.
 - The library symlink security test explicitly skips WinError 1314 when a
   Windows account cannot create symlinks. All other OS errors still fail;
   the production path containment rule is unchanged.
+## 1.5.14 (2026-10-09)
+
+**Fixes that need no device.** Update & restart is no longer blocked by
+stray untracked files, the Claude CLI works on Windows, and a build from a
+source works on the BOSS IR-2.
+
+### Fixed
+- **Update & restart is no longer greyed out by untracked files (#214).**
+  Only changes to tracked files block the one-click update now; files the
+  app or its tools leave lying around (the test console's run history,
+  Handsoff run files) do not, since a fast-forward update cannot lose them.
+  The test console's `.testruns/` is ignored by git.
+- **The Claude CLI works on Windows (#211).** The prompt is sent on standard
+  input instead of the command line, which Windows caps at 32,767
+  characters and which a real request runs well past. Planning, streaming
+  plans and reading a source or a picture all use it, in UTF-8. The grok CLI,
+  whose standard input is not documented, still takes the prompt as an
+  argument; on Windows a prompt too long for that is now refused in words
+  (choose another backend) instead of failing with "The filename or
+  extension is too long".
+- **A build from a source works on the BOSS IR-2 (#235).** With the IR-2
+  selected, a source with no rig now builds through the pedal's own planner
+  instead of failing while trying to read an FM9.
+
+## 1.5.13 (2026-10-09)
+
+**Is my preset the same as this rig? And the same rig on the IR-2.** Compare
+a rig with the preset loaded on the FM9, and build a rig on a BOSS IR-2 with
+an honest list of what that pedal can and cannot do.
+
+### Added
+- **Compare with the loaded preset (#229; Rig Reconstruction, #224).** The
+  rig card has COMPARE WITH THE LOADED PRESET. It reads the loaded scene's
+  grid (nothing is written) and lists, in plain words, the gear that is
+  missing, the blocks that are extra, what is out of order, and routing
+  differences: the signal splitting or joining, a block bypassed in this
+  scene, or no signal reaching the output. BUILD A PLAN TO MATCH builds the
+  rig on top of the loaded preset through the usual review and confirm.
+- **The same rig on other devices, BOSS IR-2 first (#230).** With the IR-2
+  selected, a rig builds from what the pedal publishes: the amp becomes its
+  amp voicing (with gain and the tone stack), the reverb becomes ambience,
+  and the voicing's own cab stands in for the cab. Drives, delays,
+  modulation, a second amp, extra routes and stereo are listed as not on the
+  pedal, never imitated. The plan carries the same kept, changed, not
+  reproduced and chosen-by-us report, and after sending each kept piece is
+  read back by parameter. Faithful routing refuses a rig the IR-2 cannot
+  hold, naming it.
+
+### Fixed
+- A rig build with the IR-2 selected no longer tries to read an FM9.
+- Sending a plan that has no preset under it (built offline, or on the
+  IR-2) no longer fails with "Cannot read properties of null" before
+  anything is sent.
+- After a build from a source, the button no longer stays on BUILDING...
+- COMPARE treats a block bypassed in this scene as passing the sound
+  through: it is listed, but it is not counted as a difference.
+- The rig card no longer says the build follows the description: since
+  1.5.12 BUILD IT builds the rig.
+
+## 1.5.12 (2026-10-09)
+
+**Build it on my FM9, from the rig.** A rig read from a description or a
+picture now builds as that rig: each piece of gear becomes its own block in
+order, and the plan says what was kept, changed or left out and why. Choose
+Closest tone, Faithful routing or Simplified live rig.
+
+### Added
+- **Build it on my FM9, from the rig (#228; Rig Reconstruction, #224).**
+  After a rig is read, the build follows it: each piece of gear becomes its
+  block, in order (two drives become drive 1 and drive 2), a switcher's
+  routes become scenes, and a power amp joins the amp before it. Choose how
+  faithful: **Closest tone** (the default), **Faithful routing**, or
+  **Simplified live rig** (one scene, one block of each kind).
+  - Nothing is dropped quietly. The plan shows what was **kept** (with the
+    model each piece became), what was **changed** and why, what was **not
+    reproduced** and why, and how many values were **chosen by us** because
+    the source did not state them. After sending, each kept piece is marked
+    verified, partly verified or not verified from reading the unit back.
+  - Two amps at once, or a stereo rig, are built as one mono path and say
+    so; FM9 stereo and parallel builds are #16. In Faithful routing such a
+    rig is refused before anything is planned, with the reason.
+  - There is no similarity score: a build is the closest safe version of a
+    rig, not a claim to be the sound.
+
+## 1.5.11 (2026-10-08)
+
+**Show it a picture of a rig.** Paste a screenshot, drop a photo or attach
+a picture, and ToneCommand reads the gear and how it is wired into the rig
+view, then asks the build question. Also fixes the rig view pushing the app
+off the screen on laptop-height windows.
+
+### Added
+- **Show it a picture of a rig (#227; Rig Reconstruction, #224).** Paste a
+  screenshot into the request box (Cmd/Ctrl+V), drop a picture onto it, use
+  the new ATTACH A PICTURE button, or paste a link to a .png, .jpg or .webp. A
+  thumbnail shows what is attached; send it, with or without a few words,
+  and ToneCommand reads the gear and how it is wired into the same rig view
+  as a pasted rundown, then asks the same build question. PNG, JPEG and
+  WebP up to 10 MB, recognised by their content, not their name.
+  - The picture is read by the Claude CLI (the same reader as pasted
+    sources) and is confined to that one file: it gets the file-reading
+    tool only, none of your own Claude settings, hooks or connected MCP
+    services, and cannot read anything outside a private folder made for
+    this one read, which is deleted afterwards. Text inside a picture is
+    treated as part of the picture, never as an instruction. Without the
+    Claude CLI, attaching a picture says so and offers typing or pasting the
+    gear list instead.
+
+### Fixed
+- **The rig view no longer pushes the app off the screen (1.5.10).** On a
+  laptop-height window, showing the rig after a read scrolled the app's own
+  frame: the header disappeared and the footer and progress panel were drawn
+  over the card. Only the request area scrolls now.
+- **The build question no longer draws over the footer.** Once a
+  conversation existed, the question card spilled out of its area over the
+  progress panel and the footer (this predates 1.5.10; the rig view made it
+  much larger). The area now scrolls, and the finished reading progress
+  steps aside while you answer; it comes back when the build starts.
+
+## 1.5.10 (2026-10-08)
+
+**Explain this rig.** Paste a rig rundown, a forum post or a video, and
+ToneCommand now shows the gear and how it is wired before it builds
+anything: the signal chain, what is audio and what is MIDI control, what is
+stereo, what it only guessed, and what the source never said. Say what it
+got wrong and it corrects the rig. Also: the FM3 can now be reached through
+a USB MIDI interface (#221).
+
+### Added
+- **Explain this rig (#225, #226; Rig Reconstruction, #224).** When you
+  paste a rig rundown, a forum post or a video link, ToneCommand now also
+  reads the gear and how it is connected, and shows it before building: the
+  signal chain in order, a small diagram (audio solid, control lines
+  dashed), which connections are MIDI or expression rather than audio, what
+  is stereo, what it only inferred (marked with a question mark), and what
+  the source never said. A switcher's alternatives stay separate routes
+  instead of being run together as one chain. Say what is wrong ("the
+  second pedal is a chorus") and the rig is corrected; an edit that names
+  something not in the rig, or would leave it inconsistent, changes nothing
+  and says why. Nothing here touches your device. Building straight from
+  the corrected rig is the next step (#228); for now the build still follows
+  the description.
+
+### Fixed
+- **FM3 connection guidance and MIDI interface selection (#221, #219).**
+  The #216 message incorrectly treated the FM3's USB as MIDI and recommended
+  Fractal's USB driver. The FM3's USB carries Fractal's own channel for
+  FM3-Edit, Fractal-Bot and Cab-Lab, not MIDI. FM3 failures now explain the
+  USB MIDI interface needed on its 5-pin MIDI IN and MIDI OUT. The Devices
+  page saves the interface port, shows when `TONECOMMAND_FM3_PORT` fixes it,
+  and retains the read-only and not-yet-hardware-verified caveats. FM9 USB
+  and driver advice is unchanged.
+
+## 1.5.9 (2026-10-07)
+
+**An FM3 or FM9 that Windows cannot see now says why.** When the computer
+lists no MIDI input at all, ToneCommand says so and asks for a USB cable
+that carries data; on Windows it adds that a Fractal FM3 or FM9 needs
+Fractal's USB driver, the one FM3-Edit and FM9-Edit use. And ToneCommand
+now says what it is: multi-device.
+
+### Changed
+- **ToneCommand says what it is now: multi-device.** The README, the
+  website's home page and the package description no longer read as
+  FM9-only: full support for the Fractal FM9 and the BOSS IR-2, the FM3
+  connecting read-only, HeadRush and ToneX, each linked to exactly what it
+  can do on the devices page, which gains the FM3. The README's stale
+  "ToneCommand 1.0.0" line is gone.
+
+### Fixed
+- **An FM3 or FM9 that Windows cannot see now says why (#216).** A Windows
+  FM3 owner's report listed no MIDI input at all, and ToneCommand only said
+  "FM9 MIDI ports not found; is it connected and powered on?". When the
+  computer has no MIDI input, the message now says so and asks for a USB
+  cable that carries data; on Windows it adds that a Fractal FM3 or FM9
+  needs Fractal's USB driver, the one FM3-Edit and FM9-Edit use. The same
+  line reaches the LINK log and Report a problem. The Windows guide's
+  driver step now covers the FM3, with both download pages.
+
+## 1.5.8 (2026-10-06)
+
+**FM3 owners: plug it in.** The FM3 now connects through the FM9's own code,
+read-only for now: it shows your preset, scenes and blocks, and switches
+presets and scenes. And Report a problem finally says what is on the MIDI
+bus, so a device that will not connect can be diagnosed from one report.
+
+### Added
+- **The FM3 connects, read-only (#212).** An FM3 is the same Fractal family
+  as the FM9, so it now goes through the FM9's own code, addressed as an FM3.
+  It shows the preset, the eight scenes and which blocks are on, and switches
+  presets and scenes. Nothing that changes your sound is sent to it: its
+  block and parameter map, grid and cables were only ever proven on an FM9,
+  and each needs checking on a real FM3 first (#40). This is enforced at the
+  FM3's MIDI port, which passes only Fractal's documented queries and the
+  preset and scene switches, so no part of the app can go around it. Asking
+  for a tone with the FM3 selected says so in one line instead of planning
+  FM9 changes. The FM3's model byte (0x11) comes from preset files; it has
+  not yet been seen live from an FM3, so the first owner's report is the
+  hardware proof.
+
+### Fixed
+- **Report a problem could not show why a device was not found (#212).** It
+  now lists the MIDI input and output port names, the devices recognised on
+  the bus and whether the selected device is connected, and "Recent
+  diagnostics" carries connection failures (once per distinct failure, so a
+  five second poll does not fill the log). Its version line now reads the
+  checkout, as the update banner does, instead of an install record that a
+  `git pull` leaves behind, and its device line printed nothing about the
+  connection because it called a function that does not exist.
+- "MIDI ports not found" names the device it looked for instead of always
+  saying FM9.
+
+## 1.5.7 (2026-10-05)
+
+**Plug a device in and ToneCommand greets it.** DPDP, the Dynamic Processor
+Discovery Protocol, recognises what is on the MIDI bus and hands a supported
+device to DDCP, the Dynamic Device Control Protocol. A device it cannot drive
+yet is named, with the issue tracking it, instead of being silently ignored.
+
+### Added
+- **DPDP, the Dynamic Processor Discovery Protocol (#209, phase 1 of #208).**
+  ToneCommand now recognises devices on the MIDI bus by their port names,
+  from a catalog shipped as data (`devices/catalog.json`), and hands a
+  supported one to DDCP, the Dynamic Device Control Protocol (the adapter
+  contract every device implements). Recognition reads port names only;
+  nothing is ever sent to a device ToneCommand cannot drive.
+  - **Plug a device in and the page greets it.** A card shows
+    "BOSS IR-2 detected" with a progress bar through the real steps (support,
+    connecting, reading the pedal) and ends on "Ready. Ask for a tone." with
+    the interface switched to that device, no reload. It says Ready only
+    after a fresh read of that device succeeds. GIG LOCK, a reviewed plan
+    still pending, or a pedal that will not answer stop the card with the
+    reason instead. Unplugging and replugging the device in use shows the
+    same card and reconnects it (a replug used to leave the IR-2 on dead
+    MIDI handles until a restart).
+  - **A device ToneCommand cannot control yet is named, not ignored.** A
+    Fractal VP4, AM4, FM3 or Axe-Fx III shows "Looks like a Fractal VP4.
+    ToneCommand cannot control it yet." with a link to its issue (#191, #41,
+    #40, #190), at startup too. Before, it was simply invisible, which reads
+    as broken. The FM9 and IR-2 port names are confirmed on real hardware;
+    the others are inferred from Fractal's naming, hence "looks like".
+  - Downloading a device's support on first plug-in, instead of shipping
+    every device to everyone, is the next phase (#208).
+
+### Changed
+- **CI runs in four shards per OS (#196).** Whole test files are dealt
+  across four runners on Linux and on Windows, balanced by each file's
+  measured seconds (`tests/shard_weights.json`, from CI's own reports), and an
+  account job fails the required `tests` check unless the shards together
+  executed exactly the collected suite: nothing missing, nothing twice.
+  A new push to a pull request cancels its run in flight. Every Windows
+  skip added by #184 is gone: each gap is fixed, or (the HeadRush lookup
+  test) replaced by an assertion of the Windows fact that explains it.
+
+### Fixed
+- **Windows: the API key and the TONE3000 token were readable by every
+  local account (#186).** Windows ignores POSIX file modes, so the
+  "owner-only" settings and token files were not. They now get an access
+  list granting only you (set with icacls, which ships with Windows), and
+  the secret is written only after the file is shown to be private; if that
+  cannot be done, nothing is written.
+- **Windows: the Claude CLI and grok planner backends ran in `/tmp`**, a
+  folder Windows does not normally have (as did reading a source and
+  listing grok's models), so on Windows those calls failed before the
+  backend ever started; the grok tests showed it as `NotADirectoryError`
+  (#186). They run in the system temp folder now. **They still cannot run
+  on Windows**: the prompt (about 50,000 characters) is passed on the
+  command line, which Windows caps at 32,767. That is #211, found by these
+  same tests once they ran on Windows; the API backends are unaffected.
+- **A plain `pip install .` crashed at startup** on a missing catalog file.
+  It now stops with one line naming the two supported ways to install
+  (from a checkout with `pip install -e .`, or the bundled app), and
+  docs/SETUP.md says so (#177). Making the wheel install work belongs to
+  #208.
+- **A non-editable install could not use the IR-2 or the ToneX.** The
+  package list carried `devices` and `devices.headrush` but not
+  `devices.ir2` or `devices.tonex`; the packaging test only compared
+  top-level names, so it passed. It now checks every subpackage.
+- **Unplugging an FM9 marked a working IR-2 offline.** The page listens to a
+  link stream that watches the FM9's USB port and nothing else, and on an
+  absent event it painted the header OFFLINE and dimmed the interface without
+  checking which device was selected. With an IR-2 in use, unplugging an FM9
+  (or opening the page with no FM9 present) showed the IR-2 as offline until
+  the next five-second poll put it right. An FM9 event now only drives the
+  header when the FM9 is the selected device; otherwise it just prompts a
+  fresh read of the device in use. Checked both ways: an FM9 unplug leaves an
+  IR-2 reading LINKED, and still takes an FM9 offline.
+- Plugging an FM9 in mid-session does not switch away from a selected IR-2.
+  That is deliberate: changing devices under someone, possibly mid-plan,
+  would be worse than not. The FM9 is always in the picker.
+
+## 1.5.6 (2026-10-05)
+
+**The BOSS IR-2 is fully supported.** Plug it in and talk to it: pick from
+its eleven voicings, shape gain and the tone stack, and load your own cabinet
+IRs onto it. Every change is shown for review before anything is sent and
+verified by reading the pedal back. There is no undo on this pedal, and
+ToneCommand says so before you send rather than after.
+
+### Fixed (the IR-2 could be selected, and then nothing actually worked)
+- **Every request typed with an IR-2 selected answered 500.** `_plan_for`
+  took an FM9 snapshot (a preset, eight scenes, a block grid) before it ever
+  reached the device-aware planning branch, and the IR-2 declines all three.
+  The state route had been made device-aware and the plan route had not,
+  and no test ran a request end to end. Proven fixed by doing exactly that:
+  a typed request planned, reviewed, confirmed and sent from the UI, the
+  pedal verified at every write.
+- **The confirm screen, the result screen and the plan panel all lied.**
+  `UNDO READY`, `Undo available after send`, `UNDO puts it back`, `SEND TO
+  FM9`, `FM9 connected`, `FM9 · loaded preset`, `No other scene moves`, a
+  green `Tone check passed` from a check that never ran, and STORE PRESET and
+  AUDITION ON FM9 buttons, all on a pedal with no undo, no presets to store,
+  no scenes and no audition path. Every one names the selected device or is
+  hidden now. The recovery line reads NO UNDO, and that caveat is the first
+  line of the always-visible ready check rather than a card that fell off
+  the bottom of the column on a laptop-height window.
+- **The review table was unreadable.** Seven changes were folded into one
+  row headed `SET_DEVICE_PARAM` and read `null 1 / AMP: set to null`, target
+  `FM9`, before `Not read`. Each parameter is its own row now, with its real
+  before and after read off the pedal.
+- **On any window up to 840px tall the pedal's whole state was invisible.**
+  The FM9 hides its signal chain on short windows and keeps its scene strip;
+  the IR-2's panel lives in that chain area and has no scene strip, so the
+  same rule hid everything. The panel is one compact row now and stays
+  visible at every height tested from 600 to 1100.
+- **The selector offered `PATCH 0` and `PATCH 1`.** The two stored patches
+  are technically the preset concept and mean nothing to a player. It lists
+  the eleven voicings by name now, and picking one changes the pedal. The
+  header reads VOICING.
+- **The update banner said "1.5.5 available, you have 1.5.3" on a 1.5.5
+  checkout**, with the button greyed. The version came from installed
+  package metadata, which only changes when `pip install -e .` is re-run.
+  In a repo checkout `pyproject.toml` is the running version now. The button
+  still refuses on a feature branch, and now says why on screen rather than
+  only in a tooltip.
+
+### Verified, and how
+- A scan of every visible word at idle, plan, review, confirm and a real send,
+  with the IR-2 selected, for `FM9`, the undo and store claims and the scene
+  wording: none appear. The same scan against the FM9 finds all of them,
+  which is correct there and proves the scan is real.
+- FM9 against the simulator, and FM9 to IR-2 and back in one session: scenes,
+  signal grid, labels and examples all restore.
+
+### Fixed (the interface did not adapt to the device, it only changed its label)
+- **The header said `FM9 OFFLINE` while the IR-2 was plugged in and
+  answering.** The state payload used the key `params`, which is the FM9's
+  own block and parameter metadata, so `renderParams` read a list as that
+  dict and threw. The exception landed in a catch that HARDCODED
+  `'FM9 · OFFLINE'`, painting a lie over a working device. The key is
+  `device_params` now, the FM9's renderers are not run for a device without
+  blocks or scenes, and that catch names whichever device is selected.
+- **The preset selector was empty.** It scanned 512 FM9 slots against a pedal
+  that has two stored patches. It now offers those two.
+- **Most of the pedal's state was invisible.** The parameter panel is 141px
+  of content and the chain area is pinned to 78px with overflow hidden, so
+  the amp voicing and six knob values were clipped away. The panel is a list,
+  not a signal chain, and no longer inherits that height.
+- The empty scene strip and the chain legend ("tap a pedal to tweak it") are
+  hidden for a device that has neither, and the panel heading names the
+  selected device rather than always saying FM9.
+- The example prompts follow the device. Offering "Wets in scene 2" to a
+  pedal with no scenes is an instruction that cannot work, which is worse
+  than offering nothing.
+- The AMP name used a hardcoded `1.5rem`, bypassing the page's `--ui-scale`
+  control, so it would not have grown with the rest of the interface. Caught
+  by `tests/test_text_size.py`.
+- The context panel kept the OTHER device's label after switching back, and a
+  stray duplicate attribute was left on that section. Both found by testing
+  FM9 to IR-2 and back in one session rather than each device alone.
+
+### Verified
+- FM9 against the simulator: 8 scenes, the signal grid, its own examples, the
+  right label, and no `named-device` class. Switching FM9 to IR-2 and back
+  restores every one of those.
+- Zero console errors in either mode, including opening all seven drawers and
+  a full poll cycle with the IR-2 selected.
+
+### Added (#195: load your own cabinet IRs onto the BOSS IR-2)
+- ToneCommand writes a cab IR from your own library into the pedal. Proven
+  end to end on hardware: `RKH 4x12 V30 SNH MD421W Center.wav`, 204 ms at
+  44.1 kHz, converted, written to USER 11 in 6.9 seconds, read back sample
+  for sample, played correctly, and **recognised by BOSS's own IR Loader as a
+  loaded IR**. That last part is the strongest evidence the format is right
+  rather than merely accepted: the vendor's software reads what we wrote.
+- **The slots are not a free list.** USER 1 to USER 11 hold the cabinets for
+  the eleven amp voicings in order, confirmed by matching every slot's stored
+  filename against its voicing's factory cab. Installing an IR therefore
+  replaces one amp's speaker, which is why nothing is writable until the
+  owner sets `TONECOMMAND_IR2_SLOTS`, and why a refusal names the voicing
+  whose cabinet was about to go.
+- **The pedal loads its cabinets at power-on.** Writes land in flash and the
+  DSP keeps playing what it loaded at boot, so an install looks like it did
+  nothing. Halving every sample, writing a different cab and writing outright
+  silence all produced no audible change; a power cycle then played the
+  silent slot as no cab at all. Switching voicings does not trigger a reload
+  and neither does toggling the stored patch. Every install says this in its
+  own result, because an install that stays quiet about it reads as a
+  failure. It cost an evening to find and should cost nobody else one.
+- The two quantised tables after the samples are left alone. The pedal does
+  not recompute them and does not need them recomputed: a cab written with
+  another cab's tables played correctly. Nothing here understands them and
+  nothing needs to, which is a better place to stop than a confident guess.
+- Conversion is dependency-free: any 16, 24 or 32-bit PCM wav, resampled to
+  44.1 kHz, truncated to the 37 ms the pedal holds with a 64-sample fade so
+  the cut does not click, peak-normalised because every factory cab peaks at
+  exactly 1.0 and a hotter one clips in the DSP. A float wav or a silent file
+  is refused by name rather than read as noise.
+- Removing an IR is refused: it would leave a voicing with no speaker at all,
+  which the pedal's own editor does not offer.
+
+### Fixed
+- `GET /api/diagnostics/share-package` and the capture-slot tests follow the
+  real signatures again after the IR work; `fm9/sim.py` and the IR-2
+  simulator model the four IRDATA regions so the suite exercises installs
+  without hardware.
+
+## 1.5.5 (2026-10-04)
+
+**If you use Gemini, this one is for you.** Every Gemini failure was being
+reported as "The AI helper is busy right now", whatever it actually was, and
+the advice that came with it could not work.
+
+**If you have ever shared diagnostics, update.** A Google API key would have
+survived the scrub and could have reached a public issue.
+
+### Added (#201: Report a problem, on every error)
+- Every error in the conversation now carries a "Report a problem" button.
+  Every error, not only the ones that look unexplainable: the one that
+  prompted this said "busy", which sounded self-explanatory and was wrong in
+  a way nobody could see from the user's end.
+- It opens a panel that BUILDS a report and shows all of it. Nothing is sent
+  from the app at any point; the only way anything leaves the machine is the
+  player pressing OPEN GITHUB ISSUE themselves, which is the model #108
+  established and this keeps. There is no duplicate search, because that
+  would need a network call from the app and would cost exactly that
+  property. Triage is a maintainer's job, not a player's.
+- The report now answers the questions that previously took a round of
+  correspondence: ToneCommand version and git SHA, OS and architecture,
+  Python version, whether the install is editable or a wheel (#177 makes
+  that change behaviour), the planner backend and model NAME, which backends
+  it would actually try, and the device and its firmware. Plus the recent
+  diagnostics, as before. The player's own first line becomes the issue
+  title, because an issue list full of "Diagnostics report (all, 10
+  entries)" is unreadable.
+- `environment()` cannot take a report down with it: every lookup falls back
+  to "could not be read", since a report from a half-broken install is the
+  one that matters most.
+
+### Fixed (a Google API key would have travelled in a shared report)
+- The scrubber masked Anthropic keys, OpenAI-style keys, Bearer headers and
+  KEY=VALUE pairs, and caught none of `AIza...`, which carries no `sk-`
+  prefix and appears bare inside a URL or an error. The report that prompted
+  all of this came from a Gemini user. GitHub tokens (`ghp_`, `github_pat_`)
+  are covered for the same reason: the publisher PAT would otherwise travel
+  in a log line.
+- A home directory is masked to `~`. It is not a credential, but it is a real
+  username on a public issue, and the path SHAPE is what diagnoses a problem.
+  A model name is deliberately kept: the name is the diagnosis, the key is
+  the credential, and conflating them either leaks a secret or throws away
+  the useful half.
+
+### Fixed (every Gemini failure was reported to the player as congestion)
+- `plainPlanError` matched `rate` with no word boundary, and Gemini's API
+  method is literally `generateContent`, so `generate` contains `rate` and
+  EVERY Gemini failure came out as "The AI helper is busy right now. Give it
+  a moment and try again." A bad key, an unavailable model, a 400: all of
+  them read as congestion. A user with a free Gemini key reported exactly
+  this, on every request rather than intermittently, which is itself the tell
+  that it was never a rate limit.
+- The message was wrong and its advice could not work, which is the worse
+  half: waiting does nothing about a model your key cannot reach. The pattern
+  now matches `rate limit`, `429`, `quota`, `overloaded`, `too many requests`
+  and `busy` as a whole word.
+- `tests/test_plain_errors.py` lifts the regex out of the shipped page rather
+  than copying it, so the test cannot drift from what users actually run, and
+  pins both directions: `generate`, `moderate` and `could not generate` are
+  not congestion; `429`, `quota` and `overloaded` are.
+- The real reason still only reaches the local diagnostic log, which is why
+  nobody could diagnose this from what the user was able to send. #201 is the
+  fix for that.
 
 ## 1.5.4 (2026-09-30)
 

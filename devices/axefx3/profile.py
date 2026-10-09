@@ -1,4 +1,5 @@
 """User-declared chassis and conservative cab/NAM memory policy, not write evidence."""
+from . import fw33_profile
 
 
 def memory_policy(firmware, variant=None):
@@ -9,9 +10,11 @@ def memory_policy(firmware, variant=None):
     return dict(variant=variant, variant_verified=False,
                 user2_cabs=user2, nam_storage='user2' if variant == 'mk1' and not old else
                 'separate' if variant == 'mk2' and not old else 'unverified',
-                nam_writes=False, write_supported=old,
+                nam_writes=firmware == fw33_profile.KEY and variant == 'mk2',
+                write_supported=old or firmware == fw33_profile.KEY,
                 warning='MK-keuze is door de gebruiker opgegeven, niet door het apparaat bewezen. '
-                'NAM plaatsen/installeren is nog niet geverifieerd. '
+                + ('NAM: alleen gemeten FW33/MK2/Windows-profiel, slot 001. '
+                 if firmware == fw33_profile.KEY else 'NAM plaatsen/installeren is niet geverifieerd.')
                 + ('User2 is beschikbaar als cabnamenlijst.' if user2 else
                    'User2 niet als cabbank gebruiken: op MK1 met NAM-firmware is dit NAM-geheugen.'))
 

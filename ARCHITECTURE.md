@@ -42,7 +42,15 @@ preserves separate scene/channel intent, and stops at the first failed
 readback. Cab imports/selections and narrow grid/modifier operations remain
 behind this boundary; broad topology/modifier capabilities stay disabled.
 See `docs/AFX3-INTEGRATION.md` for the remaining
-server/UI and hardware gates. `server.py` has 7,846 lines in this stage.
+server/UI and hardware gates. `server.py` has 8,229 lines in this stage.
+FW33 numeric/NAM behavior is pinned in `fw33_profile.py`, guarded by `fw33.py`
+and compiled through `nam_planning.py`. Native memory conversion/readback and
+the two-phase installer stay inside the FX3 package. `nam_ui.py` registers
+namespaced account/installation APIs and a separately confirmed same-slot
+Store. The existing OAuth callback dispatches using the browser-bound FX3
+cookie/pending state without replacing FM9's own OAuth path. No generic FM9
+capture/reamp contract or never-brick guard is widened. See
+`docs/FW33-COMPATIBILITY.md` for exact bounds and pending hardware acceptance.
 Controller routes live in `controller_ui.py`; `controller_review.py` binds
 single-use, five-minute send tickets to a complete live state fingerprint.
 Read/choose/review do not write. The shared writer lock, GIG LOCK, explicit
@@ -85,7 +93,7 @@ locally, and the only way to catch a layout regression is a screenshot.
 **Fix:** split into `ui/index.html`, `ui/app.css`, and JavaScript modules by
 concern. Served as static files. No behaviour change, mechanical, testable.
 
-### 2. `server.py` is 7,846 lines; the application registers 124 routes
+### 2. `server.py` is 8,229 lines; routes include the bounded FX3 workspace
 
 Every concern in one module: device polling, planning, applying, settings,
 recipes, sharing, snapshots, profiles, slot admin. Eight pieces of

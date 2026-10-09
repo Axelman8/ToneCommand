@@ -152,6 +152,53 @@
      because a build will be refused until it is made. */
   .devwrap { position: relative; display: inline-block; }
   .devwrap[hidden] { display: none; }
+  /* #201: the report panel. Wide enough to read a log line without
+     wrapping, capped so it never runs off a laptop screen. */
+  /* Centred, and wide enough that a log line does not wrap. `.pop` is 340px
+     by design, which is right for a filter list and useless for a report:
+     at that width "model gpt-5.6-sol" broke across two lines. Overrides are
+     explicit rather than relying on source order. */
+  .pop.reportpop {
+    position: fixed; top: 64px; left: 50%; transform: translateX(-50%);
+    right: auto; width: min(820px, 94vw); max-height: 80vh;
+    overflow: auto; z-index: 90; padding: 18px 20px;
+  }
+  .reportpop textarea { width: 100%; font: inherit; background: var(--panel-2);
+    color: var(--text); border: 1px solid var(--line); border-radius: 4px;
+    padding: 8px; }
+  .reportbody { white-space: pre-wrap; word-break: break-word; font-size: 12px;
+    background: rgba(0,0,0,0.3); border: 1px solid var(--line);
+    border-radius: 4px; padding: 10px; max-height: 38vh; overflow: auto; }
+  /* Why the update button is refusing, where the button is. It was in the
+     tooltip only, so a greyed button read as broken rather than deliberate. */
+  .updwhy { color: var(--muted); font-size: var(--fs-label); margin-left: 10px; }
+  /* One dense row. The shell is a fixed-height column and every pixel this
+     panel takes comes out of the plan below it: at 125px on a laptop window
+     it squeezed the plan card to 63px, which is what made the plan summary
+     unreadable. The amp sits inline with the knobs so the whole device fits
+     in roughly the height the FM9's scene strip uses. */
+  .devpanel { padding: 6px 4px; display: flex; align-items: center;
+    gap: 18px; flex-wrap: wrap; }
+  .devamp { display: flex; align-items: baseline; gap: 10px; margin: 0;
+    flex: 0 0 auto; }
+  .devamp .lbl { font-size: var(--fs-label); letter-spacing: 0.2em; color: var(--muted); }
+  .devamp .val { font-size: var(--fs-lead); color: var(--cyan); letter-spacing: 0.08em; }
+  .devknobs { display: grid; gap: 6px 14px; flex: 1 1 520px;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .devknob { display: grid; grid-template-columns: 72px 1fr 30px;
+    align-items: center; gap: 8px; }
+  .devknob .lbl { font-size: var(--fs-label); letter-spacing: 0.14em; color: var(--muted); }
+  .devknob .num { text-align: right; color: var(--text-strong);
+    font-variant-numeric: tabular-nums; }
+  .devbar { height: 7px; border-radius: 4px; background: var(--panel-2);
+    border: 1px solid var(--line); overflow: hidden; }
+  .devbar span { display: block; height: 100%; background: var(--cyan);
+    transition: width 220ms ease; }
+  .cnote.cerr { border-left: 2px solid var(--amber); padding-left: 10px; }
+  .reportbtn { padding: 4px 10px; font-size: var(--fs-label);
+    margin-left: 8px; vertical-align: baseline; }
+  .reportacts { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .reportgo { border-color: var(--cyan); color: var(--text-strong); }
   #device { font: inherit; cursor: pointer; }
   #device:hover { border-color: var(--cyan); color: var(--cyan); }
   #device.owed { border-color: var(--amber); color: var(--amber); }
@@ -1216,6 +1263,11 @@
   font: inherit; padding: 6px 8px; border-radius: 3px;
 }
 .airow input { flex: 1 1 140px; min-width: 120px; }
+/* #221: the FM3 port picker matches the app's other pickers. */
+#fm3port {
+  background: #0d0f0d; border: 1px solid #1f2a1f; color: var(--fg);
+  font: inherit; padding: 6px 8px; border-radius: 3px; width: 100%;
+}
 .airow #aikey { flex: 3 1 340px; }
 /* The endpoint box used to be an empty field labelled with a protocol name.
    "OpenAI-compatible endpoint" tells you what it speaks, not what to type,
@@ -2041,8 +2093,11 @@
     background: rgba(0,0,0,.18); }
   .intentname { color: var(--cyan); font-size: var(--fs-label);
     letter-spacing: .1em; }
+  /* Wraps rather than ellipsising. A reason cut off mid-sentence ("the
+     closest match to a Vo...") is a reason nobody can read, and this is the
+     text that explains a change before it is sent. */
   .intentoutcome { color: var(--text); font-size: var(--fs-hint);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    white-space: normal; overflow-wrap: anywhere; line-height: 1.45; }
   .intentcount { color: var(--muted); font-size: var(--fs-label);
     text-align: right; white-space: nowrap; }
 
@@ -2161,6 +2216,11 @@
 
   /* Global operation strip: the fixed pill re-anchors above the shelf. */
   #opstrip { flex: 0 0 auto; }
+  /* #227: while the build question is open the request pane is a scroll box.
+     Without this, once a conversation existed the pane was ~100px tall with
+     overflow visible, and the card (taller since the rig view) was drawn
+     over the progress panel and the footer. Present since before 1.5.10. */
+  #pane-request:has(> #srcask:not([hidden])) { overflow-y: auto; min-height: 0; }
   /* In-flow, not floating: the strip claims its own row above the shelf so
      it can never cover a stage's actions. */
   #opstrip #working { position: static; transform: none; max-width: none;
@@ -2915,6 +2975,75 @@
       0 5px 8px rgba(0,0,0,0.42);
   }
   #context .pathzone .gridwrap { max-height: 78px; padding: 0; }
+  /* A device panel is a list, not a signal chain. The 78px above is sized
+     for the FM9's grid and clipped 141px of knobs down to 78 with
+     overflow hidden, so most of the pedal's state was simply invisible. */
+  #context .pathzone .gridwrap:has(.devpanel) {
+    max-height: none; height: auto; overflow: visible;
+  }
+  /* What a named-parameter device does not have, and must not be shown:
+     a scene strip, a chain legend, or the chain's reserved height. */
+  body.named-device #context .scenes { display: none; }
+  /* #227: the attached picture, waiting to be sent. */
+  .picrow { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin: 0 0 6px; }
+  .picrow .attach { padding: 3px 10px; font-size: var(--fs-badge); opacity: 0.85; }
+  .picchip { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+  .picchip[hidden] { display: none; }
+  .picchip img { max-height: 54px; max-width: 120px; border: 1px solid var(--line); border-radius: 4px; }
+  .picchip #picname { font-size: var(--fs-hint); color: var(--text); }
+  /* #228: what a build from a rig kept, changed and could not reproduce */
+  .fidelity { margin: 8px 0; }
+  .fidelity ul { margin: 2px 0 6px 18px; }
+  .fidelity .fidv { color: var(--cyan); }
+  /* #226: the rig, as read. Audio solid, control dashed, guesses marked. */
+  .rigwrap { overflow-x: auto; margin: 4px 0 6px; }
+  .rigsvg { display: block; }
+  .rigsvg .rgbox { fill: rgba(87,214,255,0.08); stroke: var(--cyan); stroke-width: 1.2; }
+  .rigsvg .rgbox.guess { stroke-dasharray: 4 3; stroke: var(--amber); }
+  .rigsvg .rgbox.ctl { fill: rgba(255,180,84,0.06); }
+  .rigsvg .rgtx { fill: var(--text); font-size: 11px; text-anchor: middle; }
+  .rigsvg .rgroute { fill: var(--amber); font-size: 10px; }
+  .rigsvg .rgline { stroke: var(--cyan); stroke-width: 1.4; }
+  .rigsvg .rgline.ctl { stroke: var(--amber); stroke-dasharray: 4 3; }
+  .rigexplain { margin: 4px 0 8px 18px; font-size: var(--fs-hint); }
+  .rigfix { display: flex; gap: 8px; }
+  .rigfix input { flex: 1; }
+  .rignote { font-size: var(--fs-hint); color: var(--muted, #9ab); }
+  .rigcmp { display: flex; gap: 8px; margin-top: 8px; }
+  .rigcmpout h5 { margin: 8px 0 2px; }
+  .rigcmpout ul { margin: 0 0 4px; padding-left: 18px; }
+  /* #212: a read-only device: nothing that would change the sound. */
+  body.readonly-device #auditionbtn,
+  body.readonly-device #storeafter,
+  body.readonly-device #dirty { display: none; }
+  body.readonly-device #context .gridnote { display: none; }
+  body.readonly-device #context .pathzone { display: flex; height: auto; }
+  .ropanel { display: flex; align-items: center; gap: 6px; padding: 2px;
+             flex-wrap: nowrap; overflow: hidden; white-space: nowrap; }
+  .ronote { color: var(--amber); font-size: var(--fs-label); margin-right: 6px; }
+  .ronote a { color: var(--cyan); }
+  .robk { border: 1px solid var(--line); border-radius: 5px; padding: 1px 7px;
+          color: var(--text); font-size: var(--fs-label); flex-shrink: 0; }
+  .robk.off { opacity: 0.55; border-style: dashed; }
+  /* What a named-parameter device does not have, after a send as well as
+     before it: no audition path, no preset to store to, no edit buffer to
+     be "unsaved", and no undo. These offered all four on an IR-2. */
+  body.named-device #auditionbtn,
+  body.named-device #storeafter,
+  body.named-device #dirty { display: none; }
+  body.named-device #context .gridnote { display: none; }
+  body.named-device #context .pathzone { height: auto; }
+  /* #shell is a fixed-height flex column, so on a short window flex-shrink
+     squeezed this section down to a thin empty strip and hid the whole
+     pedal state. Measured: fine at 900px tall, gone at 700, which is a
+     laptop. It must keep its height; the workspace below is what scrolls. */
+  body.named-device #context { flex-shrink: 0; }
+  /* The FM9 hides its signal chain on short windows and keeps the scene
+     strip, which is the right trade for the FM9. This device has no scene
+     strip and its whole state lives in that chain area, so the same rule
+     hid EVERYTHING on any window up to 840px tall: most laptops. The
+     selector here outranks the media query's, so it wins at every height. */
+  body.named-device #context .pathzone { display: flex; }
   #context svg.grid { width: auto; max-width: 100%; max-height: 74px; }
   #context .pathzone .gridnote { margin-top: 1px; min-height: 16px; }
   #context .pathzone .gridnote .k:not(#chainhide) { opacity: 0.7; }
@@ -2970,7 +3099,10 @@
   .stageintro p { margin: 8px 0 0; color: var(--muted);
     font-size: var(--fs-hint); line-height: 1.45; }
 
-  body.chat-empty #pane-request { justify-content: center; padding: 4vh 32px; }
+  /* "safe": centred while it fits, top-aligned when it does not. Plain
+     centring pushed a tall card (a rig with its diagram, #226) up past the
+     top of this scroll box, where scrolling can never reach it. */
+  body.chat-empty #pane-request { justify-content: safe center; padding: 4vh 32px; }
   body.chat-empty #pane-request #chat { margin: 0; }
   body.chat-empty #pane-request .cempty { padding: 0; gap: 18px; }
   body.chat-empty #pane-request .cask {
@@ -3273,6 +3405,30 @@
     .stgline { width: 18px; margin-left: 2px; margin-right: 2px; }
   }
 
+  /* ---- #209: a device arriving, or one ToneCommand cannot drive yet ---- */
+  /* Floating, so it never moves the page: an unsupported device stays
+     plugged in, and a card in the flow clipped the request heading. */
+  .devcard {
+    position: fixed; top: 72px; right: 18px; z-index: 60;
+    width: min(460px, calc(100vw - 32px)); box-sizing: border-box;
+    display: flex; align-items: center; gap: 8px 12px;
+    flex-wrap: wrap; padding: 10px 14px; color: var(--text);
+    font-size: var(--fs-hint); border-radius: 8px;
+    background: linear-gradient(180deg, rgba(14,34,46,0.97), rgba(8,20,30,0.97));
+    border: 1px solid rgba(87,214,255,0.45);
+    box-shadow: var(--bevel), 0 10px 28px rgba(0,0,0,0.55);
+  }
+  #devcard[hidden] { display: none; }
+  #devcard .devcardtext { color: var(--text); order: 2; flex: 1 1 auto; }
+  #devcard .devcardtitle { color: var(--cyan); letter-spacing: 0.04em; font-weight: 600; flex: 1 1 auto; }
+  #devcard.done .devcardtitle { color: var(--green, #6ee7a8); }
+  #devcard.err { border-color: rgba(255,180,84,0.55); }
+  #devcard.err .devcardtitle { color: var(--amber); }
+  #devcard #devcardlink { color: var(--cyan); order: 3; }
+  #devcard #devcardclose { order: 1; padding: 3px 9px; font-size: var(--fs-badge); }
+  #devcard .devcardtext { flex-basis: calc(100% - 140px); }
+  #devcard .devcardbar { order: 4; flex-basis: 100%; margin-top: 2px; }
+
   /* ---- Update notice (notify + one-click update) ---- */
   #updbanner {
     flex: 0 0 auto; display: flex; align-items: center; gap: 12px;
@@ -3361,6 +3517,7 @@
       <!-- #139: the target device, shown only when more than one is reachable.
            With one device this stays hidden and the link pill is the whole
            story, exactly as before. -->
+      <div class="pop reportpop" id="reportpop" hidden></div>
       <span class="devwrap" id="devwrap" hidden>
         <button class="pill" id="device" title="which device this build is for">DEVICE</button>
         <div class="pop devpop" id="devpop" hidden></div>
@@ -3374,11 +3531,22 @@
 
   <!-- A quiet notice when a newer release exists. Notify + one-click update
        only: the app never pulls or restarts on its own. -->
+  <!-- #209: a device just plugged in walks to Ready here; a device
+       ToneCommand cannot drive yet is named here with its issue. -->
+  <div id="devcard" class="devcard" hidden>
+    <span class="devcardtitle" id="devcardtitle"></span>
+    <span class="devcardtext" id="devcardtext"></span>
+    <a id="devcardlink" href="#" target="_blank" rel="noopener" hidden></a>
+    <button class="small" id="devcardclose" title="hide this">DISMISS</button>
+    <div class="sendbar devcardbar" id="devcardbar" hidden><i></i></div>
+  </div>
+
   <div id="updbanner" hidden>
     <span class="updtext" id="updtext"></span>
     <a id="updnotes" href="#" target="_blank" rel="noopener">release notes</a>
     <button class="small" id="updcmds">HOW TO UPDATE</button>
     <button class="small armed" id="updnow" hidden>UPDATE &amp; RESTART</button>
+    <span class="updwhy" id="updwhy" hidden></span>
     <button class="small" id="upddismiss" title="dismiss">&#10005;</button>
     <div class="sendbar updprog" id="updprog" hidden><i></i></div>
     <div class="updbox" id="updcmdbox" hidden></div>
@@ -3477,13 +3645,24 @@
           <div id="cscroll"></div>
         </div>
         <div class="composer">
+          <!-- #227: a picture of a rig, waiting to be sent with the request.
+               Its button sits outside the prompt row, which keeps one action. -->
+          <div class="picrow">
+            <div class="picchip" id="picchip" hidden>
+              <img id="picthumb" alt="the rig picture you attached">
+              <span id="picname"></span>
+              <button id="picremove" title="remove the picture">REMOVE</button>
+            </div>
+            <button id="attachpic" class="attach" title="attach a picture of a rig (PNG, JPEG or WebP)">ATTACH A PICTURE</button>
+            <input type="file" id="picfile" accept="image/png,image/jpeg,image/webp" hidden>
+          </div>
           <div class="promptrow">
             <span class="prompt-prefix">&gt;</span>
             <textarea id="prompt" rows="1" autocomplete="off" spellcheck="false"
-                      placeholder="Describe the sound, or paste a link..."></textarea>
+                      placeholder="Describe the sound, paste a link, or a picture of a rig..."></textarea>
             <button id="engage">GENERATE PLAN</button>
           </div>
-          <div class="hint composerhint">Press Enter. Nothing changes on your amp until you say go. Drop .nam captures here.</div>
+          <div class="hint composerhint">Press Enter. Nothing changes on your amp until you say go. Drop pictures or .nam here.</div>
         </div>
         <!-- Source reading is reached through the same prompt. These controls
              retain the established implementation without exposing a second
@@ -3561,12 +3740,12 @@
       <section class="stagepane" id="pane-confirm" hidden>
         <div class="stageintro">
           <h2>READY TO SEND</h2>
-          <p>One final check before ToneCommand changes the FM9.</p>
+          <p id="cintro">One final check before ToneCommand changes the FM9.</p>
         </div>
         <div class="cfacts" id="cfacts"></div>
         <div class="cblast" id="cblast"></div>
         <label class="cack"><input type="checkbox" id="ack">
-          I reviewed the target and affected scenes</label>
+          <span id="acklabel">I reviewed the target and affected scenes</span></label>
         <div class="stagefoot">
           <button id="backreview">BACK TO REVIEW</button>
           <span class="spacer"></span>
@@ -3691,6 +3870,7 @@
     <a href="/controllers" class="shbtn" title="Axe-Fx III controller assignments">CONTROLLERS</a>
     <a href="/axefx3" class="shbtn" title="Axe-Fx III text preset builder">AXE-FX III DESIGN</a>
     <span class="spacer"></span>
+    <button class="shbtn ico" id="shdevices" title="Devices" aria-label="Devices"><span class="shemblem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="12" r="2"/><path d="M13 10h5M13 14h5"/></svg></span><span class="shlabel">DEVICES</span></button>
     <button class="shbtn ico" id="shmanual" title="Manual controls (full screen)" aria-label="Manual controls"><span class="shemblem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2.4" fill="currentColor" stroke="none"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="8" cy="17" r="2.4" fill="currentColor" stroke="none"/></svg></span><span class="shlabel">CONTROLS</span></button>
     <button class="shbtn ico" id="shdiag" title="Diagnostics" aria-label="Diagnostics"><span class="shemblem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span><span class="shlabel">DIAGNOSTICS</span><span class="badge" id="diagbadge" hidden></span></button>
     <button class="shbtn ico" id="shlib" title="Library" aria-label="Library"><span class="shemblem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h6a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H2z"/><path d="M22 4h-6a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H22z"/></svg></span><span class="shlabel">LIBRARY</span></button>
@@ -3705,6 +3885,25 @@
   <div id="drawer" hidden>
     <div class="drawhead"><span id="drawtitle"></span>
       <button class="mclose" id="drawclose" title="close">&#10005;</button></div>
+
+    <div class="drawpane" id="drawer-devices" hidden>
+      <div class="console" data-label="FRACTAL FM3">
+        <p>The FM3 has no MIDI over USB. Use a USB MIDI interface connected to
+          its 5-pin MIDI IN and MIDI OUT, and choose that interface's port below.
+          The FM3's USB is for FM3-Edit, Fractal-Bot and Cab-Lab.</p>
+        <p class="hint">Read-only support: view presets, scenes and blocks, and
+          switch presets and scenes. Sound editing is unavailable.
+          Not yet verified on a real FM3.</p>
+        <label for="fm3port">FM3 MIDI interface port</label>
+        <select id="fm3port" aria-describedby="fm3portreason" disabled
+                style="display:block;width:100%;margin:10px 0">
+          <option value="">Loading MIDI ports...</option>
+        </select>
+        <p class="hint" id="fm3portreason"></p>
+        <button id="fm3portsave" disabled>Save</button>
+        <p class="hint" id="fm3portstatus" role="status" aria-live="polite"></p>
+      </div>
+    </div>
 
     <div class="drawpane needs-rig" id="drawer-diagnostics" hidden>
       <div class="hz">
@@ -4184,7 +4383,7 @@ function noteSlotName(number, name) {
   if (number === currentPresetNumber && lastState.preset) {
     lastState.preset.name = name;
     $('preset').innerHTML =
-      `<span class="lbl">PRESET</span><span class="pnum">${lastState.preset.editor ?? number}</span>`
+      `<span class="lbl">${lastState.device_params ? 'VOICING' : 'PRESET'}</span><span class="pnum">${lastState.preset.editor ?? number}</span>`
       + `<b>${esc(name)}</b><span class="caret"></span>`;
   }
 }
@@ -4262,6 +4461,25 @@ function loadPresets(refresh) {
 }
 
 async function _loadPresets(refresh) {
+  // A device with named parameters has no 512-slot library. The IR-2 has two
+  // stored patches, which is what its footswitch toggles, so that is what the
+  // selector offers. Scanning 512 FM9 slots against it returned nothing and
+  // left the box empty, which is what a player sees as "broken".
+  if (deviceState && deviceState.active && deviceState.active !== 'fm9'
+      && lastState && lastState.device_params) {
+    // The selector offers what a player would actually browse. On the IR-2
+    // the two stored patches ARE the preset concept technically, and listing
+    // them gives you "PATCH 0" and "PATCH 1", which tells you nothing. The
+    // voicing is the choice that decides the sound and there are eleven of
+    // them with real names, so that is what this lists.
+    const amp = (lastState.device_params || []).find(r => (r.options || []).length);
+    const opts = (amp && amp.options) || [];
+    allSlots = opts.map((name, i) => ({number: i, editor: i, name, empty: false}));
+    presetScan = {read: opts.length, total: opts.length};
+    renderPresetScan();
+    renderPresets(false);
+    return allSlots;
+  }
   presetScan = {read: 0, total: 512};
   renderPresetScan();
   try {
@@ -4297,6 +4515,27 @@ async function gotoPreset(n, force) {
   // The popover closes at once, so without this the click answers with a
   // beat of nothing while the unit switches.
   $('preset').classList.add('busy');
+  // On a device whose selector lists voicings, picking one sets the voicing.
+  // /api/preset is the FM9's preset-select path and means nothing here.
+  if (lastState && lastState.device_params) {
+    try {
+      const r = await fetch('/api/apply', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({actions: [{kind: 'set_device_param',
+                                         param: 'AMP', value: Number(n)}]}),
+      });
+      const d = await r.json();
+      const bad = (d.results || []).find(x => x.ok === false);
+      if (bad) log(`could not change the voicing: ${bad.detail}`, 'err');
+      await refresh();
+    } catch (e) {
+      log(`could not change the voicing: ${e.message}`, 'err');
+    } finally {
+      presetBusy = false;
+      $('preset').classList.remove('busy');
+    }
+    return;
+  }
   try {
     const r = await fetch('/api/preset', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -5094,8 +5333,15 @@ async function watchLink() {
       const r = await fetch('/api/link/stream');
       if (!r.ok || !r.body) throw new Error('no stream');
       for await (const [ev, d] of sseFrom(r)) {
+        if (ev === 'devices') { renderDetected(d.detected); continue; }
         if (ev !== 'link') continue;
-        if (d.present) {
+        // This stream watches the FM9's USB port and nothing else. With
+        // another device selected, an FM9 arriving or leaving says nothing
+        // about the device in use, so it only prompts a fresh read of THAT
+        // device. Before this, unplugging an FM9 painted the header OFFLINE
+        // and dimmed the page over an IR-2 that was working, until the next
+        // poll put it right.
+        if (d.present || devNamed()) {
           // Present is a cue, not a verdict: the full state read is what
           // proves the rig answers, and it is what turns the light green.
           await refresh();
@@ -5138,6 +5384,13 @@ function setUpdBtn(btn, d) {
   btn.disabled = !d.can_update;
   btn.title = d.can_update ? 'Update and restart, no terminal needed'
                            : (d.why || 'Update with the commands shown');
+  // The reason used to live only in the tooltip, so a greyed button looked
+  // broken rather than deliberate. Say it where it is read.
+  const why = $('updwhy');
+  if (why) {
+    why.textContent = d.can_update ? '' : (d.why || '');
+    why.hidden = !!d.can_update;
+  }
 }
 function renderVersion(d) {
   if (!d) return;
@@ -6430,7 +6683,7 @@ $('gridbig').addEventListener('click', e => {
 // always has. `deviceGen` is bumped by a selection; a poll that started
 // before the bump leaves the device block alone (a stale answer must never
 // revert a fresh choice).
-const DEVICE_SHORT = { fm9: 'FM9', headrush: 'HEADRUSH', ir2: 'IR-2' };
+const DEVICE_SHORT = { fm9: 'FM9', headrush: 'HEADRUSH', ir2: 'IR-2', fm3: 'FM3' };
 let deviceGen = 0;
 let deviceState = null;
 function deviceShort(dev) {
@@ -6438,7 +6691,9 @@ function deviceShort(dev) {
   return DEVICE_SHORT[kind] || (kind ? String(kind).toUpperCase() : 'FM9');
 }
 function renderDevice(dev) {
+  const changed = !deviceState || deviceState.active !== dev.active;
   deviceState = dev;
+  if (changed && typeof renderExamples === 'function') renderExamples();
   const wrap = $('devwrap');
   if (!dev || !dev.available || dev.available.length < 2) { wrap.hidden = true; $('devpop').hidden = true; return; }
   wrap.hidden = false;
@@ -6487,6 +6742,14 @@ async function selectDevice(kind) {
   }
 }
 document.addEventListener('DOMContentLoaded', () => {
+  // #209: dismissing an unsupported device keeps it away for this session;
+  // dismissing a plug-in card just closes it (the device stays selected).
+  $('devcardclose').addEventListener('click', () => {
+    const kind = $('devcard').dataset.kind;
+    if (kind && (detectedKinds || []).includes(kind) && !$('devcardlink').hidden) dismissKind(kind);
+    plugCardGen++;
+    paintDevCard(null);
+  });
   $('device').addEventListener('click', () => {
     if ($('devpop').hidden) openDevicePicker(''); else $('devpop').hidden = true;
   });
@@ -6494,6 +6757,136 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!e.target.closest('#devwrap')) $('devpop').hidden = true;
   });
 });
+// --- #209: the device catalog, live ------------------------------------------
+// The server names every device it recognises on the MIDI bus (by port name
+// only; nothing is sent to it). A supported device that ARRIVES while the
+// page is open gets a card that walks the real steps to Ready; one that was
+// already there at load is in the picker as before. A device ToneCommand
+// cannot drive yet is named, with its issue, because otherwise it is
+// invisible and a player cannot tell "not supported" from "broken".
+let detectedKinds = null;     // null until the first list, which is the baseline
+let plugCardGen = 0;          // a newer card supersedes an older one
+const DEVCARD_DISMISSED = 'tc.devcard.dismissed';
+function dismissedKinds() {
+  try { return JSON.parse(sessionStorage.getItem(DEVCARD_DISMISSED) || '[]'); } catch (e) { return []; }
+}
+function dismissKind(kind) {
+  try {
+    const d = dismissedKinds();
+    if (!d.includes(kind)) d.push(kind);
+    sessionStorage.setItem(DEVCARD_DISMISSED, JSON.stringify(d));
+  } catch (e) { /* private window: it comes back on the next poll, which is harmless */ }
+}
+
+// One card, painted from one state object, so node can drive the logic with a
+// fake painter and the browser draws exactly what the test saw.
+function paintDevCard(st) {
+  const card = $('devcard');
+  if (!st) { card.hidden = true; card.dataset.kind = ''; return; }
+  card.hidden = false;
+  card.dataset.kind = st.kind || '';
+  card.className = 'devcard' + (st.error ? ' err' : '') + (st.done ? ' done' : '');
+  $('devcardtitle').textContent = st.title || '';
+  $('devcardtext').textContent = st.text || '';
+  const bar = $('devcardbar');
+  bar.hidden = st.pct == null;
+  bar.querySelector('i').style.width = Math.max(0, Math.min(100, st.pct || 0)) + '%';
+  const link = $('devcardlink');
+  link.hidden = !st.issue_url;
+  if (st.issue_url) { link.href = st.issue_url; link.textContent = `Follow issue #${st.issue}`; }
+}
+
+function unsupportedCard(dev) {
+  return { kind: dev.kind, title: dev.verified ? `${dev.label} connected` : `Looks like a ${dev.label}`,
+           text: 'ToneCommand cannot control it yet.', issue: dev.issue, issue_url: dev.issue_url };
+}
+
+// The plug-in walk. Every step is a real one: the bar never moves for a step
+// that did not happen. `io` is the page in the browser and fakes in the test.
+async function runPlugCard(dev, io) {
+  const mine = ++plugCardGen;
+  const token = io.claim();               // a manual pick after this supersedes the card
+  // Two ways to be overtaken, handled differently: a NEWER card owns the
+  // painter now, so this one leaves without touching it; a manual pick in
+  // the device picker leaves this card current, so it closes itself.
+  const stale = () => mine !== plugCardGen;
+  const picked = () => io.current() !== token;
+  const overtaken = () => {
+    if (stale()) return true;
+    if (picked()) { io.paint(null); return true; }
+    return false;
+  };
+  const paint = st => { if (!stale()) io.paint(Object.assign({kind: dev.kind, title: `${dev.label} detected`}, st)); };
+  // Step 1: support. Built in today; #208 phase 3 downloads it here.
+  paint({pct: 15, text: 'Getting support ready...'});
+  paint({pct: 40, text: `Connecting to the ${dev.label}...`});
+  // Step 2: connect. The device in use reconnects (a replug leaves dead
+  // handles); any other device is switched to, through the same refusals a
+  // click on the picker meets (GIG LOCK, a reviewed plan pending).
+  const wasActive = io.active() === dev.kind;
+  let r;
+  try { r = wasActive ? await io.reconnect() : await io.select(dev.kind); }
+  catch (e) { r = {ok: false, error: String((e && e.message) || e)}; }
+  if (overtaken()) return 'superseded';
+  if (!r || !r.ok) {
+    paint({error: true, pct: null, text: (r && r.error) || `Could not connect to the ${dev.label}.`});
+    return 'refused';
+  }
+  paint({pct: 70, text: `Reading the ${dev.label}...`});
+  // Step 3: read. Ready means a fresh, connected read of THIS device, not
+  // merely that a request came back.
+  const s = await io.refresh();
+  if (overtaken()) return 'superseded';
+  if (!s || !s.fresh || !s.connected || s.active !== dev.kind) {
+    paint({error: true, pct: null, text: `Could not read the ${dev.label}. Check the cable, then click the link light.`});
+    return 'unread';
+  }
+  paint({pct: 100, done: true, text: dev.read_only
+    ? 'Connected, read-only for now: presets and scenes switch; nothing changes your sound.'
+    : 'Ready. Ask for a tone.'});
+  io.later(() => { if (mine === plugCardGen) io.paint(null); }, 4000);
+  return 'ready';
+}
+
+function plugIO() {
+  return {
+    claim: () => ++deviceGen,
+    current: () => deviceGen,
+    active: () => (deviceState && deviceState.active) || 'fm9',
+    paint: paintDevCard,
+    later: (fn, ms) => setTimeout(fn, ms),
+    refresh: () => refresh(),
+    select: async kind => {
+      const r = await fetch('/api/device/select', {method: 'POST',
+        headers: {'Content-Type': 'application/json'}, body: JSON.stringify({kind})});
+      const d = await r.json().catch(() => ({}));
+      return r.ok ? {ok: true} : {ok: false, error: d.error || `the server said ${r.status}`};
+    },
+    reconnect: async () => {
+      const r = await fetch('/api/reconnect', {method: 'POST'});
+      const d = await r.json().catch(() => ({}));
+      return r.ok && d.connected ? {ok: true} : {ok: false, error: d.why || d.error || `the server said ${r.status}`};
+    },
+  };
+}
+
+// Called with every detected list, from the poll and from the link stream.
+function renderDetected(list, io) {
+  if (!Array.isArray(list)) return null;
+  io = io || plugIO();
+  const prev = detectedKinds;
+  detectedKinds = list.map(d => d.kind);
+  const arrived = prev === null ? [] : list.filter(d => d.supported && !prev.includes(d.kind));
+  if (arrived.length) { runPlugCard(arrived[arrived.length - 1], io); return 'plug'; }
+  // No walk running or just started: the card is free for an unsupported device.
+  const busy = $('devcard') && !$('devcard').hidden && $('devcard').dataset.kind
+    && list.some(d => d.supported && d.kind === $('devcard').dataset.kind);
+  if (busy) return 'busy';
+  const shown = list.filter(d => !d.supported && !dismissedKinds().includes(d.kind));
+  io.paint(shown.length ? unsupportedCard(shown[0]) : null);
+  return shown.length ? 'unsupported' : 'none';
+}
+
 // A build refused because the device is ambiguous (#94's 409) opens the
 // picker and says so in words, never 'the server said 409'.
 function deviceRefusal(status, body) {
@@ -6516,6 +6909,8 @@ async function refresh() {
     // answer (one that started before a selection) must touch neither.
     const freshDevice = pollGen === deviceGen;
     if (s.device && freshDevice) renderDevice(s.device);
+    // #209: who else is on the bus; a supported arrival opens the plug-in card
+    if (s.device && Array.isArray(s.device.detected)) renderDetected(s.device.detected);
     if (!s.connected) throw new Error(s.error || 'no link');
     if (!$('link').classList.contains('busy')) {
       $('link').className = 'pill on';
@@ -6533,20 +6928,52 @@ async function refresh() {
     // confirmation, so it does not need the belt and braces, and the name is
     // what you are actually reading. Rebuild the caret: innerHTML replaces it.
     if (s.preset) $('preset').innerHTML =
-      `<span class="lbl">PRESET</span><span class="pnum">${s.preset.editor ?? s.preset.number}</span>` +
+      `<span class="lbl">${s.device_params ? 'VOICING' : 'PRESET'}</span><span class="pnum">${s.preset.editor ?? s.preset.number}</span>` +
       `<b>${esc(s.preset.name)}</b><span class="caret"></span>`;
+    // A device with named parameters has no scenes, no grid and no blocks.
+    // Running the FM9's renderers over its state threw, and the throw landed
+    // in the catch below, which painted OFFLINE over a pedal that was
+    // answering. Render what this device actually has instead.
+    if (s.device_params) {
+      lastState = s;
+      renderDeviceParams(s);
+      loadPresets(false);
+      return {connected: true, active: s.device && s.device.active, fresh: freshDevice};
+    }
+    // Everything renderDeviceParams changed has to be put back, or an FM9
+    // selected after an IR-2 keeps the other device's label and chrome.
+    document.body.classList.remove('named-device');
+    // #212: a read-only device (the FM3) shows its preset, scenes and which
+    // blocks are on, and offers nothing that would change the sound.
+    document.body.classList.toggle('readonly-device', !!s.read_only);
+    const ctxf = $('context');
+    if (ctxf) ctxf.setAttribute('data-label', 'LIVE '
+      + ((deviceState && deviceState.label) || 'FM9').toUpperCase() + ' CONTEXT');
     renderScenes(s);
     if (s.scene) currentSceneNumber = s.scene.number;
+    if (s.read_only) {
+      renderReadOnlyBlocks(s);
+      renderParams(s);          // no values were read: this clears the panels
+      loadPresets(false);
+      return {connected: true, active: s.device && s.device.active, fresh: freshDevice};
+    }
     if (typeof stageGuard === 'function') stageGuard(s);
     if (s.preset) loadShared(s.preset.number);
     loadGrid();
     if (!dragging) renderParams(s);
+    // #209: what the plug-in card needs to call a read Ready, and nothing
+    // else uses: connected, which device answered, and whether this poll is
+    // still current (a selection after it started makes it stale).
+    return {connected: true, active: s.device && s.device.active, fresh: freshDevice};
   } catch (e) {
     if (!$('link').classList.contains('busy')) {
       $('link').className = 'pill off';
-      $('linktext').textContent = 'FM9 · OFFLINE';
+      // Never hardcode FM9 here: with another device selected this said
+      // "FM9 OFFLINE" about a pedal that was plugged in and answering.
+      $('linktext').textContent = `${deviceShort(deviceState)} · OFFLINE`;
     }
     setRigOff(true);
+    return {connected: false, fresh: pollGen === deviceGen, error: String((e && e.message) || e)};
   }
 }
 
@@ -6575,6 +7002,62 @@ let lastBypass = {};        // "FAMILY:instance" -> is the block switched off
 let lastMods = {};          // param name -> what is driving it, if anything
 let lastState = {};         // the last state payload, for the audition lists
 let lastCab = {bank: null, ordinal: -1};
+
+// #212: the FM3 is read through the FM9 module, read-only. Its grid and
+// parameter map were never verified, so instead of a signal chain drawn from
+// FM9 geometry it gets the blocks the status dump reports, by name, with
+// their state, and one line saying what works and where the rest is tracked.
+function renderReadOnlyBlocks(s) {
+  const chips = (s.blocks || []).map(b =>
+    `<span class="robk${b.bypassed ? ' off' : ''}">${esc(b.label)} · ${esc(b.channel)}${b.bypassed ? ' · off' : ''}</span>`).join('');
+  // One row: on a laptop-height window a second row pushed the request
+  // heading off the top of the workspace.
+  $('blocks').innerHTML = `<div class="ropanel"><span class="ronote">Read-only for now: presets and scenes `
+    + `switch from here; <a href="https://github.com/monzta1/ToneCommand/issues/40" `
+    + `target="_blank" rel="noopener">full ${esc(deviceShort(deviceState))} support</a> comes later.</span>`
+    + `${chips || '<span class="hint">no blocks reported</span>'}</div>`;
+}
+
+// A device whose whole surface is named parameters (#198). The FM9 draws a
+// signal grid and eight scenes; this pedal is one amp and six knobs, so it
+// draws those. Live values, straight off the unit, updated by the same poll.
+function renderDeviceParams(s) {
+  const rows = s.device_params || [];
+  const box = $('blocks');          // where the FM9 draws its signal chain
+  if (!box) return;
+  // This device has no scenes, so that strip would otherwise sit there empty
+  // and stale from whatever was last connected.
+  const sc = $('scenes');
+  if (sc) sc.innerHTML = '';
+  const amp = rows.find(r => (r.options || []).length);
+  const knobs = rows.filter(r => !(r.options || []).length);
+  box.innerHTML = `
+    <div class="devpanel">
+      ${amp ? `<div class="devamp">
+        <span class="lbl">AMP</span>
+        <span class="val">${esc(String(amp.value))}</span>
+      </div>` : ''}
+      <div class="devknobs">
+        ${knobs.map(k => `
+          <div class="devknob">
+            <span class="lbl">${esc(k.name)}</span>
+            <div class="devbar"><span style="width:${
+              Math.round(100 * (Number(k.value) - k.lo) / ((k.hi - k.lo) || 1))
+            }%"></span></div>
+            <span class="num">${esc(String(k.value))}</span>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  const g = $('gridwhy');
+  if (g) g.textContent = '';
+  // The chain legend ("on / off / tap a pedal to tweak it") describes a
+  // signal grid this device does not have, and the empty scene strip left a
+  // gap where eight scenes used to be.
+  document.body.classList.add('named-device');
+  const ctx = $('context');
+  if (ctx) ctx.setAttribute('data-label', 'LIVE ' +
+    ((deviceState && deviceState.label) || 'DEVICE').toUpperCase() + ' CONTEXT');
+}
 
 function renderParams(s) {
   const meta = s.params || {};
@@ -7080,9 +7563,9 @@ function srcSplitHtml(from) {
   </div>`;
 }
 
-async function analyzeSource(sourceText) {
-  const raw = String(sourceText || $('srcinput').value).trim();
-  if (!raw) return;
+async function analyzeSource(sourceText, pic) {
+  const raw = String(sourceText || (pic ? '' : $('srcinput').value)).trim();
+  if (!raw && !pic) return;
   const btn = $('engage');
   btn.disabled = true;
   const was = btn.textContent;
@@ -7104,7 +7587,7 @@ async function analyzeSource(sourceText) {
     const r = await fetch('/api/describe/read/stream', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       signal: srcWork.abort.signal,
-      body: JSON.stringify({source: raw})});
+      body: JSON.stringify(pic ? {source: raw, image: pic.data} : {source: raw})});
     if (!r.ok || !r.body) throw new Error(`the server said ${r.status}`);
     let spec = null;
     for await (const [ev, d] of sseFrom(r)) {
@@ -7158,6 +7641,7 @@ async function analyzeSource(sourceText) {
 (async () => {
   try {
     const d = await (await fetch('/api/describe/ready')).json();
+    if (d.images === false) picsReadable = false;     // #227
     const bits = [];
     if (!d.youtube) bits.push('Videos cannot be read automatically here');
     else if (!d.transcribe) bits.push('Videos without captions cannot be read here');
@@ -7178,17 +7662,38 @@ const EXAMPLES = [
   ['Octave under lead', 'add a subtle octave-down layer like a POG under the lead'],
 ];
 
-$('egs').innerHTML = EXAMPLES.slice(0, 4)
-  .map(([label, prompt], i) =>
-    `<button data-eg="${i}" title="${esc(prompt)}">${esc(label)}</button>`)
-  .join('');
+// Offering "Wets in scene 2" to a pedal with no scenes is an instruction
+// that cannot work, which is worse than offering nothing. Each device gets
+// examples it can actually do.
+const DEVICE_EXAMPLES = {
+  ir2: [
+    ['Brown sound',    'a brown sound, tight, not much room'],
+    ['Cleanest',       'give me the cleanest thing this pedal does'],
+    ['More gain',      'more gain and back the bass off a little'],
+    ['What is it on?', 'what is it set to right now?'],
+  ],
+  // #212: read-only, so no request it would only refuse is suggested.
+  fm3: [],
+};
+
+function renderExamples() {
+  const kind = (deviceState && deviceState.active) || 'fm9';
+  const list = DEVICE_EXAMPLES[kind] || EXAMPLES;
+  CURRENT_EXAMPLES = list;
+  $('egs').innerHTML = list.slice(0, 4)
+    .map(([label, prompt], i) =>
+      `<button data-eg="${i}" title="${esc(prompt)}">${esc(label)}</button>`)
+    .join('');
+}
+let CURRENT_EXAMPLES = EXAMPLES;
+renderExamples();
 
 $('egs').addEventListener('click', e => {
   const b = e.target.closest('button[data-eg]');
   if (!b) return;
   // Loaded, not sent. Pressing SEND stays the player's move, and seeing the
   // sentence first is half of what the examples are teaching.
-  $('prompt').value = EXAMPLES[Number(b.dataset.eg)][1];
+  $('prompt').value = CURRENT_EXAMPLES[Number(b.dataset.eg)][1];
   $('prompt').focus();
 });
 
@@ -7262,15 +7767,15 @@ document.addEventListener('keydown', e => {
 
 // The two questions whose answers change the work. Modelled on how a careful
 // person takes a brief: confirm the shape and the name, then go.
-let srcAnswers = {scenes: null, name: ''};
+let srcAnswers = {scenes: null, name: '', mode: 'closest'};
 
 function askAboutBuild(spec, note) {
   const found = (spec.scenes || []).length || 1;
   const loaded = (lastState.preset || {}).name;
-  srcAnswers = {scenes: found, name: suggestName(spec)};
+  srcAnswers = {scenes: found, name: suggestName(spec), mode: 'closest'};
 
   const counts = [...new Set([1, found])].sort((a, b) => a - b);
-  $('srcask').innerHTML = `
+  $('srcask').innerHTML = `<div id="rigcard">${rigCardHtml(spec)}</div>
     <h4>Before I build it</h4>
     <p>This source describes ${found} scene${found === 1 ? '' : 's'}, which is
        what the player in it happens to run. How much of it do you want?</p>
@@ -7280,6 +7785,11 @@ function askAboutBuild(spec, note) {
         `<button data-n="${n}" class="${n === found ? 'on' : ''}">${
           n === 1 ? 'Just one scene' : `All ${n} scenes`}</button>`).join('')}</div>
     </div>
+    ${spec.rig ? `<div class="q">
+      <label>How faithful?</label>
+      <div class="opts" id="qmode">${RIG_MODES.map(([m, label, tip]) =>
+        `<button data-mode="${m}" title="${esc(tip)}" class="${m === 'closest' ? 'on' : ''}">${label}</button>`).join('')}</div>
+    </div>` : ''}
     <div class="q">
       <label>Name it</label>
       <input type="text" id="qname" maxlength="32" value="${esc(srcAnswers.name)}">
@@ -7289,6 +7799,10 @@ function askAboutBuild(spec, note) {
        keep it. I will list what that covers before you transmit.</p>
     <button class="go" id="qgo">BUILD IT</button>`;
   $('srcask').hidden = false;
+  // The reading is done and its summary heads this card, so the progress
+  // panel steps aside instead of being drawn over (#227). runBuild shows it
+  // again through srcProgress when the build starts.
+  $('srcprogress').hidden = true;
 
   $('qscenes').onclick = e => {
     const b = e.target.closest('button[data-n]');
@@ -7296,10 +7810,254 @@ function askAboutBuild(spec, note) {
     srcAnswers.scenes = Number(b.dataset.n);
     [...$('qscenes').children].forEach(x => x.classList.toggle('on', x === b));
   };
+  if ($('qmode')) $('qmode').onclick = e => {
+    const b = e.target.closest('button[data-mode]');
+    if (!b) return;
+    srcAnswers.mode = b.dataset.mode;
+    [...$('qmode').children].forEach(x => x.classList.toggle('on', x === b));
+  };
   $('qgo').onclick = () => {
     srcAnswers.name = $('qname').value.trim();
     $('srcask').hidden = true;
     runBuild(spec, note);
+  };
+  wireRigCard(spec, note);
+  // The card is the answer to what the player just pasted: bring it into
+  // view rather than leave it below the request hero on a short window.
+  // Only the request pane scrolls. scrollIntoView also scrolled #shell, the
+  // app's fixed frame, by 408px in 1.5.10: the header left the screen and
+  // the footer and progress panel slid over this card.
+  const pane = $('pane-request'), ask = $('srcask');
+  if (pane && ask) pane.scrollTop += ask.getBoundingClientRect().top - pane.getBoundingClientRect().top;
+}
+
+// --- #228: building from the rig, and saying what was kept -------------------------
+const RIG_MODES = [
+  ['closest', 'Closest tone', 'the nearest sound on one FM9 signal path; every compromise is listed'],
+  ['faithful', 'Faithful routing', 'keep the routing exactly, or say why it cannot be built yet'],
+  ['simplified', 'Simplified live rig', 'one scene, one block of each kind: the easiest to gig'],
+];
+
+function fidelityHtml(f) {
+  if (!f) return '';
+  const kept = (f.kept || []).map(k =>
+    `<li data-names="${esc((k.names || [k.block]).join(' '))}" data-inst="${esc(k.instance)}" data-what="${esc(k.what)}"`
+    + ` data-params="${esc((k.params || []).join(' '))}">${esc(k.what)}: `
+    + (k.param ? `${esc(k.param)}` : `${esc(k.block)} ${esc(k.instance)}`)
+    + (k.model ? `, as ${esc(k.model)}` : '') + `<span class="fidv"></span></li>`).join('');
+  const why = xs => (xs || []).map(x => `<li>${esc(x.what)}: ${esc(x.why)}</li>`).join('');
+  const chosen = f.chosen || {};
+  return `<div class="fidelity" id="fidelity">
+    <h5 class="said">Kept from the rig</h5><ul id="fidkept">${kept || '<li>nothing</li>'}</ul>
+    ${(f.changed || []).length ? `<h5>Changed</h5><ul>${why(f.changed)}</ul>` : ''}
+    ${(f.not_reproduced || []).length ? `<h5 class="guessed">Not reproduced</h5><ul>${why(f.not_reproduced)}</ul>` : ''}
+    <h5 class="guessed">Chosen by us</h5><p>${esc(chosen.count || 0)} value${chosen.count === 1 ? '' : 's'} the source did not state`
+    + `${chosen.stated_used ? `; ${esc(chosen.stated_used)} taken straight from the source` : ''}.</p>
+    <p id="fidreadback" hidden></p>
+  </div>`;
+}
+
+// After sending: each kept piece of gear is verified when every action on its
+// block came back ok from the unit, partly when some did, not when none did.
+// Results echo the action as planned, so they are matched on the block's
+// names and its instance, the same identity the report was built with. The
+// count to reach is what the sent plan asked of that block, so a send that
+// stopped early cannot read as verified: a missing result is not a pass.
+// Returns the line for the transcript: the plan pane is hidden once the send
+// stage takes over, so a line written only there was never seen.
+function fidelityReadBack(f, acted, planned) {
+  let all = 0, some = 0, none = 0;
+  const short = [];
+  for (const li of document.querySelectorAll('#fidkept li[data-names]')) {
+    const names = li.dataset.names.split(' ');
+    const inst = Number(li.dataset.inst || 1);
+    // #230: on a device that names its parameters, a kept piece is the
+    // parameters it became, and its results carry the parameter, not a block
+    const params = (li.dataset.params || '').split(' ').filter(Boolean);
+    const on = a => params.length
+      ? (a || {}).kind === 'set_device_param' && params.includes(String((a || {}).param || '').toUpperCase())
+      : names.includes(String((a || {}).block || '').trim().toLowerCase())
+        && Number((a || {}).instance || 1) === inst;
+    // Every kept piece gets a mark: one the plan sent nothing for was not
+    // verified, it was not touched.
+    const want = (planned || []).filter(on).length;
+    const ok = want ? Math.min(want, acted.filter(r => on(r.action) && r.ok).length) : 0;
+    const word = want && ok === want ? 'verified' : (ok ? 'partly verified' : 'not verified');
+    if (want && ok === want) all++; else if (ok) some++; else none++;
+    if (ok !== want) short.push(`${li.dataset.what} ${word}`);
+    const tag = li.querySelector('.fidv');
+    if (tag) tag.textContent = ` (${word})`;
+  }
+  if (!(all + some + none)) return '';
+  const text = `Read back from the unit, gear kept from the rig: ${all} verified`
+    + (some ? `, ${some} partly` : '') + (none ? `, ${none} not verified` : '')
+    + (short.length ? ` (${short.join('; ')})` : '') + '.';
+  const line = $('fidreadback');
+  if (line) { line.hidden = false; line.textContent = text; }
+  return text;
+}
+
+// --- #226: the rig, as read ---------------------------------------------------
+// What the reader recognised and how it is connected: the audio chain drawn
+// solid, control lines dashed, anything inferred marked with a question
+// mark. Corrections are said in words and come back as edits to the rig.
+const RIG_AUDIO = new Set(['audio', 'audio_mono', 'audio_stereo', 'send_return']);
+
+function rigLabel(g, id) {
+  const n = (g.nodes || []).find(x => x.id === id);
+  return n ? n.label : id;
+}
+
+function rigSvg(g) {
+  // One row per audio path (from the server's explanation order is not
+  // needed: the paths are walked here the same simple way), then one row of
+  // control links. Boxes are fixed width; long labels are cut with an ellipsis.
+  const nodes = Object.fromEntries((g.nodes || []).map(n => [n.id, n]));
+  const out = {};
+  const hasIn = new Set();
+  for (const e of g.edges || []) {
+    if (!RIG_AUDIO.has(e.kind)) continue;
+    (out[e.from] = out[e.from] || []).push(e);
+    hasIn.add(e.to);
+  }
+  const audio = new Set([...Object.keys(out), ...hasIn]);
+  const paths = [];
+  const walk = (id, trail, route) => {
+    const next = (out[id] || []).filter(e => !e.route || !route || e.route === route);
+    let extended = false;
+    for (const e of next) {
+      if (trail.includes(e.to)) continue;
+      extended = true;
+      walk(e.to, [...trail, e.to], e.route || route);
+    }
+    if (!extended) paths.push({route, ids: trail});
+  };
+  for (const id of audio) if (!hasIn.has(id)) walk(id, [id], null);
+  const controls = (g.edges || []).filter(e => e.kind === 'control' || e.kind === 'expression');
+  const W = 118, H = 26, GX = 22, GY = 14;
+  const rows = paths.length + (controls.length ? 1 : 0);
+  const cols = Math.max(1, ...paths.map(p => p.ids.length), controls.length * 2);
+  const svgW = cols * (W + GX) + 70, svgH = Math.max(1, rows) * (H + GY) + 4;
+  const cut = s => (s.length > 15 ? s.slice(0, 14) + '...' : s);
+  const box = (x, y, n, dashed) => {
+    const guess = n && n.provenance !== 'observed' && n.provenance !== 'user_confirmed';
+    return `<rect x="${x}" y="${y}" width="${W}" height="${H}" rx="5" class="rgbox${guess ? ' guess' : ''}${dashed ? ' ctl' : ''}"/>`
+      + `<text x="${x + W / 2}" y="${y + H / 2 + 4}" class="rgtx">${esc(cut((n && n.label) || '?'))}${guess ? ' ?' : ''}</text>`;
+  };
+  let svg = '';
+  paths.forEach((p, r) => {
+    const y = r * (H + GY) + 2;
+    if (p.route) svg += `<text x="2" y="${y + H / 2 + 4}" class="rgroute">${esc(p.route)}</text>`;
+    p.ids.forEach((id, c) => {
+      const x = 66 + c * (W + GX);
+      svg += box(x, y, nodes[id], false);
+      if (c > 0) svg += `<line x1="${x - GX}" y1="${y + H / 2}" x2="${x}" y2="${y + H / 2}" class="rgline"/>`;
+    });
+  });
+  if (controls.length) {
+    const y = paths.length * (H + GY) + 2;
+    svg += `<text x="2" y="${y + H / 2 + 4}" class="rgroute">control</text>`;
+    controls.forEach((e, i) => {
+      const x = 66 + i * 2 * (W + GX);
+      svg += box(x, y, nodes[e.from], true) + box(x + W + GX, y, nodes[e.to], true)
+        + `<line x1="${x + W}" y1="${y + H / 2}" x2="${x + W + GX}" y2="${y + H / 2}" class="rgline ctl"/>`;
+    });
+  }
+  return `<svg class="rigsvg" viewBox="0 0 ${svgW} ${svgH}" width="${svgW}" height="${svgH}" role="img" aria-label="the rig as read">${svg}</svg>`;
+}
+
+function rigCardHtml(spec) {
+  if (!spec.rig) {
+    return (spec.rig_problems && spec.rig_problems.length)
+      ? `<p class="rignote">The gear in this source could not be laid out as a rig, so the build works from the description alone.</p>`
+      : '';
+  }
+  const lines = (spec.rig_explain || []).map(l => `<li>${esc(l)}</li>`).join('');
+  return `<h4>The rig, as read</h4>
+    <div class="rigwrap">${rigSvg(spec.rig)}</div>
+    <ul class="rigexplain">${lines}</ul>
+    <div class="rigfix">
+      <input type="text" id="rigfix" maxlength="300"
+             placeholder="Something wrong? Say it, e.g. the second pedal is a chorus">
+      <button id="rigfixgo">CORRECT</button>
+    </div>
+    <p class="rignote" id="rigfixsaid" hidden></p>
+    <p class="rignote">Corrections change the rig shown here, and BUILD IT builds the corrected rig.</p>
+    ${devNamed() ? '' : `<div class="rigcmp"><button id="rigcmpgo">COMPARE WITH THE LOADED PRESET</button></div>
+    <div class="rigcmpout" id="rigcmpout" hidden></div>`}`;
+}
+
+// #229: the rig against the loaded preset, in words. Reading only; closing the
+// differences is the ordinary build, which the player asks for.
+function rigCompareHtml(d) {
+  const list = (title, xs) => (xs || []).length
+    ? `<h5>${title}</h5><ul>${xs.map(x => `<li>${esc(x.why)}</li>`).join('')}</ul>` : '';
+  const n = ['missing', 'out_of_order', 'routing'].reduce((k, f) => k + (d[f] || []).length, 0)
+    + (d.extra || []).filter(x => !x.bypassed).length;
+  return `<p class="rignote">${esc(d.note || '')} ${esc(d.summary || '')}</p>`
+    + list('Missing', d.missing) + list('Extra', d.extra)
+    + list('Out of order', d.out_of_order) + list('Routing', d.routing)
+    + (n ? `<button class="go" id="rigmatch">BUILD A PLAN TO MATCH</button>
+      <p class="rignote">Builds this rig on top of the loaded preset, through the usual review and confirm. Nothing changes on your ${esc(devName())} until you send it.</p>` : '');
+}
+
+function rigSaid(text) {
+  const el = $('rigfixsaid');
+  el.textContent = text;
+  el.hidden = !text;
+}
+
+function wireRigCard(spec, note) {
+  const cmp = $('rigcmpgo');
+  if (cmp) cmp.onclick = async () => {
+    cmp.disabled = true;
+    const out = $('rigcmpout');
+    try {
+      const r = await fetch('/api/rig/compare', {method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({graph: spec.rig, mode: srcAnswers.mode || 'closest'})});
+      const d = await r.json().catch(() => ({}));
+      out.innerHTML = r.ok ? rigCompareHtml(d)
+        : `<p class="rignote">Could not compare: ${esc(d.error || `the server said ${r.status}`)}</p>`;
+      out.hidden = false;
+      if ($('rigmatch')) $('rigmatch').onclick = () => {
+        srcAnswers.mode = 'closest';
+        if ($('qname')) srcAnswers.name = $('qname').value.trim();
+        $('srcask').hidden = true;
+        runBuild(spec, note);
+      };
+    } catch (e) {
+      out.innerHTML = `<p class="rignote">Could not compare: ${esc(e.message || e)}</p>`;
+      out.hidden = false;
+    } finally {
+      if ($('rigcmpgo')) $('rigcmpgo').disabled = false;
+    }
+  };
+  const go = $('rigfixgo');
+  if (!go) return;
+  go.onclick = async () => {
+    const text = $('rigfix').value.trim();
+    if (!text) return;
+    go.disabled = true;
+    try {
+      const r = await fetch('/api/rig/correct', {method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({graph: spec.rig, text})});
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        rigSaid(`Not changed: ${d.error || `the server said ${r.status}`}`);
+        return;
+      }
+      spec.rig = d.graph;
+      spec.rig_explain = d.explain || [];
+      $('rigcard').innerHTML = rigCardHtml(spec);
+      rigSaid(`Changed: ${(d.changed || []).join('; ')}.`);
+      wireRigCard(spec, note);
+    } catch (e) {
+      rigSaid(`Not changed: ${e.message || e}`);
+    } finally {
+      if ($('rigfixgo')) $('rigfixgo').disabled = false;
+    }
   };
 }
 
@@ -7327,6 +8085,9 @@ function suggestName(spec) {
 
 async function runBuild(spec, note) {
   const btn = $('analyze');
+  // restored in the finally below; it was never declared, so every build
+  // ended in a ReferenceError and left the button reading BUILDING...
+  const was = btn.textContent;
   btn.disabled = true;
   btn.textContent = 'BUILDING...';
   // This call measured 226 seconds for a four scene build and used to show
@@ -7348,7 +8109,7 @@ async function runBuild(spec, note) {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       signal: srcWork.abort.signal,
       body: JSON.stringify({spec, scenes: srcAnswers.scenes,
-                            name: srcAnswers.name})});
+                            name: srcAnswers.name, mode: srcAnswers.mode || 'closest'})});
     if (!b.ok || !b.body) throw new Error(`the server said ${b.status}`);
     let plan = null;
     for await (const [ev, d] of sseFrom(b)) {
@@ -7363,7 +8124,7 @@ async function runBuild(spec, note) {
         srcStage = '';
         srcWork.count = typeof d === 'number' ? d : d.n;
         const kind = (d && d.kind) || '';
-        if (kind) workSay(`${srcWork.count}. ${kind.replace(/_/g, ' ')}`);
+        if (kind) workSay(`${srcWork.count}. ${kindWord(kind)}`);
         srcAlive = Date.now();
         srcProgress('build', note);
         renderWorking();
@@ -7478,6 +8239,11 @@ function describe(a) {
   // A cab selection is a bank and an ordinal, not a parameter; without this
   // it fell through to the set_param wording as "cab 1 / null: set to 40".
   if (a.kind === 'set_cab') return `Cab → ${a.cab_name || 'ordinal ' + a.value}${a.bank != null ? ' (bank ' + a.bank + ')' : ''}`;
+  // A named parameter carries no block, so it fell through to the set_param
+  // wording and the review read "null 1 / AMP: set to null": null block, null
+  // value, because an enum arrives in type_name. Same failure set_cab had.
+  if (a.kind === 'set_device_param')
+    return `${a.param} → ${a.type_name != null ? a.type_name : a.value}`;
   if (a.kind === 'rename_preset') return `Rename preset → "${a.type_name}"`;
   if (a.kind === 'rename_scene') return `Rename scene ${a.value} → "${a.type_name}"`;
   // danger first, and one parenthetical rather than two: the slot label
@@ -7522,6 +8288,13 @@ function renderTension(tensions) {
 function renderToneCheck(findings) {
   const box = $('tonecheck');
   if (!box) return;
+  // The tone check judges scene roles, levels and effects across a preset.
+  // A device with named parameters has none of those, so a green "Tone check
+  // passed: roles, levels and effects look right for a gig" was a pass on a
+  // test that never ran. Saying nothing is the honest answer.
+  if (lastState && lastState.device_params) {
+    box.hidden = true; box.innerHTML = ''; return;
+  }
   box.hidden = false;
   if (!findings.length) {
     box.className = 'tonecheck pass';
@@ -7578,7 +8351,8 @@ function showPlan(plan) {
       + `built for your rig. It gets you in the ballpark: review and tweak `
       + `before sending, and check anything marked below as interpreted.`
       + inheritsHtml(plan)
-      + srcSplitHtml(plan.from_source);
+      + srcSplitHtml(plan.from_source)
+      + fidelityHtml(plan.fidelity);
     // BEFORE the summary, not after. The summary runs to hundreds of words
     // on a multi-scene build, and provenance read at the end of that is
     // provenance nobody read: "this is an interpretation" has to arrive
@@ -7597,11 +8371,14 @@ function showPlan(plan) {
                                       && !(a.validation_errors || []).length);
   planResult(
     `<b>Plan ready: ${n} change${n === 1 ? '' : 's'} proposed.</b> `
-    + `Nothing has been sent to the FM9 yet.`
+    + `Nothing has been sent to the ${devName()} yet.`
     + (blocked ? ` ${blocked} ${blocked === 1 ? 'is' : 'are'} marked BLOCKED `
                  + `and will not transmit.` : '')
     + ` If it reads right, continue to REVIEW, confirm, and send`
-    + (willStore
+    + (devNamed()
+        // No false comfort here either: this device has no undo at all.
+        ? `. There is no undo on this device.`
+        : willStore
         // No false comfort: UNDO never covers a store, and this plan has one.
         ? `. This plan also STORES to a preset slot; you will be asked again `
           + `before that happens, and UNDO does not cover it.`
@@ -7645,17 +8422,30 @@ function renderPlanCards(plan, filter) {
       `<div class="vmsg ${errs.length ? 'verr' : 'vwrn'}">${
         esc(plainActionIssue(m, !!errs.length))}</div>`).join('');
     const setParam = a.kind === 'set_param';
+    const named = a.kind === 'set_device_param';
     const meta = setParam ? (lastParams || {})[a.param] : null;
+    // Never the hardcoded 'FM9': with another device selected every row of the
+    // review claimed its change was going to an FM9.
+    const devLabel = ((deviceState && deviceState.label) || 'FM9').toUpperCase();
     const target = a.block
       ? `${String(a.block).toUpperCase()} ${a.instance || 1}${a.channel ? ` ${a.channel}` : ''}`
-      : (a.kind === 'rename_preset' || a.kind === 'store' ? 'PRESET' : 'FM9');
+      : named ? devLabel
+      : (a.kind === 'rename_preset' || a.kind === 'store' ? 'PRESET' : devLabel);
+    // A named parameter's current value is already on screen in the device
+    // panel; the review read "Not read" because it only looked for FM9 values.
+    const namedNow = named
+      ? ((lastState && lastState.device_params) || [])
+          .find(r => String(r.name).toUpperCase() === String(a.param).toUpperCase())
+      : null;
     const beforeRaw = setParam
       ? ((plan.values || {})[a.param] ?? (lastState.values || {})[a.param])
-      : null;
+      : (namedNow ? namedNow.value : null);
     const before = beforeRaw === undefined || beforeRaw === null ? 'Not read' : beforeRaw;
     // Both branches are model- or device-originated strings. Escape here,
     // once, before either enters the review table.
-    const after = setParam ? esc(String(a.value)) : esc(describe(a));
+    const after = setParam ? esc(String(a.value))
+      : named ? esc(String(a.type_name != null ? a.type_name : a.value))
+      : esc(describe(a));
     // Inline editing: a numeric set_param with a published range becomes a
     // field the player retypes before it is sent, clamped to that range on
     // commit. Everything else (renames, stores, enum type changes) stays text.
@@ -7675,7 +8465,8 @@ function renderPlanCards(plan, filter) {
       ? `<button class="editflag" data-reset="${ai}" title="Put it back to the planned ${esc(String(planned))}">edited ↺</button>`
       : '';
     const spread = alsoAffects(a, currentSceneNumber);
-    const impact = spread
+    const impact = named ? 'Whole sound'
+      : spread
       ? `${(spread.match(/\d+/g) || []).length + 1} scenes`
       : (a.scene ? `Scene ${a.scene}` : 'Current');
     // Safety facts stay open. Ordinary rationale is available without making
@@ -7879,8 +8670,81 @@ let srcWork = null;
 // something either party said. Rendered, and NEVER sent back to the model:
 // "I proposed 3 changes" is our bookkeeping, and feeding it back as though
 // the model had said it would have it answering its own status notes.
-function chatNote(text) {
-  chatLog.push({role: 'note', content: text});
+// #201: Report a problem. One link on the error, one panel, one button.
+//
+// NOTHING LEAVES THIS MACHINE HERE. The panel asks the server to BUILD a
+// report and shows it in full; the only way it goes anywhere is the player
+// opening GitHub themselves from the second button. That is the property
+// that makes this safe to put on every error, and it is why the preview
+// shows the whole body rather than a summary of it: what you read is exactly
+// what a maintainer reads.
+//
+// No duplicate search. It would need a network call from the app, which
+// would cost exactly the property above, and triage is not a player's job.
+async function openReport() {
+  const pop = $('reportpop');
+  pop.hidden = false;
+  pop.innerHTML = `<div class="hint">Building the report...</div>`;
+  let pkg;
+  try {
+    const r = await fetch('/api/diagnostics/share-package');
+    pkg = await r.json();
+  } catch (e) {
+    pop.innerHTML = `<div class="hint">Could not build the report: ${esc(e.message)}</div>`;
+    return;
+  }
+  const draw = (note) => {
+    pop.innerHTML = `
+      <div class="navtitle">REPORT A PROBLEM</div>
+      <p class="hint">Nothing is sent from here. This builds a report you read
+         first, then open on GitHub yourself.</p>
+      <textarea id="reportnote" rows="3" placeholder="What were you doing? (optional)"
+                >${esc(note || '')}</textarea>
+      <div class="hint" style="margin-top:10px">What will be included</div>
+      <pre class="reportbody">${esc(pkg.body)}</pre>
+      <div class="reportacts">
+        <button id="reportopen" class="reportgo">OPEN GITHUB ISSUE</button>
+        <button id="reportcopy">COPY</button>
+        <button id="reportclose">CLOSE</button>
+      </div>`;
+    const ta = $('reportnote');
+    // Rebuild with the player's words in it, so the preview stays honest:
+    // what is on screen is what gets filed.
+    let t = null;
+    ta.addEventListener('input', () => {
+      clearTimeout(t);
+      t = setTimeout(async () => {
+        const r = await fetch('/api/diagnostics/share-package?note='
+                              + encodeURIComponent(ta.value));
+        pkg = await r.json();
+        const keep = ta.value, pos = ta.selectionStart;
+        draw(keep);
+        const nta = $('reportnote');
+        nta.focus(); nta.setSelectionRange(pos, pos);
+      }, 400);
+    });
+    $('reportopen').addEventListener('click', () => window.open(pkg.url, '_blank', 'noopener'));
+    $('reportcopy').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(pkg.title + '\n\n' + pkg.body);
+        $('reportcopy').textContent = 'COPIED';
+      } catch (e) { $('reportcopy').textContent = 'COPY FAILED'; }
+    });
+    $('reportclose').addEventListener('click', () => { pop.hidden = true; });
+  };
+  draw('');
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target && e.target.classList && e.target.classList.contains('reportbtn'))
+    openReport();
+});
+
+function chatNote(text, isError) {
+  // #201: an error note carries a way to report itself. Every error, not
+  // only the ones we think we cannot explain: the one that prompted this
+  // said "busy", which sounded self-explanatory and was wrong.
+  chatLog.push({role: 'note', content: text, err: !!isError});
   renderChat();
 }
 
@@ -8031,7 +8895,7 @@ function renderWorking() {
   const what = !busy
     ? workDone.text
     : planSending
-      ? `SENDING ${planSent}/${planTotal} to the FM9`
+      ? `SENDING ${planSent}/${planTotal} to the ${devName()}`
       : chatBusy
         ? (chatBuilding
             ? (chatQueued ? 'QUEUED'
@@ -8083,20 +8947,29 @@ function conversationText() {
 // diagnostic log; the conversation never carries the machinery.
 function plainPlanError(msg) {
   const m = String(msg || '').toLowerCase();
+  // #212: a read-only device already says what works and where the rest is
+  // tracked; "give it another go" would send the player round in circles.
+  if (/is read-only in tonecommand/.test(m)) return String(msg);
   if (/no complete plan|no reply within|transport|timed out|timeout|unreachable|took too long/.test(m))
     return 'That one took too long to come together. Give it another go, '
          + 'or ask for a little less in one go.';
   if (/no key|api key|not set up|unauthor|401|403/.test(m))
     return 'The AI helper is not connected yet. Open Settings to set it up.';
-  if (/rate|\b429\b|quota|overload|busy/.test(m))
+  // `rate` without a boundary matched "generate", and Gemini's API method is
+  // literally generateContent, so EVERY Gemini failure read as "busy": a bad
+  // key, an unavailable model, a 400, all of them. A user reported exactly
+  // that and the real reason never reached them. Match the thing itself.
+  if (/rate[ _-]?limit|\b429\b|quota|overloaded|too many requests|\bbusy\b/.test(m))
     return 'The AI helper is busy right now. Give it a moment and try again.';
   return 'That did not come together. Give it another go.';
 }
 
 function plainDeviceError(msg) {
   const m = String(msg || '').toLowerCase();
+  if (/is read-only in tonecommand/.test(m)) return String(msg);          // #212
+  // #212: the device in use, not always the FM9.
   if (/offline|not answering|not connected|midi|port/.test(m))
-    return 'The FM9 is not responding. Check the USB connection and try again.';
+    return `The ${deviceShort(deviceState)} is not responding. Check the USB connection and try again.`;
   if (/preset changed|expected preset/.test(m))
     return 'The loaded preset changed. Review the request again before sending.';
   if (/gig/.test(m))
@@ -8165,7 +9038,8 @@ function renderChat() {
   if (!chatLog.length) { feed.innerHTML = ''; saveChat(); return; }
   feed.innerHTML = chatLog.map(m =>
     m.role === 'note'
-      ? `<div class="cnote">${esc(m.content)}</div>`
+      ? `<div class="cnote${m.err ? ' cerr' : ''}">${esc(m.content)}${
+          m.err ? ` <button class="reportbtn">Report a problem</button>` : ''}</div>`
       : m.role === 'offer'
       ? `<div class="cnote">${esc(m.content)} <button class="small" data-said="${esc(m.action)}">${esc(m.label)}</button></div>`
       : `<div class="cmsg ${m.role}"><span class="cwho">${
@@ -8314,8 +9188,66 @@ function namDropSetup() {
   ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => {
     stop(e); zone.classList.remove('dropping');
   }));
-  zone.addEventListener('drop', e => runNamIntake(Array.from(e.dataTransfer.files || [])));
+  zone.addEventListener('drop', e => {
+    // #227: a picture goes to the rig reader; .nam captures to the intake.
+    const files = Array.from(e.dataTransfer.files || []);
+    const pic = files.find(f => PIC_TYPES.includes(f.type));
+    if (pic) { setPicture(pic); return; }
+    runNamIntake(files);
+  });
 }
+
+// --- #227: a picture of a rig in the request box --------------------------------
+// Paste it, drop it or attach it; it waits as a thumbnail until the request is
+// sent, then goes to the rig reader with whatever was typed as its note. The
+// server decides what the file really is from its bytes; this only filters.
+const PIC_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+const PIC_MAX = 10 * 1024 * 1024;
+let pendingPic = null;
+let picsReadable = true;
+
+function setPicture(file) {
+  if (!file || !PIC_TYPES.includes(file.type)) {
+    chatNote('Pictures can be PNG, JPEG or WebP.'); return;
+  }
+  if (file.size > PIC_MAX) {
+    chatNote('That picture is over 10 MB; save a smaller copy and try again.'); return;
+  }
+  if (!picsReadable) {
+    chatNote('Reading a picture needs the Claude CLI on this computer. Install it, '
+             + 'or type or paste the gear list instead.');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingPic = {name: file.name || 'pasted picture', data: String(reader.result)};
+    $('picthumb').src = pendingPic.data;
+    $('picname').textContent = pendingPic.name;
+    $('picchip').hidden = false;
+    $('prompt').focus();
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearPicture() {
+  pendingPic = null;
+  $('picchip').hidden = true;
+  $('picthumb').removeAttribute('src');
+  $('picfile').value = '';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  $('attachpic').addEventListener('click', () => $('picfile').click());
+  $('picfile').addEventListener('change', e => setPicture((e.target.files || [])[0]));
+  $('picremove').addEventListener('click', clearPicture);
+  $('prompt').addEventListener('paste', e => {
+    const item = Array.from((e.clipboardData || {}).items || [])
+      .find(i => i.kind === 'file' && PIC_TYPES.includes(i.type));
+    if (!item) return;                 // text pastes behave exactly as before
+    e.preventDefault();
+    setPicture(item.getAsFile());
+  });
+});
 
 function namLibraryKnown() {
   try { return JSON.parse(localStorage.getItem('namLibrary') || '[]'); }
@@ -8820,7 +9752,7 @@ function renderInstallFound(presets, cabs) {
       const out = row.querySelector('.instout');
       out.hidden = false;
       out.className = 'instout foundout busy';
-      out.innerHTML = '<span class="spin">◍</span> Transmitting to the FM9, '
+      out.innerHTML = `<span class="spin">◍</span> Transmitting to the ${devName()}, `
         + 'then reading the slot back to verify...';
       btn.disabled = true;
       workAnnounce(`INSTALLING "${name}" to slot ${sel ? sel.label : slot}...`,
@@ -9012,7 +9944,7 @@ async function streamPlan(payload) {
         chatQueued = '';
         chatCount = typeof d === 'number' ? d : d.n;
         const kind = (d && d.kind) || '';
-        if (kind) workSay(`${chatCount}. ${kind.replace(/_/g, ' ')}`);
+        if (kind) workSay(`${chatCount}. ${kindWord(kind)}`);
         chatAlive = Date.now();
         renderChat();
       }
@@ -9085,8 +10017,8 @@ async function engage(prompt, name, scenes, wholeRig) {
     // Truthful now, not just reassuring: the server kills the planner
     // subprocess when the stream is abandoned, so nothing keeps burning in
     // the background and the next build starts clean.
-    chatNote(stopped ? 'Stopped. Nothing was built and nothing was sent.'
-                     : plainPlanError(e.message));
+    if (stopped) chatNote('Stopped. Nothing was built and nothing was sent.');
+    else chatNote(plainPlanError(e.message), true);
   } finally {
     chatWorking = '';
     if (document.body.contains(b)) { b.disabled = false; b.textContent = was; }
@@ -9777,7 +10709,7 @@ function sendProgress(d) {
       `<div id="sendprog" class="sendprog">
          <div class="sendbar"><i id="sendbarfill"></i></div>
          <div class="sendrow">
-           <span id="sendpct">Sending to the FM9...</span>
+           <span id="sendpct">Sending...</span>
            <button id="sendlogtoggle" type="button">show details</button>
          </div>
          <div id="sendlog" class="sendlog" hidden></div>
@@ -9790,7 +10722,7 @@ function sendProgress(d) {
     };
   }
   $('sendbarfill').style.width = pct + '%';
-  $('sendpct').textContent = `Sending to the FM9... ${pct}%`;
+  $('sendpct').textContent = `Sending to the ${devName()}... ${pct}%`;
   const lg = $('sendlog');
   const line = document.createElement('div');
   line.textContent = `${d.done}/${d.total}  ${d.ok ? '' : 'FAILED  '}${d.what}`;
@@ -9856,15 +10788,18 @@ async function apply() {
     renderWorking();
   };
   say(0);
-  planResult(`<span class="spin">◍</span> Sending to the FM9...`, 'busy');
-  chatWorking = 'sending to the FM9...';
+  planResult(`<span class="spin">◍</span> Sending to the ${devName()}...`, 'busy');
+  chatWorking = `sending to the ${devName()}...`;
   renderChat();
   try {
     const r = await fetch('/api/apply/stream', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         actions: currentPlan.actions,
-        expected_preset: currentPlan.device ? currentPlan.device.preset.number : null,
+        // A build with no preset under it (offline, or a device with no
+        // presets such as the IR-2) has device.preset null: nothing to expect.
+        expected_preset: (currentPlan.device && currentPlan.device.preset)
+          ? currentPlan.device.preset.number : null,
         // Same intent the plan was reviewed under, or the send would splice
         // block by block after a plan that promised a template.
         whole_rig: !!currentPlan.whole_rig,
@@ -9912,6 +10847,7 @@ async function apply() {
     const acted = out.results.filter(
       r => r.action && r.action.kind && r.action.kind !== 'snapshot'
         && r.action.kind !== 'build_chain');
+    const fidLine = currentPlan.fidelity ? fidelityReadBack(currentPlan.fidelity, acted, currentPlan.actions) : '';   // #228
     const good = acted.filter(r => r.ok).length;
     const bad = acted.length - good;
     // NAME the failures. The old banner pointed at one card folded inside
@@ -9947,14 +10883,20 @@ async function apply() {
         + `overwritten in flash, and UNDO does not cover a store.`
       : ' It is not saved to a preset yet.';
     chatWorking = '';
+    // A device with no store and no undo gets a result that says so, rather
+    // than the FM9's promise of STORE PRESET and UNDO.
+    const tail = devNamed()
+      ? ' There is no undo on this device: ask for the old sound to go back.'
+      : (stored.length ? bufferNote
+                       : ` Nothing is stored in the preset until you choose `
+                         + `STORE PRESET, and UNDO puts the previous sound back.`);
     chatNote(bad
       ? `Sent ${good} of ${acted.length} change${acted.length === 1 ? '' : 's'} `
-        + `to the FM9.${failLine}`
-        + bufferNote
-      : `Sent ${good} change${good === 1 ? '' : 's'} to the FM9. Play it.`
-        + (stored.length ? bufferNote
-                         : ` Nothing is stored in the preset until you choose `
-                           + `STORE PRESET, and UNDO puts the previous sound back.`));
+        + `to the ${devName()}.${failLine}`
+        + (devNamed() ? tail : bufferNote)
+      : `Sent ${good} change${good === 1 ? '' : 's'} to the ${devName()}. Play it.`
+        + tail);
+    if (fidLine) chatNote(fidLine);
     // Auto health after a build (issue #51): clone/dead/silent scenes the
     // plan-time review cannot see, because the final grid is the starter
     // template plus the plan. Surfaced here so a duplicate footswitch is
@@ -9992,7 +10934,9 @@ async function apply() {
       ? `SENT ${good} OF ${acted.length}. Failed: ${failures[0] || 'see the plan panel'}`
       : (stored.length
           ? `DONE: ${good} change${good === 1 ? '' : 's'} sent and stored to slot ${storedWhere}. The preset is ready; play it.`
-          : `DONE: ${good} change${good === 1 ? '' : 's'} on the FM9. Play it; UNDO puts it back.`),
+          : devNamed()
+            ? `DONE: ${good} change${good === 1 ? '' : 's'} on the ${devName()}. Play it. No undo here.`
+            : `DONE: ${good} change${good === 1 ? '' : 's'} on the FM9. Play it; UNDO puts it back.`),
       bad ? 'part' : 'ok');
     sendPhase(bad ? `PARTIAL · ${good} OF ${acted.length} VERIFIED`
                   : `COMPLETE · ${good} OF ${acted.length} VERIFIED`);
@@ -10014,11 +10958,16 @@ async function apply() {
     planResult(bad
       ? `<b>Sent ${good} of ${acted.length}.</b>${esc(failLine)} `
         + `The failed card${bad === 1 ? ' is' : 's are'} marked below.`
-        + (stored.length
+        + (devNamed()
+            ? ' There is no undo on this device.'
+            : stored.length
             ? esc(bufferNote)
             : ` Nothing was stored to flash; UNDO covers what landed.`)
-      : `<b>Sent ${good} change${good === 1 ? '' : 's'} to the FM9.</b> `
-        + (stored.length
+      : `<b>Sent ${good} change${good === 1 ? '' : 's'} to the ${esc(devName())}.</b> `
+        + (devNamed()
+            ? 'Play it now. There is no undo on this device: ask for the old '
+              + 'sound to go back.'
+            : stored.length
             ? `Play it.` + esc(bufferNote)
             : `Play it now. Nothing is saved to `
               + `the preset until you choose STORE PRESET, and UNDO puts it back.`),
@@ -10031,7 +10980,7 @@ async function apply() {
     const plain = plainDeviceError(e.message);
     chatWorking = '';
     planResult(`<b>Nothing was sent.</b> ${esc(plain)}`, 'bad');
-    chatNote(`Nothing was sent. ${plain}`);
+    chatNote(`Nothing was sent. ${plain}`, true);
     workAnnounce(`NOTHING SENT: ${plain}`, 'bad');
     sendPhase('FAILED · NOTHING VERIFIED');
     $('sendfoot').hidden = false;
@@ -10040,7 +10989,9 @@ async function apply() {
     planSending = false;
     stopChatTicker();
     renderWorking();
-    $('apply').innerHTML = 'SEND TO FM9';
+    // Rewrites the label after the arm countdown. Hardcoding FM9 here undid
+    // the device-aware label the moment the button armed.
+    $('apply').textContent = `SEND TO ${sendTargetLabel()}`;
     $('apply').disabled = false; $('discard').disabled = false;
     currentPlan = null;
     clearAffected();
@@ -10277,7 +11228,13 @@ const KIND_INTENT = {
 function intentGroups(plan) {
   const groups = new Map();
   for (const a of plan.actions || []) {
-    const key = a.kind === 'set_param'
+    // A named-parameter change is one row per parameter. Grouping by kind
+    // folded all seven into a single row headed "SET_DEVICE_PARAM", with the
+    // first change's reason truncated across it: the player could read none
+    // of what was about to happen to their pedal.
+    const key = a.kind === 'set_device_param'
+      ? String(a.param || 'SETTING').toUpperCase()
+      : a.kind === 'set_param'
       ? `VOICE ${a.block || 'BLOCK'} ${a.instance || 1}`.toUpperCase()
       : (KIND_INTENT[a.kind] || (a.kind || 'CHANGE').toUpperCase());
     if (!groups.has(key)) groups.set(key, []);
@@ -10340,7 +11297,9 @@ function renderPlanStage() {
         : '');
   $('planintents').innerHTML = [...groups.entries()].map(([name, list]) => {
     const first = list[0] || {};
-    const outcome = first.reason || describe(first);
+    const target = first.kind === 'set_device_param'
+      ? `to ${first.type_name != null ? first.type_name : first.value}. ` : '';
+    const outcome = target + (first.reason || describe(first));
     const blocked = list.some(a => (a.validation_errors || []).length);
     const inferred = list.some(a => (a.validation_warnings || []).length);
     const state = blocked ? 'BLOCKED' : (inferred ? 'CHECK' : 'GROUNDED');
@@ -10932,9 +11891,78 @@ async function renderCabPanel() {
 
 // --- CONFIRM stage: arm, then send ----------------------------------------
 
+// The device a send goes to, for every label that names it. Five separate
+// places said "FM9" literally, so the confirm screen read SEND TO FM9 with an
+// IR-2 selected. One function means the next label cannot drift.
+// Every user-facing sentence about a send names the device it went to and
+// claims only what that device can do. The send path said "the FM9" in nine
+// places and promised UNDO and STORE PRESET on a pedal that has neither,
+// which is the overstated confirmation this project's own comments warn
+// teaches people to stop believing confirmations.
+// A streamed action kind, in words. The raw kind read "set device param"
+// six times in the log; the review screen shows each parameter by name, so
+// during the stream a plain word is enough and does not leak an internal name.
+const KIND_WORDS = {set_device_param: 'setting'};
+function kindWord(k) { return KIND_WORDS[k] || String(k).replace(/_/g, ' '); }
+
+function devName() {
+  return (lastState && lastState.device_params && deviceState && deviceState.label)
+    || 'FM9';
+}
+function devNamed() { return !!(lastState && lastState.device_params); }
+
+function sendTargetLabel() {
+  return ((lastState && lastState.device_params && deviceState && deviceState.label)
+          || 'FM9').toUpperCase();
+}
+
+// The gig-lock notice on the confirm screen. One definition, because the
+// device-aware confirm path copied it and declared the exit button's id twice.
+function renderGigLockWhy() {
+  const locked = gigOn === true;
+  $('giglockwhy').hidden = !locked;
+  if (locked) {
+    $('giglockwhy').innerHTML = 'GIG LOCK is on: transmission is blocked. '
+      + 'It never exits on its own. '
+      + '<button id="exitgig">EXIT GIG LOCK</button>';
+    $('exitgig').onclick = () => toggleGig();
+  }
+}
+
 function renderConfirmStage() {
   if (!currentPlan) return;
   const n = currentPlan.actions.length;
+  // The last screen before your pedal changes. On a named-parameter device
+  // it said "UNDO READY", "changes the FM9", "SEND TO FM9" and "No other
+  // scene moves": every fact on the final check was about a different
+  // device, and the recovery line promised a safety net that did not exist.
+  if (lastState && lastState.device_params) {
+    const label = (deviceState && deviceState.label) || 'the device';
+    const amp = (lastState.device_params || []).find(r => (r.options || []).length);
+    $('cintro').textContent = `One final check before ToneCommand changes the ${label}.`;
+    const facts = [
+      ['TARGET', `${esc(label)} · ${esc(amp ? String(amp.value) : 'current sound')}`],
+      ['SCOPE', `${n} setting${n === 1 ? '' : 's'}`],
+      ['DESTINATION', `${esc(label)} · APPLIED LIVE`],
+      ['RECOVERY', '<span class="warn">NO UNDO</span>'],
+    ];
+    $('cfacts').innerHTML = facts.map(([l, v]) =>
+      `<div class="cfact"><div class="cfl">${l}</div>
+       <div class="cfv">${v}</div></div>`).join('');
+    $('cblast').textContent = 'This pedal has no scenes: these settings are the '
+      + 'whole sound. There is no undo, so note the current values if you may '
+      + 'want them back.';
+    $('acklabel').textContent = 'I reviewed these changes';
+    $('apply').textContent = `SEND TO ${sendTargetLabel()}`;
+    renderGigLockWhy();
+    $('ack').checked = false;
+    $('armbtn').disabled = true;
+    disarmSend();
+    return;
+  }
+  $('cintro').textContent = 'One final check before ToneCommand changes the FM9.';
+  $('acklabel').textContent = 'I reviewed the target and affected scenes';
+  $('apply').textContent = 'SEND TO FM9';
   const scenes = affectedScenes.size;
   const dev = currentPlan.device && currentPlan.device.preset;
   const stores = currentPlan.actions.filter(a => a.kind === 'store');
@@ -10959,14 +11987,7 @@ function renderConfirmStage() {
     ? `SCENE${hit.length > 1 ? 'S' : ''} ${hit.join(', ')} WILL ALSO CHANGE: `
       + `they share a channel with what this plan edits.`
     : 'No other scene moves: nothing here crosses a shared channel.';
-  const locked = gigOn === true;
-  $('giglockwhy').hidden = !locked;
-  if (locked) {
-    $('giglockwhy').innerHTML = 'GIG LOCK is on: transmission is blocked. '
-      + 'It never exits on its own. '
-      + '<button id="exitgig">EXIT GIG LOCK</button>';
-    $('exitgig').onclick = () => toggleGig();
-  }
+  renderGigLockWhy();
   $('ack').checked = false;
   $('armbtn').disabled = true;
   disarmSend();
@@ -10990,11 +12011,11 @@ $('armbtn').onclick = () => {
   $('apply').hidden = false;
   $('armhint').hidden = false;
   armLeft = 8;
-  $('apply').textContent = `SEND TO FM9 · ${armLeft}`;
+  $('apply').textContent = `SEND TO ${sendTargetLabel()} · ${armLeft}`;
   armTimer = setInterval(() => {
     armLeft -= 1;
     if (armLeft <= 0) { disarmSend(); return; }
-    $('apply').textContent = `SEND TO FM9 · ${armLeft}`;
+    $('apply').textContent = `SEND TO ${sendTargetLabel()} · ${armLeft}`;
   }, 1000);
 };
 
@@ -11039,6 +12060,34 @@ function renderStageRail() {
   $('preflightcard').hidden = !showPlanCards;
   $('reversecard').hidden = !showPlanCards;
   if (!showPlanCards) return;
+  // A device with named parameters has no scenes, no preset to pin, and no
+  // undo snapshot (its state cannot be captured through the FM9's scene
+  // path). This panel used to tell an IR-2 user "UNDO ready", "FM9
+  // connected" and "Undo available after send": three claims, all false,
+  // one of them a safety net that did not exist. Say what is true instead.
+  if (lastState && lastState.device_params) {
+    const label = (deviceState && deviceState.label) || 'the device';
+    const n = currentPlan.actions.length;
+    $('blastbody').innerHTML = `${n} setting${n === 1 ? '' : 's'} on the ${esc(label)}. `
+      + 'No scenes: this is the whole sound.';
+    const blocked = currentPlan.actions.filter(
+      a => (a.validation_errors || []).length).length;
+    const drows = [
+      [blocked === 0, blocked === 0 ? 'Ready to send'
+        : `${blocked} change${blocked === 1 ? '' : 's'} BLOCKED`],
+      [!off, off ? `Reconnect the ${label} first` : `${label} connected`],
+      [gigOn !== true, gigOn === true ? 'GIG LOCK blocks transmission'
+                                      : 'Every change read back'],
+    ];
+    // The no-undo caveat goes FIRST. At the bottom it was clipped by the
+    // column on a 700px window, first as a separate card and then as the last
+    // line here, which hid the one caveat that matters before you press send.
+    $('preflightbody').innerHTML = `<div class="warn">! No undo on this device</div>`
+      + drows.map(([ok, text]) =>
+        `<div class="${ok ? 'ok' : 'bad'}">${ok ? '✓' : '✗'} ${esc(text)}</div>`).join('');
+    $('reversecard').hidden = true;
+    return;
+  }
   const hit = [...affectedScenes].sort((a, b) => a - b);
   $('blastbody').innerHTML = hit.length
     ? hit.map(x => `<span class="schip">${x}</span>`).join('')
@@ -11096,6 +12145,17 @@ function requestRoute(text) {
 async function submitRequest() {
   if (chatBusy) return;
   const said = $('prompt').value.trim();
+  // #227: a picture is read like any other source; the words are its note.
+  if (pendingPic) {
+    const pic = pendingPic;
+    chatLog.push({role: 'user', content: (said ? said + ' ' : '') + `[picture: ${pic.name}]`});
+    $('prompt').value = '';
+    growPrompt();
+    renderChat();
+    clearPicture();
+    analyzeSource(said, pic);
+    return;
+  }
   if (!said) return;
   // an artist's name goes to the catalog first (#158); only when no pack
   // exists does the sentence continue to the planner, with the line shown
@@ -11219,7 +12279,85 @@ $('openamp').onclick = () => selectBlock('DISTORT');
 
 // --- utility drawers ------------------------------------------------------
 
+let fm3PortBusy = false;
+let fm3PortFixed = false;
+let fm3PortLoad = 0;
+function updateFM3PortControls() {
+  $('fm3port').disabled = fm3PortBusy || fm3PortFixed;
+  $('fm3portsave').disabled = fm3PortBusy || fm3PortFixed || !$('fm3port').value
+    || $('fm3port').selectedOptions[0].disabled;
+}
+async function loadFM3Port() {
+  if (fm3PortBusy) return;
+  const load = ++fm3PortLoad;
+  fm3PortBusy = true;
+  updateFM3PortControls();
+  $('fm3portstatus').textContent = 'Loading MIDI ports...';
+  try {
+    const r = await fetch('/api/fm3/port');
+    if (!r.ok) throw new Error('load failed');
+    const d = await r.json();
+    if (load !== fm3PortLoad) return;
+    fm3PortFixed = d.fixed || d.source === 'env';
+    const picker = $('fm3port');
+    picker.replaceChildren(new Option('Choose a MIDI interface port', ''));
+    for (const port of d.ports) picker.add(new Option(port, port));
+    if (d.port && !d.ports.includes(d.port)) {
+      const missing = new Option(d.port + ' (not available)', d.port);
+      missing.disabled = true;
+      picker.add(missing);
+    }
+    picker.value = d.port || '';
+    $('fm3portreason').textContent = fm3PortFixed
+      ? 'This port is fixed by TONECOMMAND_FM3_PORT in the environment. It cannot be changed here.'
+      : 'Choose the interface connected to your FM3, then Save.';
+    $('fm3portstatus').textContent = d.port && !d.ports.includes(d.port)
+      ? 'The saved FM3 port is not available. Check that your MIDI interface is connected.'
+      : d.ports.length ? '' : 'No MIDI ports found. Connect your USB MIDI interface, then reopen Devices.';
+  } catch (_) {
+    fm3PortFixed = true;
+    $('fm3portreason').textContent = '';
+    $('fm3portstatus').textContent = 'Could not load MIDI ports. Reopen Devices to try again.';
+  } finally {
+    fm3PortBusy = false;
+    updateFM3PortControls();
+  }
+}
+$('fm3port').onchange = updateFM3PortControls;
+$('fm3portsave').onclick = async () => {
+  if (fm3PortBusy || fm3PortFixed || $('fm3portsave').disabled) return;
+  fm3PortBusy = true;
+  updateFM3PortControls();
+  $('fm3portstatus').textContent = 'Saving FM3 port...';
+  try {
+    const r = await fetch('/api/fm3/port', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({port: $('fm3port').value}),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok) {
+      if (r.status === 409) {
+        fm3PortFixed = true;
+        $('fm3portreason').textContent = 'This port is fixed by TONECOMMAND_FM3_PORT in the environment. It cannot be changed here.';
+      }
+      $('fm3portstatus').textContent = d.error || 'Could not save the FM3 port. Reopen Devices to try again.';
+      return;
+    }
+    $('fm3portstatus').textContent = d.reconnected
+      ? 'FM3 port saved and reconnected.'
+      : 'FM3 port saved. Choose FM3 in the device picker to connect.';
+    ++deviceGen;
+    await refresh();
+  } catch (_) {
+    $('fm3portstatus').textContent = 'Could not confirm the FM3 port was saved. Reopen Devices to check it.';
+  } finally {
+    fm3PortBusy = false;
+    updateFM3PortControls();
+  }
+};
+
 const DRAWERS = {
+  devices: ['DEVICES', 'shdevices'],
   diagnostics: ['DIAGNOSTICS', 'shdiag'],
   library: ['LIBRARY', 'shlib'],
   storage: ['STORAGE · STORE PRESET', 'shstore'],
@@ -11232,6 +12370,7 @@ function openDrawer(name) {
   if (!(name in DRAWERS)) return;
   drawerOpen = name;
   if (name === 'storage') renderArtists();
+  if (name === 'devices') loadFM3Port();
   $('drawer').hidden = false;
   $('drawer').dataset.draw = name;
   $('drawtitle').textContent = DRAWERS[name][0];

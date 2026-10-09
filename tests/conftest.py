@@ -61,6 +61,11 @@ def isolated_env(tmp_path, monkeypatch):
                        str(tmp_path / "store_slots.json"))
     # A persisted provider choice must never send a test to a real account.
     monkeypatch.setenv("TONECOMMAND_AI_SETTINGS", str(tmp_path / "ai_settings.json"))
+    monkeypatch.setenv('TONECOMMAND_TONE3000_DIR',str(tmp_path / 'afx3-tone3000'))
+    monkeypatch.setenv('TONECOMMAND_NAM_BACKUP_DIR',str(tmp_path / 'nam-backups'))
+    from devices.axefx3 import tone3000 as afx3_tone3000
+    monkeypatch.delenv('TONECOMMAND_TONE3000_CLIENT_ID',raising=False)
+    monkeypatch.setattr(afx3_tone3000,'build_opener',lambda *a,**kw: (_ for _ in ()).throw(AssertionError('Offline test reached Tone3000 network')))
     # Fourth time, same lesson, and this one hangs rather than corrupts. Tests
     # reach get_fm9(), which opens the real MIDI port when one is there. With
     # the app running and holding that port, the whole suite blocks: it ran
@@ -131,3 +136,48 @@ def _no_hardware_in_device_discovery(monkeypatch):
     """
     import server
     monkeypatch.setattr(server, "_ir2_port_present", lambda: False)
+    # #209: the detected list reads the same bus, so it is off for the same
+    # reason; tests/test_device_catalog.py turns the real one back on.
+    monkeypatch.setattr(server, "detected_devices", lambda: [])
+    # #212: Report a problem lists the MIDI ports; with the real bus behind
+    # it every report-building test depended on the machine (and aborted in
+    # a sandbox with no MIDI service). tests/test_report_bus.py puts it back.
+    from types import SimpleNamespace
+    from fm9 import diagnostics
+    monkeypatch.setattr(diagnostics, "_midi", lambda: SimpleNamespace(
+        port_names=lambda *a, **k: [], output_names=lambda *a, **k: []))
+
+
+# --- #196: one CI shard of the suite ------------------------------------------
+# `--shard I/N` keeps the files tests/shard.py deals to shard I and deselects
+# the rest. The deal depends only on the collected node ids, so every xdist
+# worker computes the same one. CI's account job proves the shards together
+# executed exactly the collection.
+
+def pytest_addoption(parser):
+    parser.addoption("--shard", default=None, metavar="I/N",
+                     help="run shard I (0-based) of N: whole files, count-balanced (#196)")
+
+
+def _shard_module():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "tonecommand_test_shard", Path(__file__).with_name("shard.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def pytest_collection_modifyitems(config, items):
+    spec = config.getoption("--shard")
+    if not spec:
+        return
+    shard = _shard_module()
+    index, total = shard.parse(spec)
+    counts = shard.counts_of(i.nodeid for i in items)
+    mine = set(shard.deal(counts, total, shard.load_weights())[index])
+    keep = [i for i in items if shard.file_of(i.nodeid) in mine]
+    dropped = [i for i in items if shard.file_of(i.nodeid) not in mine]
+    if dropped:
+        config.hook.pytest_deselected(items=dropped)
+    items[:] = keep

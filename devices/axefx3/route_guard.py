@@ -74,7 +74,8 @@ def serial_route(cells, status, reg) -> list[int]:
             continue
         eid = None
         if not c.is_shunt:
-            candidates = [e for e in present if e % 128 == c.effect_id % 128]
+            # The FX3 parser keeps the complete effect ID, including NAM206.
+            candidates = [e for e in present if e == c.effect_id]
             if len(candidates) != 1:
                 raise GuardError("Ambiguous or unreadable grid block.")
             eid = candidates[0]
@@ -126,7 +127,7 @@ def serial_route(cells, status, reg) -> list[int]:
 
 def labels(ids, reg) -> list[str]:
     friendly = {"DISTORT": "Amp", "CABINET": "Cab", "FUZZ": "Drive",
-                "COMP": "Compressor", "GEQ": "GEQ", "PEQ": "PEQ"}
+                "COMP": "Compressor", "GEQ": "GEQ", "PEQ": "PEQ", "NAM": "NAM"}
     return [f"{friendly.get(f, f.title())} {i}" for f, i in
             (reg.family_of_effect_id(e) for e in ids)]
 

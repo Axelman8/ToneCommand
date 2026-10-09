@@ -9,7 +9,7 @@ import math
 from numbers import Real
 
 from fm9 import protocol as shared
-from . import audio_safety
+from . import audio_safety, fw33_profile
 from .evidence import (AXE_FX_III_32_06_ZERO_NORMALIZED,
                        AXE_FX_III_32_06_ZERO_TYPED,
                        AXE_FX_III_CAB_MIX_PARAMS)
@@ -63,6 +63,10 @@ def set_parameter(registry: Registry, spec: ParamSpec, value: float) -> list[int
         wire = shared.display_to_normalized(value, spec.dmin, spec.dmax, spec.scale)
         return param_frame(spec.effect_id, spec.param_id, wire, opcode=int(spec.set_opcode, 16))
     if value == 0:
+        if registry.firmware == fw33_profile.KEY:
+            if spec.name not in fw33_profile.ZERO_TYPED:
+                raise ValueError('No measured FW33 exact-zero setter')
+            return param_frame(spec.effect_id, spec.param_id, 0, opcode=0x09)
         if spec.name in AXE_FX_III_32_06_ZERO_TYPED or spec.name in AXE_FX_III_CAB_MIX_PARAMS:
             return param_frame(spec.effect_id, spec.param_id, 0, opcode=0x09)
         if spec.name not in AXE_FX_III_32_06_ZERO_NORMALIZED:
@@ -71,6 +75,26 @@ def set_parameter(registry: Registry, spec: ParamSpec, value: float) -> list[int
                            AXE_FX_III_32_06_ZERO_NORMALIZED[spec.name], opcode=0x52)
     return param_frame(spec.effect_id, spec.param_id, value / spec.set_divisor,
                        opcode=int(spec.set_opcode, 16))
+
+
+def parse_grid_layout(data):
+    """FX3 full eight-bit IDs, preserving NAM206 separately from Chorus78."""
+    if (not valid_reply(data) or len(data) < 8 or data[4:6] != [1, shared.SUB_GRID_LAYOUT]):
+        return None
+    region_bytes = -(-(46 + shared.GRID_COLS * shared.GRID_ROWS * 32) // 7)
+    offset = len(data) - 1 - region_bytes
+    if offset < 349:
+        return None
+    region, cells = data[offset:-1], []
+    for col in range(shared.GRID_COLS):
+        for row in range(shared.GRID_ROWS):
+            base = 46 + col * shared.GRID_ROWS * 32 + row * 32
+            eid = shared._read_bits_msb(region, base - 1, 8)
+            shunt = shared._read_bits_msb(region, base + 8, 8) == 8
+            if eid or shunt:
+                cells.append(shared.GridCell(row, col, None if shunt else eid,
+                    shunt, shared._read_bits_msb(region, base + 16, 8)))
+    return cells
 
 
 def display_query(effect_id: int, param_id: int) -> list[int]:

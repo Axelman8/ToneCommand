@@ -1,4 +1,9 @@
 {
+ "fx3_blocks": [
+  {"file":"devices/axefx3/nam_install.py","function":"Installer.commit","ordinal":1,"disposition":"Native persistent installation errors fail closed, consume the preview and expose only the recovery path; never retry a write or return ok."},
+  {"file":"devices/axefx3/nam_install.py","function":"Installer.commit","ordinal":2,"disposition":"Only private account metadata persistence follows verified memory readback; failure adds a warning, never invents device success."},
+  {"file":"devices/axefx3/tone3000_routes.py","function":"callback","ordinal":1,"disposition":"OAuth exchange errors become a fixed 502 page with no token, authorization code or exception details; no MIDI in callback."}
+ ],
  "_comment": "Every 'except Exception' block in server.py by AST identity (enclosing function qualified name plus the ordinal of the block within that function). tests/test_capability_gates.py enforces exact correspondence and that each block either re-raises CapabilityDeclined first or states why a decline cannot reach it (#111).",
  "blocks": [
   {
@@ -90,6 +95,11 @@
    "function": "_describe_build_for",
    "ordinal": 3,
    "disposition": "unreachable: reg.resolve_block; no device handle in the try body"
+  },
+  {
+   "function": "_describe_build_for_device",
+   "ordinal": 1,
+   "disposition": "unreachable: wraps planner.plan with the device's own prompt and validator; no device handle in the try body (named_params is read before it)"
   },
   {
    "function": "_stream_response.events.runner",
@@ -394,6 +404,11 @@
   {
    "function": "api_device_select",
    "ordinal": 1,
+   "disposition": "unreachable: wraps _build_context only, which constructs an adapter and opens its ports; no gated adapter method runs, so no CapabilityDeclined can arise. A device that will not open is answered 503 in words, logged for Report a problem, and the current device is left as it was (#212)."
+  },
+  {
+   "function": "api_device_select",
+   "ordinal": 2,
    "disposition": "unreachable: wraps close() on the adapter being dropped, on DeviceAdapter, behind no gate"
   },
   {
@@ -432,9 +447,14 @@
    "disposition": "unreachable: wraps only current_preset on a handle the caller already obtained through get_fm9, and its callers run under the same gate that would have raised the decline before reaching here; a unit that does not answer means the state is not reset, never an error page (#104)"
   },
   {
-   "function": "_ir2_port_present",
+   "function": "detected_devices",
    "ordinal": 1,
-   "disposition": "unreachable: wraps MIDI port enumeration only; no adapter method and so no CapabilityDeclined can arise. A missing rtmidi binding must mean 'no IR-2 here', not a failed page."
+   "disposition": "unreachable: wraps the catalog's name-only recognition over MIDI port enumeration; no adapter method and so no CapabilityDeclined can arise. A missing MIDI binding must mean 'nothing detected', not a failed page (#209)."
+  },
+  {
+   "function": "_reconnect_device",
+   "ordinal": 1,
+   "disposition": "unreachable: wraps _build_context only, which constructs an adapter and opens its ports; no gated adapter method runs, so no CapabilityDeclined can arise. A device that will not open is reported as connected: false with the reason (#209)."
   },
   {
    "function": "api_state",
