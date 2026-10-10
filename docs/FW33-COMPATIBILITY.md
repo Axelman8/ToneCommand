@@ -330,3 +330,62 @@ and general graph execution remain separate acceptance steps.
 Mandatory device/capability/UI-warning plus changed adapter/grid/graph tests
 pass292 cases on Windows, four workers. This is a local synthetic regression,
 separate from the real12-frame movement replay and editor comparison above.
+
+### Complete row references, 2026-10-10
+
+The owner separately designates320 for measurement and starts from an empty
+grid. Left-to-right placement records Input1, Wah1, Drive1, Amp1, Cab1,
+Chorus1, Compressor1, Delay1, Enhancer1, Filter1, Flanger1, GEQ1, PEQ2 and
+Output1 on row1. Row2 has fourteen shunts. Each row has thirteen serial cables;
+row2 is intentionally detached and is not a playable complete signal path.
+
+All82 relevant outgoing selection/insert/connect frames match the retained
+reference. Screenshot and main-grid UIA confirm28 cells; Quick Build palette
+entries are excluded from the actual grid. After the owner closes Axe-Edit,
+native read-only inspection independently verifies every effect ID, shunt and
+cable mask, including all26 connections. All14 full four-channel block bulks,
+32 modifier records and eight scene-name replies are read. Two complete native
+snapshots are identical, with no write or Store. Exact firmware remains
+33.00-beta.20261006; the on-screen shortened version alone is not sufficient.
+
+Twenty cables match the existing shared FM9 builder exactly. Six row1 cables
+from even columns are explicitly undecoded by that shared builder; the actual
+FX3 frames are retained literally, not generalized to other coordinates or
+promoted into FM9 hardware support. Shunt INSERT IDs1024-1037 and payload6 are
+retained as observed in this sequence. Effect INSERT payloads are distinct
+from their separately selected grid cursor positions.
+
+The reference alone does not authorize writes. Ordinary FW33 transport and
+public graph-write capabilities remain blocked for these frames. Existing
+scene, model, parameter, feedback and storage guards are unchanged.
+
+### Exact two-row native round trip, 2026-10-10
+
+A separate user-operated removal capture records all26 cable disconnects and
+28 selected deletions. Its82 frames exactly match the removal reference.
+Read-only main-grid UIA confirms all84 positions empty afterwards. The owner
+closes Axe-Edit and reconfirms external audio muted before native execution.
+
+A developer-only probe starts from empty320, exact FW33 MK2 and a confirmed
+edit session. Every step is tied to the captured ordered frame and a freshly
+read whole-grid prestate. Writes settle, then independent grid reads verify
+the entire expected poststate. An exception, mismatch or changed target
+consumes the probe; no unknown write retry or automatic restore. Its temporary
+permit enables only this164-frame sequence, not an AI/API/SEND capability.
+
+Actual native execution verifies28 placements,26 connects,26 disconnects and
+28 deletions, with56 cursor selections. After each of the108 grid mutations,
+complete native snapshots verify all existing four-channel block bulks/status,
+32 modifiers, eight scene-name replies, preset/scene identity and referenced
+NAM memory hash. Both constructed rows match the independent Axe-Edit/grid
+reference. Final complete state equals the original empty baseline. No Store,
+model, level, global or NAM/IR memory write is sent. Newly inserted blocks use
+their device defaults; this is not restoration of deleted musical settings.
+
+Mandatory device/capability/UI-warning and changed adapter/grid tests pass309
+cases locally; another86 graph, topology, packaging and maintenance tests pass.
+These synthetic tests are separate from the actual native replay. After native
+MIDI is released, the owner reopens Axe-Edit; independent screenshot and UIA
+inspection confirm320 and all84 main-grid cells empty. Branch/fan-in measurements,
+general state-bound graph execution and GUI/SEND integration are still needed
+before public free-chain construction. No musical or physical loudness proof.

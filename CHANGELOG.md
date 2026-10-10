@@ -4,6 +4,13 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Verify an exact FW33 developer two-row round trip on owner-designated320:
+  fourteen effect blocks, fourteen shunts and twenty-six cables, followed by
+  disconnect and deletion. Native replay checks all164 ordered frames, whole
+  grid and preserved block words/status, modifiers, names and NAM hash. Six
+  row1/even-column cables retain captured literals rather than an undecoded
+  FM9 formula. Final complete state equals the empty baseline; no Store.
+  This does not enable public free-chain writes, alter FM9 or widen storage.
 - Verify an isolated FW33 Compressor1 movement round trip on preset324 using
   independently captured right/down/up/left commands. Native readback checks
   all four-channel Compressor words and status after each move, plus the
