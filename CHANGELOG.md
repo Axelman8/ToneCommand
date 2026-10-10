@@ -4,6 +4,14 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Extend the isolated FW33 developer grid fixture with the independently
+  captured row5-to-row6 diagonal cable and native ten-frame replay on324.
+  Original routing, bulks,32 modifiers and scene names remain unchanged;
+  nothing is stored. This does not enable arbitrary grid writes in the UI.
+- Add a read-only free-chain contract with explicit cells/connections and a
+  full-snapshot fingerprint. It reports block/shunt additions/removals, moves,
+  cable rewiring and affected modifiers without flattening parallel branches
+  or treating moves as delete/recreate. No SEND token or execution endpoint.
 - Add read-only FX3 topology validation for complete serial/parallel graphs,
   preserving branch edges and rejecting disconnected, dangling and feedback
   paths. It is not a firmware-wide grid-writing capability. Independent

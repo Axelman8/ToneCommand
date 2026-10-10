@@ -257,3 +257,45 @@ supported cable geometries and safe branch/move operations; verify each native
 operation; then add a state-bound graph review and executor/GUI integration.
 Current public FW33 builds remain confined to the accepted NAM route. Numeric
 and model/controller availability remain separate from topology capability.
+
+### Subsequent diagonal measurement and graph planning
+
+The owner subsequently placed Compressor1 at row5/column1 and Drive1 at
+row6/column2, connected them diagonally, removed the cable and deleted both.
+The passive trace captures all ten operations with valid FX3 checksums. The
+insert payloads are identical to the earlier fixture despite the different
+Drive cursor position. Cable add/remove matches the shared FM9 builder for
+this geometry. No incoming trace buffers are claimed.
+
+After the user closed Axe-Edit, TC natively replayed all ten exact frames on
+324. Full grid and every original block bulk, status,32 modifier records,
+scene names and referenced NAM hash are independently checked after each step.
+Final complete snapshot equals the baseline, with no Store, model/level,
+global or memory writes. Only this developer fixture is extended; free-grid
+UI/planner execution is still gated. Post-replay editor comparison is pending.
+
+The next source seam is a read-only explicit graph contract. Proposed cells
+use one-based positions plus a named block/instance or an explicit shunt;
+cables name both adjacent endpoints. It refuses duplicates, undeclared cells,
+missing paths, feedback blocks and incomplete device snapshots. The report
+fingerprints the full baseline and lists differences and affected modifier
+slots. A move remains a move with full-state preservation required; rewiring
+around replaced nodes is reported even when cable coordinates are unchanged.
+The list is not a safe transmission order, has no SEND token and cannot
+authorize writes or overwrite blocks. Quiet staging and parameter/scene/
+modifier preservation still need an independently accepted graph executor.
+
+Actual read-only TC inspection of parallel324 verifies zero changes for the
+identical graph and a three-operation extra Compressor branch proposal. The
+proposal writes nothing and preserves the complete before/after device state.
+The first read-only check exposed the real numbered, blank scene-name replies;
+validation and regression now accept those complete replies, not invented
+nonempty scene names. Private traces/reports remain outside Git.
+
+Final mandatory device/capability/UI-warning plus changed adapter/grid/graph
+regression passes286 tests on Windows, four workers. These tests do not promote
+the proposed graph operations into general FW33 hardware capabilities.
+Subsequent packaging/maintenance and graph/fixture regression passes107 tests.
+A local wheel build includes all three new grid/graph modules and excludes
+private KB/backups. This is a package-content check, not an installed GUI or
+remote CI claim; the upstream wheel resource/startup boundary remains unchanged.

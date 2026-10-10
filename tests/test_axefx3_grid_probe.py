@@ -15,7 +15,7 @@ def device():
                            _grid_probe_permit=None)
 
 
-@pytest.mark.parametrize('frame',grid_probe.frames())
+@pytest.mark.parametrize('frame',grid_probe.frames()+grid_probe.frames(6))
 def test_fixture_requires_exact_permit_and_current_target(frame):
     dev=device()
     assert not grid_probe.allowed(dev,frame)
@@ -63,6 +63,21 @@ def test_captured_cable_matches_shared_fm9_builder_exactly():
         'f0 00 01 74 10 01 35 00 00 00 00 00 02 00 00 00 00 00 00 02 00 02 02 40 61 f7')
 
 
+def test_captured_diagonal_matches_fm9_builder_without_new_insert_guess():
+    assert grid_probe.frames()[1]==grid_probe.frames(6)[1]
+    assert grid_probe.frames()[3]==grid_probe.frames(6)[3]
+    assert bytes(grid_probe.frames(6)[4]).hex(' ')==(
+        'f0 00 01 74 10 01 35 00 00 00 00 00 01 00 00 00 00 00 00 02 00 02 02 60 42 f7')
+    assert bytes(grid_probe.frames(6)[5]).hex(' ')==(
+        'f0 00 01 74 10 01 35 00 00 00 00 00 02 00 00 00 00 00 00 02 00 02 02 60 41 f7')
+
+
+@pytest.mark.parametrize('row',[0,4,7,True,None])
+def test_unmeasured_geometry_is_refused(row):
+    with pytest.raises(ValueError):grid_probe.frames(row)
+    with pytest.raises(ValueError):grid_probe.delete(2,row=row)
+
+
 @pytest.mark.parametrize('fault',['unselected','occupied','duplicate','cable','other_block'])
 def test_probe_rejects_unsafe_fixture_state_before_transport(fault):
     dev=device();dev._check_edit_target=lambda:None
@@ -94,3 +109,42 @@ def test_transport_still_refuses_unreviewed_fixture_frames(fault):
         dev._approved_frame=dev._grid_probe_permit=tuple(frame)
     with pytest.raises(PermissionError):AxeFxIII._send(dev,frame)
     dev.outp.send.assert_not_called()
+
+
+@pytest.mark.parametrize('dest_row',[5,6])
+def test_complete_captured_sequence_consumes_selection_and_retains_other_cells(dest_row):
+    dev=device();dev._check_edit_target=lambda:None
+    # An unrelated existing cell must never be the target of a fixture write.
+    original=shared.GridCell(2,8,58,False,0)
+    cells=[original];selected=None;written=[]
+    dev.read_grid=lambda:cells
+    def write(frame):
+        nonlocal selected
+        assert grid_probe.allowed(dev,frame)
+        written.append(frame)
+        sub=frame[6]
+        if sub==0x30:
+            c,r=divmod(sum(v<<(7*i) for i,v in enumerate(frame[12:17])),6)
+            selected=(r,c)
+        elif sub==0x32:
+            cells.append(shared.GridCell(*selected,frame[8],False,0))
+        elif sub==0x35:
+            target=next(c for c in cells if (c.row,c.col)==(dest_row-1,1))
+            target.cable_in_mask=32 if frame[12]==1 else 0
+        elif sub==0x33:
+            cells[:]=[c for c in cells if (c.row,c.col)!=selected]
+    dev._write=write
+    for frame in grid_probe.frames(dest_row):
+        grid_probe.write(dev,frame)
+        assert dev._grid_probe_permit is None
+    assert len(written)==10 and cells==[original]
+
+
+def test_diagonal_delete_refuses_outgoing_row6_source_mask():
+    dev=device();dev._check_edit_target=lambda:None
+    cells=[shared.GridCell(5,1,118,False,0),shared.GridCell(2,2,58,False,64)]
+    dev.read_grid=lambda:cells;dev._write=Mock()
+    dev._grid_probe_selection=((6,2),grid.snapshot(cells))
+    with pytest.raises(PermissionError,match='outgoing'):
+        grid_probe.write(dev,grid_probe.delete(2,row=6))
+    dev._write.assert_not_called()
