@@ -215,3 +215,45 @@ Arbitrary routing, CAB/model writes and controller bindings on FW33, physical
 audition and remote CI remain separate pending work. Axe-Edit is a comparison
 tool, not a dependency of the native installer or preset writer. Local traces,
 model files, private recovery exports and reports stay untracked.
+
+## Free-grid measurement checkpoint, 2026-10-10
+
+The user-operated Axe-Edit measurement was made on preset324 under external
+mute. This preset has a nonempty parallel rig despite its EMPTY name. The
+original rig and its wah/volume modifiers were preserved; two test blocks
+were placed separately on the empty fifth row, not connected to the output.
+
+- Exact outgoing frames capture Compressor1/Drive1 placement, their cable,
+  cable removal and both deletions. The cursor is encoded independently of
+  the insert payload. Captured insert payload positions differ from the
+  selected target; do not silently substitute a calculated insert position.
+- The cable add/remove bytes match the shared FM9 builder for this geometry,
+  with the FX3 envelope and checksum. This does not establish every coordinate
+  or block type, nor remove the shared builder's undecoded-coordinate limits.
+- Native TC repeats ten exact captured frames on324 with a developer-only
+  permit. Every step independently verifies the full grid and complete original
+  block bulks, status,32 modifiers, scene names and referenced NAM memory hash.
+  Final complete state equals the baseline. No Store, model/level write,
+  installation, global mapping, move or automatic rollback occurs.
+- After the native connection was released, the user reopened Axe-Edit.
+  Independent visible-grid inspection confirms the original parallel route,
+  block channels/bypass state and empty fifth row. The editor was not used
+  to apply or save TC's native test writes.
+- The fixture guard requires exact firmware, a muted preset-bound edit session,
+  fresh selection, absent insert target, expected block identity and isolated
+  cable/removal state. Other cells and presets remain blocked. This is not an
+  AI action, HTTP endpoint or public deletion/parallel-build capability.
+- New read-only topology checks preserve branches and fan-in instead of
+  flattening them. Every cell must lie on a complete Input1-to-Output1 path.
+  Dangling cells/cables, ambiguous status, malformed masks, multiple IO and
+  feedback-capable blocks are rejected; physical loudness is not verified.
+- Mandatory device/capability/UI-warning and changed-module regression:
+  237 passed. After additional transport refusal tests, the final focused
+  adapter/grid/topology regression passes187 tests. These are local Windows
+  synthetic tests, not remote CI or sound-match acceptance.
+
+Remaining promotion gates: independently measure other block-placement frames,
+supported cable geometries and safe branch/move operations; verify each native
+operation; then add a state-bound graph review and executor/GUI integration.
+Current public FW33 builds remain confined to the accepted NAM route. Numeric
+and model/controller availability remain separate from topology capability.

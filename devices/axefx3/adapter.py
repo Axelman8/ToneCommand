@@ -146,6 +146,11 @@ class AxeFxIII:
                 elif payload[:2] == [0x3A, 0]:
                     if len(payload) != 15 or frame != pedal_control.allocation_frame(shared.decode14(*payload[2:4])):
                         raise PermissionError("Unverified modifier allocation frame")
+                elif (self.reg.firmware == '33.00-beta.20261006'
+                      and getattr(self, '_grid_probe_permit', None) == tuple(frame)):
+                    from . import grid_probe
+                    if not grid_probe.allowed(self,frame):
+                        raise PermissionError('Outside the exact captured developer grid fixture')
                 elif payload[:2] == [0x36, 0]:
                     from .insertion import move_right_frame
                     fixture = (getattr(self, '_edit_target', None) == 323 and self.reg.firmware == '32.06'

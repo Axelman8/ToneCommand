@@ -4,6 +4,13 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Add read-only FX3 topology validation for complete serial/parallel graphs,
+  preserving branch edges and rejecting disconnected, dangling and feedback
+  paths. It is not a firmware-wide grid-writing capability. Independent
+  FW33 Axe-Edit capture and native replay verify an isolated Compressor1 /
+  Drive1 placement, connect, disconnect and deletion fixture on preset324,
+  with complete original-state preservation and no Store. The developer-only
+  exact-frame permit does not enable these actions in the planner or GUI.
 - FX3 GUI now selects presets from a searchable, freshly read512-name library
   and scenes from eight named buttons, with a clear connected indicator.
   Human selection has its own state-bound, single-use confirmation, requires
