@@ -4,6 +4,12 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Verify a detached FW33 parallel developer fixture on320: Compressor1,
+  Drive1 and two shunts, four horizontal/cross cables, selective disconnects
+  and deletion. All24 native frames preserve complete block words/status,
+  modifiers, names and NAM hash; final state equals the empty baseline.
+  Exact captured order and fresh whole-grid checks are required. No public
+  arbitrary routing, Store, model/level write or physical headroom claim.
 - Verify an exact FW33 developer two-row round trip on owner-designated320:
   fourteen effect blocks, fourteen shunts and twenty-six cables, followed by
   disconnect and deletion. Native replay checks all164 ordered frames, whole

@@ -389,3 +389,31 @@ MIDI is released, the owner reopens Axe-Edit; independent screenshot and UIA
 inspection confirm320 and all84 main-grid cells empty. Branch/fan-in measurements,
 general state-bound graph execution and GUI/SEND integration are still needed
 before public free-chain construction. No musical or physical loudness proof.
+
+### Detached parallel native round trip, 2026-10-10
+
+In a separate owner-operated320 capture, Compressor1 is at row5/column1,
+Drive1 at row5/column2 and two shunts at row6/columns1 and2. Each source in
+column1 connects to both destinations in column2. Main-grid screenshot/UIA
+confirm all four cells and visually all four cables. The actual drawing order
+is both horizontal cables first, then downward and upward crossings. Removal
+is a separately measured order, not inferred from the requested instructions.
+All24 relevant select/insert/connect/disconnect/delete frames match exactly.
+All eight routing literals also match the unchanged shared FM9 builder for
+these specific measured coordinates. No general routing formula is promoted.
+
+The same bounded320 developer probe has a second fixed mode for this exact
+sequence. Its native replay independently reads every intermediate grid and
+full preset snapshot. Both destinations have cable mask96 (source bits32 and
+64); disconnecting one cable preserves the other source bit until explicitly
+removed. All four-channel Compressor/Drive words and status,32 modifiers,
+eight scene-name replies and referenced NAM hash remain unchanged. Final full
+empty state equals baseline. No Store, model/level, global or NAM/IR memory
+write. Native MIDI is released before an independent final editor comparison,
+which is pending. This detached measurement is not a complete playable rig,
+musical proof or parallel mixer/headroom verification. General graph/SEND
+integration remains blocked until its own state-bound execution acceptance.
+
+Mandatory device/capability/UI-warning plus changed adapter/grid/fixture tests
+pass334 locally, and86 graph/topology/packaging/maintenance cases also pass.
+Native acceptance above is recorded separately from these synthetic results.
