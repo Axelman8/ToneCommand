@@ -4,7 +4,8 @@ Only isolated Compressor1/Drive1 edits on preset324. Compressor is at row5
 column1; Drive is at row5 or row6 column2, with one measured cable between.
 Frames were observed from the owner's Axe-Edit edits on 2026-10-10. Insert
 payload positions differ from cursor positions: retain the actual frames,
-not an assumed corrected position. No move, Store, model or level write.
+not an assumed corrected position. Moves are limited to the separately captured
+isolated Compressor round trip. No Store, model or level write.
 """
 from . import fw33_profile, grid, protocol
 from fm9 import protocol as shared
@@ -14,6 +15,29 @@ INSERTS = {
     46: protocol.envelope(1, [0x32,0,46,0,0,0,7,0,0,0,0,0,0,0,0]),
     118: protocol.envelope(1, [0x32,0,118,0,0,0,25,0,0,0,0,0,0,0,0]),
 }
+
+MOVES = {((5,1),(5,2)):1, ((5,2),(6,2)):3,
+         ((6,2),(5,2)):2, ((5,2),(5,1)):0}
+
+
+def move_frame(source, target):
+    if (not isinstance(source,tuple) or not isinstance(target,tuple)
+            or len(source)!=2 or len(target)!=2
+            or any(type(v) is not int for v in source+target)
+            or (source,target) not in MOVES):
+        raise ValueError('Only the four captured isolated Compressor moves')
+    return protocol.envelope(1,[0x36,0,0,0,0,0,MOVES[source,target],0,0,0,0,0,0,0,0])
+
+
+def movement_frames():
+    result=[grid.reframe(shared.build_select_grid_cell(5,1)),INSERTS[46]]
+    for source,target in MOVES:
+        result.extend((grid.reframe(shared.build_select_grid_cell(*source)),move_frame(source,target)))
+    return tuple(result)+(grid.reframe(shared.build_select_grid_cell(5,1)),delete(1))
+
+
+def captured_frames():
+    return frames()+frames(6)+movement_frames()
 
 
 def delete(col, *, row=5):
@@ -39,13 +63,13 @@ def allowed(dev, frame):
     return (dev.reg.firmware==fw33_profile.KEY
             and getattr(dev,'_edit_target',None)==324
             and getattr(dev,'_grid_probe_permit',None)==tuple(frame)
-            and frame in frames()+frames(6))
+            and frame in captured_frames())
 
 
 def write(dev, frame):
     """Fixture harness supplies full-state pre/post checks, no AI caller."""
     dev._check_edit_target()
-    if dev.reg.firmware!=fw33_profile.KEY or dev._edit_target!=324 or frame not in frames()+frames(6):
+    if dev.reg.firmware!=fw33_profile.KEY or dev._edit_target!=324 or frame not in captured_frames():
         raise PermissionError('Only exact captured FW33 fixture operations')
     before=grid.snapshot(dev.read_grid())
     sub=frame[6]
@@ -57,6 +81,13 @@ def write(dev, frame):
         if (position not in choices or selection!=(position,before) or position in before
                 or any(v[0]==eid for v in before.values())):
             raise PermissionError('Fresh empty fixture selection required, no replacement')
+    elif sub==0x36:
+        source,target=next((s,t) for s,t in MOVES if frame==move_frame(s,t))
+        if (selection!=(source,before) or before.get(source)!=(46,False,0)
+                or target in before
+                or sum(v[0]==46 for v in before.values())!=1
+                or any(c==source[1]+1 and v[2]&(1<<source[0]) for (r,c),v in before.items())):
+            raise PermissionError('Move requires a fresh isolated Compressor selection and empty target')
     elif sub in (0x33,0x35):
         if sub==0x33:
             positions=[next((r,c) for r,c in ((5,1),(5,2),(6,2)) if frame==delete(c,row=r))]

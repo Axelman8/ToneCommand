@@ -4,6 +4,12 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Verify an isolated FW33 Compressor1 movement round trip on preset324 using
+  independently captured right/down/up/left commands. Native readback checks
+  all four-channel Compressor words and status after each move, plus the
+  complete original rig, modifiers and scene names. Fresh selection, empty
+  destination and disconnected-source guards reject stale or unsafe moves.
+  This remains a developer fixture, not a public arbitrary-block move action.
 - Extend the isolated FW33 developer grid fixture with the independently
   captured row5-to-row6 diagonal cable and native ten-frame replay on324.
   Original routing, bulks,32 modifiers and scene names remain unchanged;

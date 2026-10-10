@@ -299,3 +299,34 @@ Subsequent packaging/maintenance and graph/fixture regression passes107 tests.
 A local wheel build includes all three new grid/graph modules and excludes
 private KB/backups. This is a package-content check, not an installed GUI or
 remote CI claim; the upstream wheel resource/startup boundary remains unchanged.
+
+### Isolated movement round trip, 2026-10-10
+
+After reopening Axe-Edit, independent visible inspection confirms the complete
+original parallel324 rig and empty rows5/6 after the earlier diagonal native
+test. A first movement capture is incomplete for its diagonal return and is
+not promoted. A second user-operated measurement separately records right,
+down, up and left between row5/column1, row5/column2 and row6/column2.
+
+The native adapter then repeats the exact twelve-frame Compressor1 fixture:
+insert, four separately selected moves and delete. Every step independently
+reads the complete grid, original block bulks/status,32 modifiers, scene names
+and referenced NAM hash. The Compressor's entire four-channel bulk and status
+are identical before/after every move. Final full preset state equals baseline,
+with no Store, model/level, global or memory write. The editor is closed before
+native transport opens; no incoming passive-trace evidence is claimed.
+
+The exact developer permit remains confined to324 and these isolated positions.
+Fresh selection, the expected Compressor, an empty destination and no incoming
+or outgoing cable are required. Unknown geometry, connected blocks, duplicate
+identity, stale selection and raw/unreviewed writes are rejected. A failed
+transport consumes the selection and permit without retry or automatic restore.
+No generic move, shunt, branch execution, GUI/SEND action or firmware-wide
+placement capability is enabled by this fixture. After native MIDI is released,
+the user reopens Axe-Edit; independent visible inspection again confirms the
+original parallel rig and empty rows5/6. Independent branch/shunt measurements
+and general graph execution remain separate acceptance steps.
+
+Mandatory device/capability/UI-warning plus changed adapter/grid/graph tests
+pass292 cases on Windows, four workers. This is a local synthetic regression,
+separate from the real12-frame movement replay and editor comparison above.

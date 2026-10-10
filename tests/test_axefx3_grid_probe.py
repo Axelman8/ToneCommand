@@ -15,7 +15,7 @@ def device():
                            _grid_probe_permit=None)
 
 
-@pytest.mark.parametrize('frame',grid_probe.frames()+grid_probe.frames(6))
+@pytest.mark.parametrize('frame',grid_probe.captured_frames())
 def test_fixture_requires_exact_permit_and_current_target(frame):
     dev=device()
     assert not grid_probe.allowed(dev,frame)
@@ -148,3 +148,81 @@ def test_diagonal_delete_refuses_outgoing_row6_source_mask():
     with pytest.raises(PermissionError,match='outgoing'):
         grid_probe.write(dev,grid_probe.delete(2,row=6))
     dev._write.assert_not_called()
+
+
+@pytest.mark.parametrize('source,target,direction,checksum',[
+    ((5,1),(5,2),1,'23'),((5,2),(6,2),3,'21'),
+    ((6,2),(5,2),2,'20'),((5,2),(5,1),0,'22')])
+def test_move_retains_each_independently_captured_literal(source,target,direction,checksum):
+    assert bytes(grid_probe.move_frame(source,target)).hex(' ')==(
+        f'f0 00 01 74 10 01 36 00 00 00 00 00 {direction:02x} 00 00 00 00 00 00 00 00 {checksum} f7')
+
+
+@pytest.mark.parametrize('source,target',[
+    ((5,1),(6,2)),((6,2),(6,1)),((5,1),(5,3)),((True,1),(5,2)),
+    ([5,1],(5,2)),((5,1),None)])
+def test_other_move_geometries_are_not_enabled(source,target):
+    with pytest.raises(ValueError):grid_probe.move_frame(source,target)
+
+
+@pytest.mark.parametrize('fault',['unselected','stale','occupied','incoming','outgoing','wrong_block','duplicate'])
+def test_move_refuses_stale_connected_occupied_or_wrong_fixture_before_transport(fault):
+    dev=device();dev._check_edit_target=lambda:None
+    cells=[shared.GridCell(4,0,46,False,0)]
+    if fault=='occupied':cells.append(shared.GridCell(4,1,118,False,0))
+    if fault=='incoming':cells[0].cable_in_mask=8
+    if fault=='outgoing':cells.append(shared.GridCell(2,1,118,False,32))
+    if fault=='wrong_block':cells[0].effect_id=58
+    if fault=='duplicate':cells.append(shared.GridCell(5,8,46,False,0))
+    dev.read_grid=lambda:cells;dev._write=Mock()
+    if fault!='unselected':
+        dev._grid_probe_selection=((5,1),{} if fault=='stale' else grid.snapshot(cells))
+    with pytest.raises(PermissionError):grid_probe.write(dev,grid_probe.move_frame((5,1),(5,2)))
+    dev._write.assert_not_called()
+
+
+def test_full_move_roundtrip_preserves_all_other_grid_cells():
+    dev=device();dev._check_edit_target=lambda:None
+    original=shared.GridCell(2,8,58,False,8)
+    cells=[original];selected=None
+    dev.read_grid=lambda:cells
+    def write(frame):
+        nonlocal selected
+        assert grid_probe.allowed(dev,frame)
+        if frame[6]==0x30:
+            c,r=divmod(sum(v<<(7*i) for i,v in enumerate(frame[12:17])),6)
+            selected=(r,c)
+        elif frame[6]==0x32:cells.append(shared.GridCell(*selected,46,False,0))
+        elif frame[6]==0x36:
+            source,target=next((s,t) for s,t in grid_probe.MOVES if frame==grid_probe.move_frame(s,t))
+            cell=next(c for c in cells if (c.row+1,c.col+1)==source)
+            cell.row,cell.col=target[0]-1,target[1]-1
+        elif frame[6]==0x33:cells[:]=[c for c in cells if (c.row,c.col)!=selected]
+    dev._write=write
+    for frame in grid_probe.movement_frames():
+        grid_probe.write(dev,frame)
+        assert dev._grid_probe_permit is None
+    assert cells==[original]
+
+
+@pytest.mark.parametrize('fault',['no_permit','raw','wrong_target'])
+def test_move_transport_refuses_unreviewed_frames(fault):
+    dev=device();frame=grid_probe.move_frame((5,1),(5,2))
+    dev.guard=AxeFxIII.guard;dev.outp=Mock();dev._check_edit_target=lambda:None
+    dev._approved_frame=dev._grid_probe_permit=tuple(frame)
+    if fault=='no_permit':dev._grid_probe_permit=None
+    if fault=='raw':dev._approved_frame=None
+    if fault=='wrong_target':dev._edit_target=325
+    with pytest.raises(PermissionError):AxeFxIII._send(dev,frame)
+    dev.outp.send.assert_not_called()
+
+
+def test_failed_move_clears_selection_and_permit_without_retry():
+    dev=device();dev._check_edit_target=lambda:None
+    cells=[shared.GridCell(4,0,46,False,0)]
+    dev.read_grid=lambda:cells
+    dev._grid_probe_selection=((5,1),grid.snapshot(cells))
+    dev._write=Mock(side_effect=RuntimeError('Uncertain result'))
+    with pytest.raises(RuntimeError):grid_probe.write(dev,grid_probe.move_frame((5,1),(5,2)))
+    dev._write.assert_called_once()
+    assert dev._grid_probe_permit is None and dev._grid_probe_selection is None
