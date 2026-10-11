@@ -551,14 +551,25 @@ proof; this read-only UI comparison neither opens MIDI nor performs Save.
 Chrome with shipped assets and mocked APIs passes explicit
 serial choice, one-scene limit, no NAM selection, review/confirmation, actual
 bypass badges and old-backend compatibility. This is not yet an actual live
-browser acceptance of the new handler, an audible tone match or remote CI.
-The candidate runtime is not started while Axe-Edit owns the MIDI connection.
+browser AI/review/SEND acceptance, an audible tone match or remote CI.
+After the owner closed Axe-Edit, the single updated runtime on8909 was started
+normally with the existing owner AI/preset-policy files. Actual live Chrome
+reads preset323/scene1, all14 channel badges and eight bypassed blocks, verifies
+white labels/red borders and the explicit serial option. Route selection still
+requires the normal request and AI route exploration; that gate is not forged.
+The live GUI check performs only GETs and local form changes, no AI call,
+navigation, SEND, Store or installer action. Native selected-AI/SEND evidence
+remains the separate registered-API acceptance above.
 
 Final mandatory device/capability/UI-warning and changed regression suites
 pass421 locally after the completed-sequence and incompatible-state guards.
 The real Chrome mocked-API workflow also passes after those source changes.
-No hardware replay, remote CI or live runtime/browser acceptance is inferred
-from these local checks.
-The full final simulator regression also passes4733 with16 skips in507.01s
-using four workers. The local wheel builds and contains both new serial
+No hardware replay or remote CI is inferred from these local checks.
+The full simulator regression for source checkpoint75cf939 passes4733 with16
+skips in507.01s using four workers. The local wheel builds and contains both new serial
 modules; this does not change upstream's unsupported wheel GUI/resource policy.
+The subsequent long-chain layout follow-up starts the scrollable bar at Input
+instead of clipping the leading blocks through centered overflow. Both ends
+are separately tested in mocked and live Chrome at1180/1280/1440px.
+Post-layout mandatory device/capability/UI-warning tests also pass54 locally
+in119.72s. No remote CI, audible match or arbitrary grid editing is claimed.

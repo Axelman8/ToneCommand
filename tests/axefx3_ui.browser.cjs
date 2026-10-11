@@ -12,6 +12,7 @@ const path=require('node:path');
     const errors=[],plans=[],sends=[];
     let audioFetches=0,sourceBackendReady=true,routeOptionsReady=false,navigationReady=false,serialReady=false;
     let currentPreset=325,currentScene=1,navigationRequest=null;
+    const serialRoute=['Input 1','Wah 1','Drive 1','Amp 1','Cab 1','Chorus 1','Compressor 1','Delay 1','Enhancer 1','Filter 1','Flanger 1','GEQ 1','PEQ 2','Output 1'];
     const navigationSelections=[];
     const explorations=[];
     page.on('pageerror',e=>errors.push(e.message));
@@ -65,7 +66,7 @@ const path=require('node:path');
         if(routeOptionsReady)result.route_options_supported=true;
         if(navigationReady){result.navigation_supported=true;result.scene_names=Array.from({length:8},(_,i)=>[i+1,i?'Solo':'Rhythm']);}
         if(fw33)result.route=namRoute?['Input 1','NAM 1','Cab 1','Delay 1','Chorus 1','Reverb 1','Output 1']:[];
-        if(serialReady&&result.route?.length)result.route_blocks=result.route.map((label,i)=>({label,channel:'A',bypassed:i===1}));
+        if(serialReady){result.route=serialRoute;result.route_blocks=result.route.map((label,i)=>({label,channel:'A',bypassed:[1,2,6,8,9,10,11,12].includes(i)}));}
         if(failRead){status=409;result={detail:'Read failed'};}
       }
       if(name==='options'){
@@ -352,9 +353,17 @@ const path=require('node:path');
     assert.equal(sends.length,beforeExplore.sends);assert.equal(installs.length,beforeExplore.installs);
     // A measured serial template is explicit, one scene, and not a NAM selection.
     await request();serialReady=true;await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
-    assert.equal(await page.locator('#liveRoute .chain-channel').count(),7);
-    assert.equal(await page.locator('#liveRoute .bypassed .chain-channel').count(),1);
-    assert.equal(await page.locator('#liveRoute .bypassed').evaluate(x=>getComputedStyle(x).color),'rgb(255, 255, 255)');
+    assert.equal(await page.locator('#liveRoute .chain-channel').count(),14);
+    assert.equal(await page.locator('#liveRoute .bypassed .chain-channel').count(),8);
+    assert.equal(await page.locator('#liveRoute .bypassed').first().evaluate(x=>getComputedStyle(x).color),'rgb(255, 255, 255)');
+    for(const width of [1180,1280,1440]){
+      await page.setViewportSize({width,height:1000});
+      assert(await page.locator('#liveRoute').evaluate(e=>{
+        e.scrollLeft=0;const start=e.firstElementChild.getBoundingClientRect().left>=e.getBoundingClientRect().left;
+        e.scrollLeft=e.scrollWidth;const end=e.lastElementChild.getBoundingClientRect().right<=e.getBoundingClientRect().right;
+        e.scrollLeft=0;return start&&end;
+      }),'Both ends of the long chain must remain reachable');
+    }
     await page.fill('#prompt','Een scene crunch met delay en chorus, modellen behouden');
     await page.click('#exploreRoutes');await page.locator('#refresh:not([disabled])').waitFor();
     await page.selectOption('#buildRoute','serial');

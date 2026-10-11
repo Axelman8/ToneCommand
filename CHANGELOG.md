@@ -4,6 +4,10 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Keep both ends of long FX3 chain bars reachable by horizontal scrolling,
+  starting at Input instead of clipping the leading blocks through centering.
+  Real Chrome checks the14-block chain at1180/1280/1440px with actual hardware
+  status as well as mocked workflow APIs. No preset write from this GUI check.
 - Connect the measured FW33 serial template to selected-AI design, explicit
   route choice, fingerprinted review and normal SEND. The fixed14-block chain
   supports one scene/A with existing/default Amp/Cab retained, numeric Amp EQ,
