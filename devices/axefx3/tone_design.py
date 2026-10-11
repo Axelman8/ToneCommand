@@ -96,12 +96,13 @@ def validate_route(design,blocks,ids,reg):
     return added
 
 
-def compile_scene(scene,number,emit,added=()):
+def compile_scene(scene,number,emit,added=(),*,channels=None):
     for attr,family in FIELDS.items():
+        channel = channels[family][number-1] if channels is not None else number-1
         config=getattr(scene,attr)
         if config is None:
             if family in added:
-                emit('set_channel',family,value=number-1)
+                emit('set_channel',family,value=channel)
                 emit('set_bypass',family,bypassed=True)
             continue
         values=[]
@@ -115,7 +116,7 @@ def compile_scene(scene,number,emit,added=()):
             values=[(key+str(i+1),v) for i,b in enumerate(config.bands)
                     for key,v in [('FREQ',b.frequency_hz),('GAIN',b.gain)]]
         values.append(('LEVEL',config.level))
-        emit('set_channel',family,value=number-1)
+        emit('set_channel',family,value=channel)
         emit('set_bypass',family,bypassed=True)
         if family in ('FUZZ','COMP') and config.model is not None:
             emit('set_type',family,type_name=config.model)

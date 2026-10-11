@@ -68,7 +68,7 @@ function controls(){
   el('connectDevice').disabled=busy||!!state?.connected;
   el('wahMode').disabled=busy||!el('wah').value;
   const fw33=state?.firmware==='33.00-beta.20261006';
-  const maxScenes=serial?1:fw33?(state.route?.length?2:1):4;
+  const maxScenes=serial?1:fw33?(state.route?.length?2:1):state?.multiscene_planning_supported?8:4;
   for(const option of el('scenes').options)option.disabled=Number(option.value)>maxScenes;
   if(Number(el('scenes').value)>maxScenes)el('scenes').value=String(maxScenes);
   el('generate').disabled=busy||el('deviceChoice').value!=='axefx3'||!state?.connected||!!state.route_problem||(!fw33&&!state.cab_count);
@@ -89,6 +89,7 @@ function controls(){
     el('wahMode').value==='Fast Pos'?'Fast Pos: pedaalbeweging kan de Wah ook inschakelen in een scene met Wah uit. Kies Off voor aan/uit via de scenes.':
     el('wahMode').value==='Off'?'Off: het pedaal stuurt de Wah-filterstand, maar schakelt de Wah niet automatisch aan of uit.':
     'Bestaande Auto Engage-modus blijft behouden. Bij een nieuwe koppeling gebruikt het apparaat zijn standaard; controleer het gedrag.';
+  if(!fw33&&state?.multiscene_planning_supported)el('controllerHint').textContent+=' Tot acht scenes, maximaal vier verschillende instellingen per blok. Gelijke instellingen delen kanalen; bypass en uitgangsniveau kunnen solo en ritme onderscheiden.';
 }
 function invalidate(){proposal=null;stage(0);el('confirmed').checked=el('muted').checked=false;
   el('rigReport').hidden=true;
@@ -411,6 +412,7 @@ function showDesign(plan){
   const cabs=(plan.cab_choices||[]).map(cab=>`${cab.side}: ${cab.name} (${cab.position})`).join(' | ');
   el('toneChoice').textContent=cabs?`Amp: ${design?.amp_model||'?'} | ${cabs}`:design?`Amp: ${design.amp_model} | IR1: wire-bank ${design.cab_left.bank}, slot ${design.cab_left.slot}`+
     (design.cab_right?` | IR2: bank ${design.cab_right.bank}, slot ${design.cab_right.slot}`:' | IR2-4 gedempt'):'';
+  if(design?.scenes.some(scene=>scene.amp_model||scene.cab_left))el('toneChoice').textContent='Amp- en cabkeuze per scene: zie de scenetabel met model, IR-naam, bank en kanaal.';
   el('controllerChoice').textContent=controller?.source?`Wah: ${controller.source} | Auto Engage: ${controller.auto_engage||'bestaande modus behouden'}`:'Wah-controller: bestaande koppeling behouden.';
   el('planWarnings').replaceChildren();
   for(const warning of plan.warnings||[]){const li=document.createElement('li');li.textContent=warning;el('planWarnings').append(li);}
@@ -437,7 +439,12 @@ function showDesign(plan){
         `banden ${config.bands.map(b=>`${b.frequency_hz} Hz/${b.gain} dB`).join(', ')}, Q behouden, level ${config.level} dB`;
       extras.push(`${label}: ${value}${model}`);
     }
-    for(const value of [`${i+1}. ${scene.name} / ${'ABCD'[i]}`,`${scene.amp.gain} / ${scene.amp.level} dB`,scene.wah?'Aan':'Uit',chorus,delay,reverb,extras.join('\n')||'Bestaand behouden']){
+    const channels=plan.scene_channels;
+    const ampChannel=channels?.DISTORT?.[i]??i;
+    const mapping=channels?Object.entries(channels).filter(([family])=>!['FUZZ','COMP','GEQ','PEQ'].includes(family)||scene[{FUZZ:'drive',COMP:'compressor',GEQ:'geq',PEQ:'peq'}[family]]).map(([family,values])=>`${family} ${'ABCD'[values[i]]}`).join(' | '):'';
+    const cabInfo=plan.scene_cabs?.[i]?.choices.map(cab=>`${cab.side}: ${cab.name} (${cab.position})`).join(' | ');
+    const label=`${i+1}. ${scene.name} / ${'ABCD'[ampChannel]}`;
+    for(const value of [label,`${scene.amp_model||design.amp_model} | gain ${scene.amp.gain} / ${scene.amp.level} dB | Output ${scene.output_level??-6} dB`,scene.wah?'Aan':'Uit',chorus,delay,reverb,[extras.join('\n')||'Bestaand behouden',cabInfo,mapping].filter(Boolean).join('\n')]){
       const td=document.createElement('td');td.textContent=value;tr.append(td);
     }
     el('sceneRows').append(tr);

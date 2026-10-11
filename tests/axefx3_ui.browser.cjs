@@ -10,7 +10,7 @@ const path=require('node:path');
   try{
     const page=await browser.newPage({viewport:{width:1440,height:1000}});
     const errors=[],plans=[],sends=[];
-    let audioFetches=0,sourceBackendReady=true,routeOptionsReady=false,navigationReady=false,serialReady=false;
+    let audioFetches=0,sourceBackendReady=true,routeOptionsReady=false,navigationReady=false,serialReady=false,multiSceneReady=false;
     let currentPreset=325,currentScene=1,navigationRequest=null;
     const serialRoute=['Input 1','Wah 1','Drive 1','Amp 1','Cab 1','Chorus 1','Compressor 1','Delay 1','Enhancer 1','Filter 1','Flanger 1','GEQ 1','PEQ 2','Output 1'];
     const navigationSelections=[];
@@ -63,6 +63,7 @@ const path=require('node:path');
           profile:{variant,warning:'Memory policy from declared variant',user2_cabs:true}};
         if(!sourceBackendReady)delete result.source_support;
         if(serialReady)result.serial_build_supported=true;
+        if(multiSceneReady){result.multiscene_planning_supported=!fw33;result.request_scene_limit=8;}
         if(routeOptionsReady)result.route_options_supported=true;
         if(navigationReady){result.navigation_supported=true;result.scene_names=Array.from({length:8},(_,i)=>[i+1,i?'Solo':'Rhythm']);}
         if(fw33)result.route=namRoute?['Input 1','NAM 1','Cab 1','Delay 1','Chorus 1','Reverb 1','Output 1']:[];
@@ -97,6 +98,13 @@ const path=require('node:path');
         if(addedExtras){
           result.actions.push({kind:'add_block',block:'FUZZ'},{kind:'add_block',block:'COMP'});
           result.required_route=['Input 1','Wah 1','Drive 1','Compressor 1','Amp 1','Cab 1','Output 1'];
+        }
+        if(multiSceneReady&&!fw33){
+          const original=result.design.scenes;
+          result.design.scenes=original.flatMap((scene,i)=>['Lead','Solo'].map((role,j)=>({...scene,name:`Album ${i+1} ${role}`,output_level:j?-6:-9})));
+          result.scenes=result.design.scenes.map(s=>s.name);result.name='AI-Metallica albums';
+          result.scene_channels={DISTORT:[0,0,1,1,2,2,3,3],CABINET:[0,0,1,1,2,2,3,3],OUTPUT:[0,1,0,1,0,1,0,1]};
+          result.scene_cabs=result.scenes.map((name,i)=>({scene:i+1,channel:'ABCD'[Math.floor(i/2)],choices:[{side:'IR1',name:`Album cab ${Math.floor(i/2)+1}`,position:'USER 1 slot 28'}]}));
         }
         if(fw33){
           result.mode='nam';result.capture={name:'Synthetic A2',slot:req.postDataJSON().nam_slot||1,bytes:65536,sha256:'a'.repeat(64)};
@@ -156,6 +164,7 @@ const path=require('node:path');
     await page.goto('http://tc.test/axefx3');await page.locator('#engage:not([disabled])').waitFor();
     assert.equal(await page.locator('#rail .stg').count(),5);
     assert.equal(await page.locator('#sceneRack .sc').count(),8);
+    assert(await page.locator('#scenes option').nth(4).evaluate(o=>o.disabled));
     assert.equal(await page.locator('#shell').evaluate(x=>getComputedStyle(x).display),'flex');
     assert.equal(await page.locator('#hwbar h1').evaluate(x=>getComputedStyle(x).color),'rgb(47, 230, 255)');
     if(process.env.TC_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.TC_SCREENSHOT_DIR,'fm9-layout-request.png')});
@@ -401,6 +410,23 @@ const path=require('node:path');
     assert.equal(await page.inputValue('#prompt'),retained);
     assert.deepEqual(navigationSelections.at(-1),{token:'navigation-test-ticket',external_audio_muted:true,confirm_discard_edits:true});
     assert.equal(sends.length,beforeExplore.sends);assert.equal(installs.length,beforeExplore.installs);
+    // Eight-scene capability is negotiated, not inferred from eight scene buttons.
+    await request();fw33=false;serialReady=false;routeOptionsReady=false;multiSceneReady=true;
+    await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    await page.setInputFiles('#audioFile',[]);await page.selectOption('#sourceKind','tone');
+    await page.fill('#prompt','Metallica albums met acht scenes, vier albumparen');
+    await page.selectOption('#scenes','8');
+    await review();assert.equal(plans.at(-1).scenes,8);
+    assert.equal(await page.locator('#sceneRows tr').count(),8);
+    const names=await page.locator('#sceneRows tr td:first-child').allTextContents();
+    assert.match(names[4],/5\. Album 3 Lead \/ C/);assert.match(names[7],/8\. Album 4 Solo \/ D/);
+    assert(!names.join(' ').includes('undefined'));
+    assert.match(await page.textContent('#sceneRows'),/Output -9 dB/);
+    assert.match(await page.textContent('#sceneRows'),/Output -6 dB/);
+    assert.match(await page.textContent('#sceneRows'),/Album cab 4/);
+    assert.match(await page.textContent('#sceneRows'),/CABINET D/);
+    await request();fw33=true;await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    assert(await page.locator('#scenes option').nth(7).evaluate(o=>o.disabled));
     assert.deepEqual(errors,[]);
     console.log('AFX3 shared FM9 layout: workflow, fit, consent, reset, MK, audio, XSS; FW33 NAM foundation/two scenes, permanent install and separate Store consent passed');
   }finally{await browser.close();}

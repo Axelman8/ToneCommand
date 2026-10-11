@@ -4,6 +4,14 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Accept eight-scene requests and compile AMP/CAB album pairs without treating
+  scene5-8 as nonexistent channels E-H. Identical stored settings share A-D;
+  a fifth distinct configuration fails before review or writes. Models and
+  Cab IR pairs can be chosen per scene, with conservative separate output
+  levels and explicit channel/cab mappings shown in review. Reused voicing is
+  configured once. Local simulator and Chrome tests cover eight-scene review
+  and sending, not hardware acceptance. FW33 AMP/CAB remains blocked pending
+  independent selector/channel measurements; no forced NAM substitution.
 - Keep both ends of long FX3 chain bars reachable by horizontal scrolling,
   starting at Input instead of clipping the leading blocks through centering.
   Real Chrome checks the14-block chain at1180/1280/1440px with actual hardware

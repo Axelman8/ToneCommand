@@ -573,3 +573,44 @@ instead of clipping the leading blocks through centered overflow. Both ends
 are separately tested in mocked and live Chrome at1180/1280/1440px.
 Post-layout mandatory device/capability/UI-warning tests also pass54 locally
 in119.72s. No remote CI, audible match or arbitrary grid editing is claimed.
+
+### Eight-scene planning preparation, 2026-10-11
+
+The normal request schema now accepts1-8 scenes. This is request capacity,
+not proof of eight-scene execution on FW33. The FW32.06 AMP/CAB compiler can
+allocate up to four different stored configurations per block across eight
+scenes. It never derives a block channel from scene5-8. Exact identical
+settings can share A-D; bypass remains per scene. Amp model and voicing are
+part of the sharing key, as are complete Cab IR pairs and effect settings.
+A fifth different configuration is refused before review. No approximation,
+silent overwriting, extra Amp instance or guessed selector is substituted.
+
+Four album pairs can use four amp voices and differentiate solos through
+effect bypass and output levels capped at-6dB. The compiler writes each shared
+configuration once. Legacy1-4-scene independent amp/effect assignments remain.
+Optional scene model/IR overrides permit distinct album choices from the
+verified firmware/catalog; names alone are not device availability proof.
+The review displays actual channel allocation, per-scene IR names/banks and
+output levels. Old backends and narrower FW33 modes retain their GUI limits.
+
+FW33 AMP/CAB rejects these requests with a profile-specific explanation before
+AI, NAM-memory reads or execution. It no longer returns a misleading generic
+four-scene schema error or recommends a forced NAM replacement. FW33 NAM
+remains limited to its independently measured1/2-scene contract, and the
+measured serial template remains1/A. Selector/channel/mixer and final native
+eight-scene construction, independent Axe-Edit comparison and Store/reload
+acceptance are still required. No preset326/327 was built or stored by this
+software-only phase. Simulator/Chrome results do not promote FW33 support.
+
+Local regression passes345 mandatory/changed tests and260 additional model,
+Cab, profile, firmware, maintenance and packaging tests. Shipped GUI assets
+pass real Chrome with mocked APIs, including eight rows, A-D allocations and
+continued narrower FW33 limits. These are not native eight-scene acceptance.
+
+An actual selected-AI/registered-SEND preparation on empty authorized328
+creates AI-FW33 Model Test with46 independently verified actions, scene1/A,
+the existing measured14-block template, Amp/Output-18dB and Delay/Chorus off.
+It is only a temporary model/channel measurement foundation. No selector,
+Store, NAM-memory write or Metallica326/327 build occurred. This avoids asking
+the owner to rebuild a chain by hand; independent selector/channel comparison
+still remains necessary before enabling the new FW33 album execution route.

@@ -30,7 +30,7 @@ class Request(BaseModel):
     model_config = ConfigDict(extra='forbid')
     prompt: str = Field(min_length=3,max_length=12000)
     expected_preset: StrictInt = Field(ge=0,le=511)
-    scenes: StrictInt = Field(ge=1,le=4)
+    scenes: StrictInt = Field(ge=1,le=8)
     wah_source: Literal['External 1','External 2'] | None = None
     wah_auto_engage: Literal['Off','Fast Pos'] | None = 'Fast Pos'
     audio_reference: Measurements | None = None
@@ -121,6 +121,8 @@ def register(app, host):
                             navigation_supported=navigation.supported(dev),
                             route_options_supported=True,
                             serial_build_supported=serial_build.supported(dev.reg),
+                            multiscene_planning_supported=dev.reg.firmware == '32.06',
+                            request_scene_limit=8,
                             source_support=dict(rig_reader=True, modes=rig_source.MODES),
                             nam_selection_supported=dev.reg.firmware == fw33_profile.KEY,
                             **tone_review.public_state(tone_review.snapshot(dev,include_nam=None),dev.reg))
@@ -235,9 +237,14 @@ def register(app, host):
                 if serial_mode and (not serial_build.supported(dev.reg) or body.scenes != 1
                         or body.wah_source or body.nam_slot is not None or body.source_kind != 'tone'):
                     raise ValueError('Measured serial template: exact FW33/MK2, one scene, no NAM/controller or rig-translation selection')
+                nam_mode = body.mode == 'nam' or (body.mode == 'auto' and dev.reg.firmware == fw33_profile.KEY)
+                if not nam_mode and not serial_mode and dev.reg.firmware != '32.06':
+                    raise ValueError('AMP/CAB request accepted, including up to eight scenes. FW33 model/IR selection and multi-channel writes still require independent verification; no build, SEND or Store is available for this route yet. TC will not substitute NAM.')
+                if nam_mode and body.scenes > 2:
+                    raise ValueError('NAM execution on this FW33 profile is measured for scenes 1/2 only; eight-scene requests are accepted but not executable yet.')
                 if body.nam_slot is not None and (dev.reg.firmware != fw33_profile.KEY or body.mode in ('amp','serial')):
                     raise ValueError('Installed NAM slot choice requires exact FW33 NAM mode')
-                initial = tone_review.snapshot(dev, body.nam_slot, include_nam=not serial_mode)
+                initial = tone_review.snapshot(dev, body.nam_slot, include_nam=nam_mode)
                 if initial['preset'][0] != body.expected_preset:
                     raise ValueError('Target preset changed. Refresh before planning.')
                 route = route_guard.serial_route(initial['grid'],initial['blocks'],dev.reg)
@@ -245,11 +252,8 @@ def register(app, host):
                         or (route and (tuple(route) != serial_build.ROUTE
                             or serial_build.grid.snapshot(initial['grid']) != serial_build.expected_grid()))):
                     raise ValueError('Select scene1 on an empty preset or exact measured row1 chain without active modifiers; nothing sent')
-                nam_mode = body.mode == 'nam' or (body.mode == 'auto' and dev.reg.firmware == fw33_profile.KEY)
                 if nam_mode and (dev.reg.firmware != fw33_profile.KEY or body.wah_source):
                     raise ValueError('NAM mode requires exact FW33; modifier writes are not measured')
-                if not nam_mode and not serial_mode and dev.reg.firmware != '32.06':
-                    raise ValueError('FW33 amp model selection is unmeasured. Use the installed NAM mode.')
                 if nam_mode and not route and body.scenes != 1:
                     raise ValueError('Build a one-scene NAM foundation first; then extend to scenes 1/2.')
                 if not nam_mode and not serial_mode and not dev.reg.cab_catalog.names:
