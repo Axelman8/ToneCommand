@@ -12,8 +12,10 @@ date/checksum, FW33 final or a later beta does not enable it.
   not a physical-volume limiter. Literal delay/chorus timing requires NONE
   independently read before writing, with no guessed FW33 tempo setter.
 - NAM effect206 is separate from Chorus78 in full eight-bit grid decoding.
-  Only Input1 -> NAM1 -> Cab1 -> Delay1 -> Chorus1 -> Reverb1 -> Output1 is
-  buildable from a truly empty preset, scene1/A. An existing exact route may
+  The NAM route Input1 -> NAM1 -> Cab1 -> Delay1 -> Chorus1 -> Reverb1 -> Output1
+  is buildable from a truly empty preset, scene1/A. A separate captured
+  one-scene14-block Amp/Cab serial template is described below. Neither
+  enables arbitrary chain placement. An existing exact NAM route may
   use scenes1/2 and NAM A/B; other blocks stay on shared A. No splicing,
   arbitrary model/CAB/mixer or modifier writes on FW33. The separately measured
   NAM slot selector is described below; it does not enable amp/effect models.
@@ -500,3 +502,63 @@ Final mandatory device/capability/UI-warning plus changed tests pass373 locally;
 another86 graph/topology/packaging/maintenance tests pass. These synthetic runs
 do not replace the native and independent editor evidence above, or prove
 remote CI, audible tone, safe physical volume or general graph execution.
+
+### Reviewed serial template, 2026-10-11
+
+A separate production module, `serial_build.py`, reuses only the exact captured
+14-block row1 sequence. It is not the developer probe, a generic coordinate
+formula, free graph editing or destructive replacement. A truly empty preset
+can be built; an existing exact row1 chain can be voiced without grid writes.
+Incompatible, partial, moved, parallel or controller-active states fail before
+execution. No automatic scene/channel switch, write retry, clearing or reload.
+
+The explicit GUI choice is `AMP / CAB: gemeten testketen`. The selected AI uses
+the bounded one-scene schema in `serial_planning.py`. Amp/Cab models and IR
+mixers stay existing/default; no claimed artist-model or original-rig match.
+Only measured Amp numeric voicing, Delay and Chorus are configured. Wah,
+Drive, Compressor, Enhancer, Filter, Flanger, GEQ and PEQ2 remain bypassed.
+PEQ2 has placement/identity evidence, not writable parameter evidence.
+Reverb, model/IR selection and new controller bindings are not enabled here.
+
+All41 grid frames use ordered single-operation permissions, confirmed target,
+whole-grid pre/post checks and complete state preservation. Output and Amp are
+independently staged to-18dB before connecting; only their channelA level words
+may change in staging. Full block words/status,32 modifiers and eight scene
+names are checked throughout construction. Delay/Chorus layouts and Tempo NONE
+must be independently read before cables; no speculative tempo setter.
+
+The normal review uses complete fingerprinted state and an expiring one-use
+token. SEND still requires target and external-mute acknowledgements. This AMP
+template's plan/review/SEND/state do not require a NAM capture or account.
+The existing NAM build and shared FM9 planner/transport remain unchanged.
+Channel and bypass metadata are read from hardware for GUI route badges;
+white bypass labels have red channel borders, not an inferred active state.
+
+Native acceptance on authorized empty323 uses actual configured Codex and the
+registered planning/review/SEND APIs, not mocked AI or a developer probe.
+Planning writes nothing. SEND completes46 actions with zero skipped, all14
+nodes and13 cables, scene1/A and independently verified17 numeric displays.
+Amp gain5.5/level-18dB, Output-18dB, Delay320ms/20%feedback/18%mix and Chorus
+0.7Hz/25%depth/12%mix are read back. Reserve effects are bypassed. Complete final
+state is stable;32 modifier records, scene names2-8 and full NAM001/250/256
+hashes stay unchanged. No preset Store or model/IR/NAM/global/firmware write.
+
+Independent owner-opened Axe-Edit comparison of this new normal-SEND preset323
+now confirms all14 first-row blocks, channelsA, the eight bypassed reserves
+and70 empty cells. The inspected screenshot shows all13 serial cables,
+AI-Serial Acceptance and scene1 Crunch. Native masks provide the exact cable
+proof; this read-only UI comparison neither opens MIDI nor performs Save.
+Chrome with shipped assets and mocked APIs passes explicit
+serial choice, one-scene limit, no NAM selection, review/confirmation, actual
+bypass badges and old-backend compatibility. This is not yet an actual live
+browser acceptance of the new handler, an audible tone match or remote CI.
+The candidate runtime is not started while Axe-Edit owns the MIDI connection.
+
+Final mandatory device/capability/UI-warning and changed regression suites
+pass421 locally after the completed-sequence and incompatible-state guards.
+The real Chrome mocked-API workflow also passes after those source changes.
+No hardware replay, remote CI or live runtime/browser acceptance is inferred
+from these local checks.
+The full final simulator regression also passes4733 with16 skips in507.01s
+using four workers. The local wheel builds and contains both new serial
+modules; this does not change upstream's unsupported wheel GUI/resource policy.

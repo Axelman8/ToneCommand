@@ -4,6 +4,15 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Connect the measured FW33 serial template to selected-AI design, explicit
+  route choice, fingerprinted review and normal SEND. The fixed14-block chain
+  supports one scene/A with existing/default Amp/Cab retained, numeric Amp EQ,
+  Delay and Chorus, and bypassed reserves. Quiet staging precedes cables;
+  construction verifies full state and consumes failed sessions without retry.
+  No NAM dependency, model/IR/controller/Store or arbitrary graph promotion.
+  Native configured-Codex/SEND on empty323 verifies46 actions and17 displays.
+  Live route labels now include actual channel and white bypass labels with
+  red channel borders. NAM and FM9 behavior remain separately gated.
 - Verify a complete14-block/13-cable FW33 developer chain on322 using the
   previously captured row1 frames. Native checks preserve full block words,
   status, modifiers, scene names and NAM hash. Output1 is independently

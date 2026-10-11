@@ -149,6 +149,9 @@ def build(dev, required_route, actions):
     if actual == expected:
         return SetResult(True, "Existing complete route verified; reused without writes", actual, actual)
     if dev.reg.firmware == fw33_profile.KEY:
+        from . import serial_build
+        if tuple(expected) == serial_build.ROUTE and not actual:
+            return serial_build.build(dev,required_route,actions)
         if actual or tuple(expected) != fw33_profile.NAM_ROUTE:
             raise PermissionError('FW33 permits only the exact empty NAM foundation')
         dev._fw33_build_route = fw33_profile.NAM_ROUTE

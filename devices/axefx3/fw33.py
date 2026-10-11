@@ -28,6 +28,9 @@ def check_frame(dev, frame):
                 raise PermissionError('FW33 scene transition outside the measured NAM scope')
         if fn in (0x0a,0x0b) and len(payload) == 3 and payload[2] != 127:
             eid=shared.decode14(*payload[:2])
+            from . import serial_build
+            if serial_build.bypass_allowed(dev,frame):
+                return
             if eid not in profile.NAM_ROUTE or (fn == 0x0b and payload[2] not in ({0,1} if eid == 206 else {0})):
                 raise PermissionError('FW33 block transition outside the measured NAM scope')
         return  # The ordinary guard and command checks remain authoritative.
@@ -58,6 +61,9 @@ def check_frame(dev, frame):
     from . import grid_probe,row_probe,block_probe
     if grid_probe.allowed(dev,frame) or row_probe.allowed(dev,frame) or block_probe.allowed(dev,frame):
         return
+    from . import serial_build
+    if serial_build.allowed(dev,frame):
+        return
     if sub in ([0x30, 0], [0x32, 0], [0x35, 0]) and getattr(dev, '_fw33_route_permit', None) == tuple(frame):
         return
     raise PermissionError('Editor command is not in the exact measured FW33 scope')
@@ -82,7 +88,9 @@ def domain_error(dev, spec, channel):
 
 def prepare(dev, resolved, expected, actual):
     """Read-only NAM-build preflight, never promote an arbitrary FW33 route."""
-    from . import modifiers
+    from . import modifiers,serial_build
+    if tuple(expected) == serial_build.ROUTE:
+        return serial_build.prepare(dev,resolved,expected,actual)
     if getattr(dev.reg,'hardware_variant',None) != 'mk2':
         raise ValueError('FW33 NAM build requires the declared measured MK2 profile')
     if tuple(expected) != profile.NAM_ROUTE or (actual and actual != expected):

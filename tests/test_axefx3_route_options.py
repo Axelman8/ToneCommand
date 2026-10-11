@@ -19,7 +19,9 @@ def test_capabilities_do_not_force_or_promote_nam(firmware,variant,amp,nam):
     reg=Registry(firmware);reg.hardware_variant=variant
     reg.import_cab_names('U1.0028 Test','user')
     choices=route_options.capabilities(reg)
-    assert {x['mode']:x['enabled'] for x in choices}==dict(amp=amp,nam=nam)
+    expected=dict(amp=amp,nam=nam)
+    if firmware==fw33_profile.KEY and variant=='mk2':expected['serial']=True
+    assert {x['mode']:x['enabled'] for x in choices}==expected
     assert choices[0]['label']=='AMP / CAB + pedals'
 
 

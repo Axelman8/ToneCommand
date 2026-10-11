@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 import math
+from contextlib import ExitStack
 from dataclasses import dataclass
 
 from fm9.device import SetResult
@@ -223,7 +224,10 @@ def execute(dev, actions, required_route, *, expected_preset, external_audio_mut
     with dev._lock:
         resolved, expected, actual = prepare(dev, actions, required_route, expected_preset)
         results = []
-        with dev.edit_session(external_audio_muted=True, expected_preset=expected_preset):
+        with ExitStack() as stack:
+            stack.enter_context(dev.edit_session(external_audio_muted=True, expected_preset=expected_preset))
+            from . import serial_build
+            stack.enter_context(serial_build.execution(dev,expected))
             if actual != expected:
                 try:
                     built = dev.build_route(required_route, actions)
@@ -249,7 +253,10 @@ def execute(dev, actions, required_route, *, expected_preset, external_audio_mut
                     else:
                         if kind == "set_scene": actual_value = dev.set_scene(item.value)
                         elif kind == "set_channel": actual_value = dev.set_channel(eid, item.value)
-                        elif kind == "set_bypass": actual_value = dev.set_bypass(eid, item.value)
+                        elif kind == "set_bypass":
+                            actual_value = (serial_build.bypass(dev,eid,item.value)
+                                if tuple(expected) == serial_build.ROUTE and dev.reg.firmware == fw33_profile.KEY
+                                else dev.set_bypass(eid, item.value))
                         elif kind == "rename_preset":
                             got = dev.rename_preset(item.value)
                             actual_value = got[1] if got else None

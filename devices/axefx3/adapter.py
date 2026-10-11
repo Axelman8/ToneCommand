@@ -147,6 +147,12 @@ class AxeFxIII:
                     if len(payload) != 15 or frame != pedal_control.allocation_frame(shared.decode14(*payload[2:4])):
                         raise PermissionError("Unverified modifier allocation frame")
                 elif (self.reg.firmware == '33.00-beta.20261006'
+                      and getattr(self, '_serial_session', None) is not None
+                      and payload[:2] in ([0x30,0],[0x32,0],[0x35,0])):
+                    from . import serial_build
+                    if not serial_build.allowed(self,frame):
+                        raise PermissionError('Outside the reviewed measured serial sequence')
+                elif (self.reg.firmware == '33.00-beta.20261006'
                       and getattr(self, '_block_probe_permit', None) == tuple(frame)):
                     from . import block_probe
                     if not block_probe.allowed(self,frame):

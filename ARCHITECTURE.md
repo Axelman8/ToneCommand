@@ -51,6 +51,12 @@ and a fixed complete serial chain. Ordered one-use permits check fresh whole
 grid states, including a separately bounded connection-only continuation.
 It is not reachable from planner/API/SEND and does not authorize arbitrary
 graph or model writes. Physical mute and measured output staging remain separate.
+`serial_build.py` separately exposes only the independently measured14-cell
+row1 template through normal reviewed execution. It never exposes a raw graph
+encoder or developer probe. `serial_planning.py` compiles one-scene/A numeric
+Amp/Delay/Chorus designs, retaining models/cabs and bypassing all reserves.
+NAM-independent snapshots bind review to complete preset state. Single-use
+sequence/bypass permits still require ordinary confirmed edit-session checks.
 Source ingestion in `rig_source.py` reuses upstream `describe` and `riggraph`
 with the explicitly selected text AI, not the FM9 executor or implicit Claude.
 Sound references stay separate from rig explanations. The bounded FX3

@@ -3,7 +3,7 @@ import json
 from typing import Annotated, Literal
 
 from pydantic import Field
-from . import planning, fw33_profile
+from . import planning, fw33_profile, serial_build
 
 
 class Comparison(planning.Shape):
@@ -27,7 +27,10 @@ def capabilities(reg):
         dict(mode='nam',label='NAM + passende effecten',enabled=nam,
         reason=('Geinstalleerde compatibele NAM, gecontroleerde keten, eerst 1 scene vanuit leeg en daarna maximaal 2. Download/installatie apart bevestigen.' if nam else
                 'NAM-presetbouw vereist het exact gemeten FW33-profiel en MK2. NAM is geen verplichte route.'),
-        interpretation_only=not nam)]
+        interpretation_only=not nam)] + ([dict(mode='serial',label='AMP / CAB: gemeten testketen',
+        enabled=True,interpretation_only=False,
+        reason='Vaste14-blokkenketen, scene1/A. Bestaande/standaard amp en cab blijven behouden; gain/EQ, delay en chorus zijn instelbaar. Geen modelkeuze, reverb, nieuwe controllers of vrije gridindeling.')]
+        if serial_build.supported(reg) else [])
 
 
 SYSTEM='''Compare two guitar-preset strategies: AMP/CAB plus pedals, and NAM

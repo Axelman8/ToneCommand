@@ -10,7 +10,7 @@ const path=require('node:path');
   try{
     const page=await browser.newPage({viewport:{width:1440,height:1000}});
     const errors=[],plans=[],sends=[];
-    let audioFetches=0,sourceBackendReady=true,routeOptionsReady=false,navigationReady=false;
+    let audioFetches=0,sourceBackendReady=true,routeOptionsReady=false,navigationReady=false,serialReady=false;
     let currentPreset=325,currentScene=1,navigationRequest=null;
     const navigationSelections=[];
     const explorations=[];
@@ -61,9 +61,11 @@ const path=require('node:path');
           nam_selection_supported:fw33,nam:fw33?{slot:1,name:'Old capture'}:null,
           profile:{variant,warning:'Memory policy from declared variant',user2_cabs:true}};
         if(!sourceBackendReady)delete result.source_support;
+        if(serialReady)result.serial_build_supported=true;
         if(routeOptionsReady)result.route_options_supported=true;
         if(navigationReady){result.navigation_supported=true;result.scene_names=Array.from({length:8},(_,i)=>[i+1,i?'Solo':'Rhythm']);}
         if(fw33)result.route=namRoute?['Input 1','NAM 1','Cab 1','Delay 1','Chorus 1','Reverb 1','Output 1']:[];
+        if(serialReady&&result.route?.length)result.route_blocks=result.route.map((label,i)=>({label,channel:'A',bypassed:i===1}));
         if(failRead){status=409;result={detail:'Read failed'};}
       }
       if(name==='options'){
@@ -72,6 +74,7 @@ const path=require('node:path');
           comparison:{recommended:'amp',reason:'Compare both, no automatic selection',amp_direction:'Brit crunch',nam_query:'Whole Lotta Love',pedals:['<img src=x> Delay']},
           routes:[{mode:'amp',label:'AMP / CAB + pedals',enabled:!fw33,reason:'Model selection requires measured firmware'},
                   {mode:'nam',label:'NAM + passende effecten',enabled:fw33,reason:'Installed compatible capture required'}],nam_candidates:[]};
+        if(serialReady)result.routes.push({mode:'serial',label:'AMP / CAB: gemeten testketen',enabled:true,reason:'Vaste14-blokkenketen, modellen behouden.'});
       }
       if(name==='plan'){
         plans.push(req.postDataJSON());
@@ -99,6 +102,11 @@ const path=require('node:path');
           result.required_route=['Input 1','NAM 1','Cab 1','Delay 1','Chorus 1','Reverb 1','Output 1'];
           result.scenes=['Rhythm','Solo'].slice(0,req.postDataJSON().scenes);
           result.design={cab_active:false,delay:{time_ms:350},scenes:result.scenes.map(name=>({name,nam:{input_gain:0,level:-16},chorus:true,delay:true,reverb:true}))};
+        }
+        if(req.postDataJSON().mode==='serial'){
+          result.mode='serial';delete result.capture;result.scenes=['Crunch'];
+          result.design={scene_name:'Crunch',amp:{gain:5.5,level:-18},delay:{active:true,time_ms:320,feedback:20,mix:18},chorus:{active:true,rate_hz:.7,mix:12}};
+          result.required_route=['Input 1','Wah 1','Drive 1','Amp 1','Cab 1','Chorus 1','Compressor 1','Delay 1','Enhancer 1','Filter 1','Flanger 1','GEQ 1','PEQ 2','Output 1'];
         }
         if(req.postDataJSON().source_kind==='rig'){
           result.source={title:'<img src=x onerror=alert(1)> Explained rig',spec:{reader:{backend:'codex'}}};
@@ -342,6 +350,23 @@ const path=require('node:path');
     assert.equal(audioFetches,beforeExplore.audio+2);
     assert.equal(explorations.at(-1).audio_reference.url,'https://example.com/changed.wav');
     assert.equal(sends.length,beforeExplore.sends);assert.equal(installs.length,beforeExplore.installs);
+    // A measured serial template is explicit, one scene, and not a NAM selection.
+    await request();serialReady=true;await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    assert.equal(await page.locator('#liveRoute .chain-channel').count(),7);
+    assert.equal(await page.locator('#liveRoute .bypassed .chain-channel').count(),1);
+    assert.equal(await page.locator('#liveRoute .bypassed').evaluate(x=>getComputedStyle(x).color),'rgb(255, 255, 255)');
+    await page.fill('#prompt','Een scene crunch met delay en chorus, modellen behouden');
+    await page.click('#exploreRoutes');await page.locator('#refresh:not([disabled])').waitFor();
+    await page.selectOption('#buildRoute','serial');
+    assert.equal(await page.inputValue('#scenes'),'1');
+    assert(await page.locator('#namBuildSlot').isHidden());
+    assert(await page.locator('#scenes option').nth(1).evaluate(option=>option.disabled));
+    await review();assert.equal(plans.at(-1).mode,'serial');
+    assert(!Object.hasOwn(plans.at(-1),'nam_slot'));
+    assert.match(await page.textContent('#toneChoice'),/geen model- of IR-keuze/);
+    assert.match(await page.textContent('#sceneRows'),/320 ms.*feedback 20%/);
+    assert.equal(await page.locator('#sceneRows tr').count(),1);
+    await request();
     // Preset names are read-only; explicit selection needs mute and discard consent.
     navigationReady=true;await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
     assert.equal(await page.textContent('#connectDevice'),'VERBONDEN');assert(await page.locator('#connectDevice').isDisabled());

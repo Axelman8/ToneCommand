@@ -124,7 +124,8 @@ class Registry(BaseRegistry):
             raise ValueError("Axe-Fx III has Amp 1 and Amp 2 only")
         if family == "CHORUS" and instance != 1:
             raise ValueError("Only Chorus 1 has independent hardware evidence")
-        if family in ('FUZZ','COMP','GEQ','PEQ') and instance != 1:
+        if (family in ('FUZZ','COMP','GEQ','PEQ') and instance != 1
+                and not (family == 'PEQ' and instance == 2 and self.firmware == fw33_profile.KEY)):
             raise ValueError('Only the first Drive/Compressor/EQ instance has hardware evidence')
         return super().effect_id(family, instance)
 

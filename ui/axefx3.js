@@ -58,16 +58,21 @@ function controls(){
   sourceLabel.hidden=!sourceSupported;modeLabel.hidden=!sourceSupported||sourceKind.value!=='rig';
   if(!sourceSupported){sourceKind.value='tone';rigMode.value='closest';}
   sourceKind.disabled=busy;rigMode.disabled=busy;
-  captureLabel.hidden=!state?.nam_selection_supported;
+  const serial=el('buildRoute').value==='serial';
+  const serialOption=el('buildRoute').querySelector('option[value="serial"]');
+  serialOption.hidden=!state?.serial_build_supported;
+  serialOption.disabled=!state?.serial_build_supported||sourceKind.value==='rig';
+  captureLabel.hidden=!state?.nam_selection_supported||serial;
   captureSlot.disabled=busy||!state?.nam_selection_supported;
   for(const id of ['refresh','generate','cabImport','prompt','scenes','wah','cabKind','cabFile','discard','variant','deviceChoice','connectDevice','newDesign','audioFile','namQuery','namFormat','namSearch','namLogin','namWithRequest','editRequest','toReview','backPlan','toConfirm','backReview','returnRequest']) el(id).disabled=busy;
   el('connectDevice').disabled=busy||!!state?.connected;
   el('wahMode').disabled=busy||!el('wah').value;
   const fw33=state?.firmware==='33.00-beta.20261006';
-  const maxScenes=fw33?(state.route?.length?2:1):4;
+  const maxScenes=serial?1:fw33?(state.route?.length?2:1):4;
   for(const option of el('scenes').options)option.disabled=Number(option.value)>maxScenes;
   if(Number(el('scenes').value)>maxScenes)el('scenes').value=String(maxScenes);
   el('generate').disabled=busy||el('deviceChoice').value!=='axefx3'||!state?.connected||!!state.route_problem||(!fw33&&!state.cab_count);
+  if(serial&&state?.scene!==1)el('generate').disabled=true;
   if(chooseRoute&&!routeExploration?.routes.some(r=>r.mode===el('buildRoute').value&&r.enabled))el('generate').disabled=true;
   for(const id of ['namSaveKey','namDisconnect','namSuggest','namKey'])el(id).disabled=busy;
   el('namSlotsRefresh').disabled=busy||!namAccount?.installation_supported||!state?.connected;
@@ -80,7 +85,7 @@ function controls(){
   el('storeCommit').disabled=busy||!storePreview||!el('storeMute').checked||!el('storeFlash').checked;
   el('send').disabled=busy||currentStage!==3||el('deviceChoice').value!=='axefx3'||!proposal||!el('confirmed').checked||!el('muted').checked;
   stage(currentStage);
-  el('controllerHint').textContent=fw33?'FW33 NAM: eerst 1 scene vanuit leeg; daarna maximaal 2 met NAM A/B. Nieuwe controllerkoppelingen zijn voor dit profiel nog niet geverifieerd.':!el('wah').value?'Geen nieuwe controllerkoppeling. Bestaande Auto Engage blijft behouden en kan de scene-bypass beinvloeden.':
+  el('controllerHint').textContent=serial?'Gemeten AMP/CAB-testketen: uitsluitend scene1/A. Modellen blijven behouden, reserveblokken blijven bypassed. Geen nieuwe controllers.':fw33?'FW33 NAM: eerst 1 scene vanuit leeg; daarna maximaal 2 met NAM A/B. Nieuwe controllerkoppelingen zijn voor dit profiel nog niet geverifieerd.':!el('wah').value?'Geen nieuwe controllerkoppeling. Bestaande Auto Engage blijft behouden en kan de scene-bypass beinvloeden.':
     el('wahMode').value==='Fast Pos'?'Fast Pos: pedaalbeweging kan de Wah ook inschakelen in een scene met Wah uit. Kies Off voor aan/uit via de scenes.':
     el('wahMode').value==='Off'?'Off: het pedaal stuurt de Wah-filterstand, maar schakelt de Wah niet automatisch aan of uit.':
     'Bestaande Auto Engage-modus blijft behouden. Bij een nieuwe koppeling gebruikt het apparaat zijn standaard; controleer het gedrag.';
@@ -115,7 +120,10 @@ async function refresh(){
   el('liveRoute').replaceChildren();
   if(state.route?.length){for(const [i,label] of state.route.entries()){
     if(i)el('liveRoute').append(document.createTextNode(' → '));
-    const block=document.createElement('span');block.className='chain-block';block.textContent=label;el('liveRoute').append(block);
+    const actual=state.route_blocks?.[i];
+    const block=document.createElement('span');block.className='chain-block'+(actual?.bypassed?' bypassed':'');block.textContent=label;
+    if(actual){const channel=document.createElement('span');channel.className='chain-channel';channel.textContent=actual.channel;block.append(channel);block.title=actual.bypassed?'Bypassed':'Actief';}
+    el('liveRoute').append(block);
   }}else el('liveRoute').textContent=state.route_problem||'Lege of niet uitgelezen keten';
   el('sceneRack').replaceChildren();
   for(let i=0;i<8;i++){
@@ -382,6 +390,15 @@ async function analyseRequestAudio(){
 }
 function showDesign(plan){
   const design=plan.design, controller=plan.controller;
+  if(plan.mode==='serial'){
+    el('toneChoice').textContent='Gemeten AMP/CAB-testketen: bestaande/standaard modellen behouden, geen model- of IR-keuze.';
+    el('controllerChoice').textContent='Wah en andere reserveblokken bypassed; geen nieuwe controllerkoppeling.';
+    el('planWarnings').replaceChildren();for(const warning of plan.warnings||[]){const li=document.createElement('li');li.textContent=warning;el('planWarnings').append(li);}
+    el('sceneTable').hidden=false;el('sceneRows').replaceChildren();
+    const row=document.createElement('tr');
+    for(const value of [`1. ${design.scene_name} / A`,`${design.amp.gain} / ${design.amp.level} dB`,'Uit',design.chorus.active?`${design.chorus.rate_hz} Hz / mix ${design.chorus.mix}%`:'Uit',design.delay.active?`${design.delay.time_ms} ms / feedback ${design.delay.feedback}% / mix ${design.delay.mix}%`:'Uit','Niet in route','Reserveblokken bypassed']){const td=document.createElement('td');td.textContent=value;row.append(td);}
+    el('sceneRows').append(row);return;
+  }
   if(plan.mode==='nam'){
     el('toneChoice').textContent=`NAM ${String(plan.capture.slot||1).padStart(3,'0')}: ${plan.capture.name} | Cab ${design.cab_active?'bestaand behouden':'bypassed'}`;
     el('controllerChoice').textContent='FW33 controllerwrites niet gemeten; geen nieuwe koppeling.';
@@ -438,7 +455,7 @@ el('generate').onclick=()=>run(async()=>{
     wah_auto_engage:el('wah').value?(el('wahMode').value||null):null,audio_reference:audioReference,
     ...(state.route_options_supported?{mode:el('buildRoute').value}:{}),
     nam_query:el('namWithRequest').checked?(el('namQuery').value||null):null,
-    ...(state.nam_selection_supported?{nam_slot:captureSlot.value?Number(captureSlot.value):null}:{}),
+    ...(state.nam_selection_supported&&el('buildRoute').value!=='serial'?{nam_slot:captureSlot.value?Number(captureSlot.value):null}:{}),
     ...(state.source_support?.rig_reader?{source_kind:sourceKind.value,rig_mode:rigMode.value}:{})});
   el('conversation').textContent=proposal.summary;el('conversationPanel').hidden=false;
   el('emptyConversation').hidden=true;
