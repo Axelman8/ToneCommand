@@ -103,7 +103,10 @@ class AxeFxIII:
             if self._approved_frame != tuple(frame):
                 raise PermissionError("Raw writes must pass the verified Axe-Fx III action path")
             if fn == 1:
-                if (self.reg.firmware == '33.00-beta.20261006'
+                from . import album_build
+                if album_build.frame_allowed(self,frame):
+                    pass  # Exact active reviewed operation, plus approved frame above.
+                elif (self.reg.firmware == '33.00-beta.20261006'
                         and getattr(self, '_cab_probe_permit', None) == tuple(frame)):
                     from . import cab_probe
                     if not cab_probe.allowed(self, frame):

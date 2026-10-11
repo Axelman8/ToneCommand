@@ -47,7 +47,7 @@ def resolve(reg, action):
         raise ValueError("Unsupported action; uploads, stores and global writes are not enabled")
     a = dict(action)
     kind = a["kind"]
-    if reg.firmware == fw33_profile.KEY and kind not in fw33_profile.BUILD_KINDS - {'store'}:
+    if reg.firmware == fw33_profile.KEY and kind not in (fw33_profile.BUILD_KINDS - {'store'}) | {'set_type','set_cab'}:
         raise ValueError('Action is outside the measured FW33 numeric/NAM profile')
     result = Resolved(a)
     if kind == "rename_preset":
@@ -90,7 +90,11 @@ def resolve(reg, action):
             protocol.set_parameter(reg, result.spec, a.get("value"))
             result.value = a["value"]
         elif kind == "set_type":
-            models.target(reg, family, eid, a.get("type_name"))
+            if reg.firmware==fw33_profile.KEY:
+                from . import album_planning
+                if family!='DISTORT' or eid!=58 or a.get('type_name') not in album_planning.MODELS.values():
+                    raise ValueError('Only two independently measured FW33 Amp1 models')
+            else: models.target(reg, family, eid, a.get("type_name"))
             result.value = a["type_name"]
         elif kind == "set_cab":
             if family != "CABINET":
@@ -101,6 +105,8 @@ def resolve(reg, action):
             side = str(a.get("cab_side") or "left").lower()
             if side not in ("left", "right", "both"):
                 raise ValueError("Cab side must be LEFT, RIGHT or BOTH")
+            if reg.firmware==fw33_profile.KEY and (eid!=62 or bank!=1 or ordinal not in (515,799) or side!='left'):
+                raise ValueError('Only measured Factory2 IR1 choices on FW33 Cab1')
             cab_selection.frame(eid, 0, bank)
             result.value = (bank, ordinal, side)
         elif kind == "set_channel":
@@ -224,6 +230,7 @@ def execute(dev, actions, required_route, *, expected_preset, external_audio_mut
     with dev._lock:
         resolved, expected, actual = prepare(dev, actions, required_route, expected_preset)
         results = []
+        album_proof=None
         with ExitStack() as stack:
             stack.enter_context(dev.edit_session(external_audio_muted=True, expected_preset=expected_preset))
             from . import serial_build
@@ -237,35 +244,28 @@ def execute(dev, actions, required_route, *, expected_preset, external_audio_mut
                     return {"ok": False, "results": [], "detail": built.detail, "phase": "build_route",
                             "skipped": len(actions), "stored": False, "physical_volume_verified": False,
                             "recovery": "Partial routing may remain in the edit buffer. Keep external audio muted; no automatic rollback."}
+            from . import album_build
+            album_enabled=dev.reg.firmware==fw33_profile.KEY and tuple(expected)==serial_build.ROUTE and any(i.action['kind']=='set_type' for i in resolved)
+            album=stack.enter_context(album_build.execution(dev,resolved,album_enabled))
             for item in resolved:
                 a, eid, kind = item.action, item.effect_id, item.action["kind"]
                 try:
-                    if kind == "add_block":
-                        result = SetResult(True, "Present in the verified required route", None, eid)
-                    elif kind == "set_param": result = dev.set_param_display(item.spec, item.value)
-                    elif kind == "set_type": result = dev.set_model(item.family, eid, item.value)
-                    elif kind == 'select_nam': result = dev.select_nam_slot(item.value)
-                    elif kind == "set_cab": result = dev.set_cab(eid, *item.value)
-                    elif kind == "bind_pedal":
-                        result = dev.assign_existing_modifier(a["modifier_slot"], eid, 5, item.value)
-                    elif kind == "bind_controller":
-                        result = dev.bind_pedal_control(eid, *item.value)
-                    else:
-                        if kind == "set_scene": actual_value = dev.set_scene(item.value)
-                        elif kind == "set_channel": actual_value = dev.set_channel(eid, item.value)
-                        elif kind == "set_bypass":
-                            actual_value = (serial_build.bypass(dev,eid,item.value)
-                                if tuple(expected) == serial_build.ROUTE and dev.reg.firmware == fw33_profile.KEY
-                                else dev.set_bypass(eid, item.value))
-                        elif kind == "rename_preset":
-                            got = dev.rename_preset(item.value)
-                            actual_value = got[1] if got else None
-                        elif kind == "rename_scene":
-                            got = dev.rename_scene(item.value, a["type_name"])
-                            actual_value = got[1] if got and got[0] == item.value else None
-                        wanted = a["type_name"] if kind == "rename_scene" else item.value
-                        ok = actual_value is not None and actual_value == wanted
-                        result = SetResult(ok, "Independent readback matched" if ok else "Readback mismatch; stopped", None, actual_value)
+                    def operation():
+                        if album and kind=='set_type': return album.model(item.value)
+                        if album and kind=='set_cab': return album.cab(*item.value[:2])
+                        if album and kind=='set_channel':
+                            got=album.channel(eid,item.value)
+                            return SetResult(got==item.value,'Independent channel readback',None,got)
+                        if album and kind=='set_scene':
+                            album.write(protocol.envelope(0x0c,[item.value-1]))
+                            for _ in range(5):
+                                import time
+                                time.sleep(.2)
+                                got=dev.current_scene()
+                                if got==item.value: return SetResult(True,'Independent scene readback',None,got)
+                            return SetResult(False,'Scene readback failed; no write retry',None,got)
+                        return apply(dev,item,expected)
+                    result=album.run(item,operation) if album else operation()
                 except (OSError, RuntimeError, ValueError, KeyError) as exc:
                     result = SetResult(False, f"Execution stopped: {exc}", None, None)
                 results.append({"action": a, "ok": result.ok, "detail": result.detail,
@@ -279,6 +279,41 @@ def execute(dev, actions, required_route, *, expected_preset, external_audio_mut
                 except (OSError, RuntimeError, ValueError, KeyError) as exc:
                     ok = False
                     results.append({"ok": False, "detail": str(exc), "phase": "final_route"})
+            if ok and album: album_proof=album.proof()
         return {"ok": ok, "results": results, "skipped": max(0, len(actions) - len(results)),
                 "stored": False, "physical_volume_verified": False,
+                **({'album_verification':album_proof} if album_proof else {}),
                 "recovery": "No automatic rollback; partial edit-buffer changes may remain. Nothing stored."}
+
+
+def apply(dev,item,expected):
+    """Existing action dispatch, also used under bounded album state checks."""
+    from . import serial_build
+    a,eid,kind=item.action,item.effect_id,item.action['kind']
+    if kind == "add_block":
+        result = SetResult(True, "Present in the verified required route", None, eid)
+    elif kind == "set_param": result = dev.set_param_display(item.spec, item.value)
+    elif kind == "set_type": result = dev.set_model(item.family, eid, item.value)
+    elif kind == 'select_nam': result = dev.select_nam_slot(item.value)
+    elif kind == "set_cab": result = dev.set_cab(eid, *item.value)
+    elif kind == "bind_pedal":
+        result = dev.assign_existing_modifier(a["modifier_slot"], eid, 5, item.value)
+    elif kind == "bind_controller":
+        result = dev.bind_pedal_control(eid, *item.value)
+    else:
+        if kind == "set_scene": actual_value = dev.set_scene(item.value)
+        elif kind == "set_channel": actual_value = dev.set_channel(eid, item.value)
+        elif kind == "set_bypass":
+            actual_value = (serial_build.bypass(dev,eid,item.value)
+                if tuple(expected) == serial_build.ROUTE and dev.reg.firmware == fw33_profile.KEY
+                else dev.set_bypass(eid, item.value))
+        elif kind == "rename_preset":
+            got = dev.rename_preset(item.value)
+            actual_value = got[1] if got else None
+        elif kind == "rename_scene":
+            got = dev.rename_scene(item.value, a["type_name"])
+            actual_value = got[1] if got and got[0] == item.value else None
+        wanted = a["type_name"] if kind == "rename_scene" else item.value
+        ok = actual_value is not None and actual_value == wanted
+        result = SetResult(ok, "Independent readback matched" if ok else "Readback mismatch; stopped", None, actual_value)
+    return result

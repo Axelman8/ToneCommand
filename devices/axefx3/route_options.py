@@ -3,7 +3,7 @@ import json
 from typing import Annotated, Literal
 
 from pydantic import Field
-from . import planning, fw33_profile, serial_build
+from . import planning, fw33_profile, serial_build,album_build
 
 
 class Comparison(planning.Shape):
@@ -19,11 +19,13 @@ def capabilities(reg):
     firmware=reg.firmware
     nam=(firmware==fw33_profile.KEY and getattr(reg,'hardware_variant',None)=='mk2')
     amp=(firmware=='32.06' and bool(reg.selectable_amp_models()) and bool(reg.cab_catalog.names))
-    return [dict(mode='amp',label='AMP / CAB + pedals',enabled=amp,
-        reason=('Geverifieerde amp/cab-keuze en beschikbare effecten; volledige route wordt bij review gecontroleerd.' if amp else
+    album=album_build.supported(reg)
+    return [dict(mode='amp',label='AMP / CAB: acht albumscenes' if album else 'AMP / CAB + pedals',enabled=amp or album,
+        reason=('FW33: vaste14-blokkenketen, exact acht scenes met vier albumvoicings A-D. Twee gemeten Amp1-modellen en twee Factory2 IR1-cabs. Delay/Chorus delen A, Output -18dB, reserveblokken bypassed; geen nieuwe controllers.' if album else
+                'Geverifieerde amp/cab-keuze en beschikbare effecten; volledige route wordt bij review gecontroleerd.' if amp else
                 'FW33 amp/cab-modelselectie, routing en extra pedals moeten nog onafhankelijk worden gemeten.' if firmware==fw33_profile.KEY else
                 'Geverifieerde firmware, ampmodellen en een geimporteerde cabnamenlijst zijn nodig.'),
-        interpretation_only=not amp),
+        interpretation_only=not (amp or album)),
         dict(mode='nam',label='NAM + passende effecten',enabled=nam,
         reason=('Geinstalleerde compatibele NAM, gecontroleerde keten, eerst 1 scene vanuit leeg en daarna maximaal 2. Download/installatie apart bevestigen.' if nam else
                 'NAM-presetbouw vereist het exact gemeten FW33-profiel en MK2. NAM is geen verplichte route.'),

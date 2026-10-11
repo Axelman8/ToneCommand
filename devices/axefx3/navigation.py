@@ -111,6 +111,8 @@ class Reviews:
             raise ValueError('Navigation confirmation expired or connection changed.')
         if digest(snapshot(dev))!=pending['stamp']:raise ValueError('Preset state changed. Review selection again.')
         source=pending['state']['preset']
+        dev._album_store_stamp=None
+        dev._album_store_proof=None
         if pending['kind']=='preset':
             slot=dev.slot_name(pending['value'])
             if slot is None or dict(number=slot.number,name=slot.name)!=pending['destination']:

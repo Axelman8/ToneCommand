@@ -10,7 +10,7 @@ const path=require('node:path');
   try{
     const page=await browser.newPage({viewport:{width:1440,height:1000}});
     const errors=[],plans=[],sends=[];
-    let audioFetches=0,sourceBackendReady=true,routeOptionsReady=false,navigationReady=false,serialReady=false,multiSceneReady=false;
+    let audioFetches=0,sourceBackendReady=true,routeOptionsReady=false,navigationReady=false,serialReady=false,multiSceneReady=false,albumReady=false;
     let currentPreset=325,currentScene=1,navigationRequest=null;
     const serialRoute=['Input 1','Wah 1','Drive 1','Amp 1','Cab 1','Chorus 1','Compressor 1','Delay 1','Enhancer 1','Filter 1','Flanger 1','GEQ 1','PEQ 2','Output 1'];
     const navigationSelections=[];
@@ -63,6 +63,7 @@ const path=require('node:path');
           profile:{variant,warning:'Memory policy from declared variant',user2_cabs:true}};
         if(!sourceBackendReady)delete result.source_support;
         if(serialReady)result.serial_build_supported=true;
+        if(albumReady)result.album_build_supported=true;
         if(multiSceneReady){result.multiscene_planning_supported=!fw33;result.request_scene_limit=8;}
         if(routeOptionsReady)result.route_options_supported=true;
         if(navigationReady){result.navigation_supported=true;result.scene_names=Array.from({length:8},(_,i)=>[i+1,i?'Solo':'Rhythm']);}
@@ -74,7 +75,7 @@ const path=require('node:path');
         explorations.push(req.postDataJSON());
         result={readonly:true,hardware_written:false,
           comparison:{recommended:'amp',reason:'Compare both, no automatic selection',amp_direction:'Brit crunch',nam_query:'Whole Lotta Love',pedals:['<img src=x> Delay']},
-          routes:[{mode:'amp',label:'AMP / CAB + pedals',enabled:!fw33,reason:'Model selection requires measured firmware'},
+          routes:[{mode:'amp',label:'AMP / CAB + pedals',enabled:!fw33||albumReady,reason:'Model selection requires measured firmware'},
                   {mode:'nam',label:'NAM + passende effecten',enabled:fw33,reason:'Installed compatible capture required'}],nam_candidates:[]};
         if(serialReady)result.routes.push({mode:'serial',label:'AMP / CAB: gemeten testketen',enabled:true,reason:'Vaste14-blokkenketen, modellen behouden.'});
       }
@@ -116,6 +117,12 @@ const path=require('node:path');
           result.mode='serial';delete result.capture;result.scenes=['Crunch'];
           result.design={scene_name:'Crunch',amp:{gain:5.5,level:-18},delay:{active:true,time_ms:320,feedback:20,mix:18},chorus:{active:true,rate_hz:.7,mix:12}};
           result.required_route=['Input 1','Wah 1','Drive 1','Amp 1','Cab 1','Chorus 1','Compressor 1','Delay 1','Enhancer 1','Filter 1','Flanger 1','GEQ 1','PEQ 2','Output 1'];
+        }
+        if(albumReady&&req.postDataJSON().mode==='amp'){
+          result.mode='album';delete result.capture;result.required_route=serialRoute;
+          result.design={albums:Array.from({length:4},(_,c)=>({amp_model:c?'USA JP IIC+ Yellow':'Brit 800 2204 High',amp:{gain:5+c,level:-18},lead:{name:`Album ${c+1} Lead`,delay:false,chorus:false},solo:{name:`Album ${c+1} Solo`,delay:true,chorus:true}})),delay:{time_ms:350,feedback:25,mix:18},chorus:{rate_hz:.7,mix:10}};
+          result.scenes=result.design.albums.flatMap(a=>[a.lead.name,a.solo.name]);
+          result.cab_choices=Array.from({length:4},(_,c)=>({channel:'ABCD'[c],slot:c?800:516,name:c?'4x12 Recto57A':'4x12 Brit70s GB57A'}));
         }
         if(req.postDataJSON().source_kind==='rig'){
           result.source={title:'<img src=x onerror=alert(1)> Explained rig',spec:{reader:{backend:'codex'}}};
@@ -426,6 +433,22 @@ const path=require('node:path');
     assert.match(await page.textContent('#sceneRows'),/Album cab 4/);
     assert.match(await page.textContent('#sceneRows'),/CABINET D/);
     await request();fw33=true;await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    assert(await page.locator('#scenes option').nth(7).evaluate(o=>o.disabled));
+    // FW33 album capability is separate from NAM and from legacy eight-scene support.
+    albumReady=true;serialReady=true;routeOptionsReady=true;currentScene=1;
+    await page.fill('#prompt','Metallica vier albums lead en solo met AMP CAB');
+    await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    await page.click('#exploreRoutes');await page.locator('#exploreRoutes:not([disabled])').waitFor();
+    await page.selectOption('#buildRoute','amp');
+    assert.equal(await page.inputValue('#scenes'),'8');
+    assert(!await page.locator('#namBuildSlot').isVisible());
+    await review();assert.equal(plans.at(-1).scenes,8);assert.equal(plans.at(-1).mode,'amp');
+    assert(!Object.hasOwn(plans.at(-1),'nam_slot'));
+    assert.equal(await page.locator('#sceneRows tr').count(),8);
+    assert.match(await page.textContent('#sceneRows'),/8\. Album 4 Solo \/ D/);
+    assert.match(await page.textContent('#sceneRows'),/Factory 2 slot 800 \/ D/);
+    assert.match(await page.textContent('#sceneRows'),/Output A -18dB/);
+    await request();await page.selectOption('#buildRoute','nam');
     assert(await page.locator('#scenes option').nth(7).evaluate(o=>o.disabled));
     assert.deepEqual(errors,[]);
     console.log('AFX3 shared FM9 layout: workflow, fit, consent, reset, MK, audio, XSS; FW33 NAM foundation/two scenes, permanent install and separate Store consent passed');

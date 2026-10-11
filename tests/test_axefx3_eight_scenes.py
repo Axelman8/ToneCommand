@@ -190,14 +190,14 @@ def test_eight_scenes_use_normal_review_send_in_simulation(api, dev, design):
     dev.store_preset.assert_not_called()
 
 
-def test_fw33_eight_scene_request_is_profile_refusal_not_schema_or_ai(api, dev):
+def test_fw33_non_album_scene_count_is_refused_before_ai(api, dev):
     client, ask = api
     dev.reg = Registry(fw33_profile.KEY)
     dev.reg.hardware_variant = 'mk2'
     dev.firmware_label.return_value = fw33_profile.KEY
-    response = client.post('/api/axefx3/plan', json=dict(prompt='Metallica albums', expected_preset=324, mode='amp', scenes=8))
+    response = client.post('/api/axefx3/plan', json=dict(prompt='Metallica albums', expected_preset=324, mode='amp', scenes=4))
     assert response.status_code == 409, response.text
-    assert 'eight scenes' in response.text and 'will not substitute NAM' in response.text
+    assert 'eight scenes' in response.text and 'no NAM/controller' in response.text
     ask.assert_not_called()
     dev.edit_session.assert_not_called()
     dev._write.assert_not_called()

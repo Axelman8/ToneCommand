@@ -12,6 +12,7 @@ from fm9 import ai_settings, planner
 from fm9.paths import resource_path
 from . import planning, route_guard, tone_review, profile, tone_search, reference_audio, nam_planning, fw33_profile, rig_source, route_options, navigation, serial_build, serial_planning
 from .controller_ui import Confirmation
+from . import album_build,album_planning
 
 
 class Measurements(BaseModel):
@@ -121,6 +122,7 @@ def register(app, host):
                             navigation_supported=navigation.supported(dev),
                             route_options_supported=True,
                             serial_build_supported=serial_build.supported(dev.reg),
+                            album_build_supported=album_build.supported(dev.reg),
                             multiscene_planning_supported=dev.reg.firmware == '32.06',
                             request_scene_limit=8,
                             source_support=dict(rig_reader=True, modes=rig_source.MODES),
@@ -234,11 +236,15 @@ def register(app, host):
                 if dev.reg.firmware == fw33_profile.KEY and getattr(dev.reg,'hardware_variant',None) != 'mk2':
                     raise ValueError('FW33 NAM planning requires the declared measured MK2 profile')
                 serial_mode = body.mode == 'serial'
+                album_mode = body.mode=='amp' and dev.reg.firmware==fw33_profile.KEY
+                if album_mode and (not album_build.supported(dev.reg) or body.scenes!=8
+                        or body.wah_source or body.nam_slot is not None or body.source_kind!='tone'):
+                    raise ValueError('Measured FW33 AMP/CAB album route: eight scenes, four voices, no NAM/controller or rig translation')
                 if serial_mode and (not serial_build.supported(dev.reg) or body.scenes != 1
                         or body.wah_source or body.nam_slot is not None or body.source_kind != 'tone'):
                     raise ValueError('Measured serial template: exact FW33/MK2, one scene, no NAM/controller or rig-translation selection')
                 nam_mode = body.mode == 'nam' or (body.mode == 'auto' and dev.reg.firmware == fw33_profile.KEY)
-                if not nam_mode and not serial_mode and dev.reg.firmware != '32.06':
+                if not nam_mode and not serial_mode and not album_mode and dev.reg.firmware != '32.06':
                     raise ValueError('AMP/CAB request accepted, including up to eight scenes. FW33 model/IR selection and multi-channel writes still require independent verification; no build, SEND or Store is available for this route yet. TC will not substitute NAM.')
                 if nam_mode and body.scenes > 2:
                     raise ValueError('NAM execution on this FW33 profile is measured for scenes 1/2 only; eight-scene requests are accepted but not executable yet.')
@@ -248,7 +254,7 @@ def register(app, host):
                 if initial['preset'][0] != body.expected_preset:
                     raise ValueError('Target preset changed. Refresh before planning.')
                 route = route_guard.serial_route(initial['grid'],initial['blocks'],dev.reg)
-                if serial_mode and (initial['scene'] != 1 or any(e['active'] for e in initial['modifiers'])
+                if (serial_mode or album_mode) and (initial['scene'] != 1 or any(e['active'] for e in initial['modifiers'])
                         or (route and (tuple(route) != serial_build.ROUTE
                             or serial_build.grid.snapshot(initial['grid']) != serial_build.expected_grid()))):
                     raise ValueError('Select scene1 on an empty preset or exact measured row1 chain without active modifiers; nothing sent')
@@ -256,14 +262,14 @@ def register(app, host):
                     raise ValueError('NAM mode requires exact FW33; modifier writes are not measured')
                 if nam_mode and not route and body.scenes != 1:
                     raise ValueError('Build a one-scene NAM foundation first; then extend to scenes 1/2.')
-                if not nam_mode and not serial_mode and not dev.reg.cab_catalog.names:
+                if not nam_mode and not serial_mode and not album_mode and not dev.reg.cab_catalog.names:
                     raise ValueError('Import an Axe-Fx III Factory or User cab name list first; no guessed cab names.')
                 facts = resource_path('config','amp_models.json')
                 if facts.exists():
                     dev.reg.load_amp_facts(json.loads(facts.read_text(encoding='utf-8')))
-                reference = (serial_planning.reference(dev.reg) if serial_mode else
+                reference = (album_planning.reference(dev.reg) if album_mode else serial_planning.reference(dev.reg) if serial_mode else
                     nam_planning.reference(dev.reg,initial) if nam_mode else planning.reference(dev.reg))
-                design_module = serial_planning if serial_mode else nam_planning if nam_mode else planning
+                design_module = album_planning if album_mode else serial_planning if serial_mode else nam_planning if nam_mode else planning
                 state_text = json.dumps(tone_review.public_state(initial,dev.reg),ensure_ascii=False)
             context = ''
             captures = None
@@ -288,7 +294,9 @@ def register(app, host):
                 compiled = rig_source.compile_source(source, nam_mode=nam_mode, mode=body.rig_mode)
                 context += rig_source.brief(source, compiled)
             def validate(raw):
-                if serial_mode:
+                if album_mode:
+                    plan=album_planning.compile_design(dev.reg,raw,route,body.scenes)
+                elif serial_mode:
                     plan = serial_planning.compile_design(dev.reg,raw,route,body.scenes)
                 elif nam_mode:
                     plan = nam_planning.compile_design(dev.reg,raw,route,body.scenes,initial['nam'])

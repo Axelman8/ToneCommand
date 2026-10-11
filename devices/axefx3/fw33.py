@@ -21,8 +21,8 @@ def platform_supported():
 
 def check_frame(dev, frame):
     fn, payload = frame[5], frame[6:-2]
-    from . import amp_probe,cab_probe
-    if amp_probe.allowed(dev, frame) or cab_probe.allowed(dev,frame):
+    from . import amp_probe,cab_probe,album_build
+    if amp_probe.allowed(dev, frame) or cab_probe.allowed(dev,frame) or album_build.frame_allowed(dev,frame):
         return
     if fn != 1:
         if fn == 0x0c and payload != [127] and payload not in ([0],[1]):
@@ -74,6 +74,8 @@ def check_frame(dev, frame):
 
 def domain_error(dev, spec, channel):
     channels = {0, 1} if spec.family == 'NAM' else {0}
+    from . import album_build
+    if album_build.amp_domain(dev,spec,channel): channels=set(range(4))
     if channel not in channels:
         return 'FW33 numeric channel is outside the measured profile'
     words = dev.bulk_read(spec.effect_id)
@@ -91,8 +93,10 @@ def domain_error(dev, spec, channel):
 
 def prepare(dev, resolved, expected, actual):
     """Read-only NAM-build preflight, never promote an arbitrary FW33 route."""
-    from . import modifiers,serial_build
+    from . import modifiers,serial_build,album_build
     if tuple(expected) == serial_build.ROUTE:
+        if any(i.action['kind'] in ('set_type','set_cab','set_scene') for i in resolved):
+            return album_build.prepare(dev,resolved,expected,actual)
         return serial_build.prepare(dev,resolved,expected,actual)
     if getattr(dev.reg,'hardware_variant',None) != 'mk2':
         raise ValueError('FW33 NAM build requires the declared measured MK2 profile')

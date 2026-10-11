@@ -81,7 +81,7 @@ class Reviews:
         self.clear()
         with dev._lock:
             now = snapshot(dev, initial['nam']['slot'] if initial.get('nam') else None,
-                           include_nam=plan.get('mode') != 'serial')
+                           include_nam=plan.get('mode') not in ('serial','album'))
             if digest(now) != digest(initial):
                 raise ValueError('Preset changed while the AI was planning. Nothing sent; regenerate.')
             executor.prepare(dev,plan['actions'],plan['required_route'],now['preset'][0])
@@ -89,7 +89,7 @@ class Reviews:
             self.pending = dict(token=token, device=dev, stamp=digest(now), plan=plan,
                                 preset=now['preset'][0], expires=self.clock()+600)
             self.pending['nam_slot'] = now['nam']['slot'] if now.get('nam') else None
-            self.pending['include_nam'] = plan.get('mode') != 'serial'
+            self.pending['include_nam'] = plan.get('mode') not in ('serial','album')
             return dict(**plan, token=token, expires_in=600,
                         target=public_state(now,dev.reg), stored=False)
 
@@ -107,8 +107,17 @@ class Reviews:
             if digest(snapshot(dev, pending['nam_slot'], include_nam=pending['include_nam'])) != pending['stamp']:
                 raise ValueError('Device or cab catalogue changed since review. Nothing sent.')
             plan = pending['plan']
+            dev._album_store_stamp=None
+            dev._album_store_proof=None
             result = executor.execute(dev,plan['actions'],plan['required_route'],
                 expected_preset=pending['preset'],external_audio_muted=True)
+            if result['ok'] and plan.get('mode')=='album':
+                proof=result.get('album_verification')
+                fresh=digest(snapshot(dev,include_nam=False))
+                if not proof or fresh!=proof['final_fingerprint']:
+                    raise ValueError('Final state changed after verified album execution; no Store proof')
+                dev._album_store_stamp=fresh
+                dev._album_store_proof=proof
             # All action results are already independently verified by the executor.
             # No hidden scene switching for a final survey; that could itself alter
             # state. Report exactly what was executed and what remains unmeasured.

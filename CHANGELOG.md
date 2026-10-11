@@ -4,6 +4,21 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Add a bounded FW33/MK2 eight-scene AMP/CAB album contract to the normal
+  selected-AI, review and SEND workflow. Four album voices share A-D; only
+  two measured Amp1 models and two Factory2 Legacy IR1 selections are allowed.
+  Shared Delay/Chorus A, Output-18dB and bypassed reserve blocks stay explicit.
+  Full-state preservation and consumed failures exclude arbitrary graphs,
+  models, IR/mixer installation and controllers. Separate Store requires an
+  unchanged complete successful album SEND, never a partial result.
+  Stage bypass after entering the new scene, preserving the previous scene's
+  final state. Regression fixtures now persist scene channel/bypass mappings.
+  Actual configured-AI/registered SEND on326 completes275 actions. Fresh
+  Axe-Edit independently confirms all eight scenes; separate Store and full
+  reload equality verify AI-Metallica albums. Live Chrome confirms the single
+  runtime on8909 without writes. No audible-match or physical-limiter claim.
+  Mandatory contract/capability/UI-warning and changed regression suites
+  pass570 simulator tests; actual Chrome workflow tests also pass.
 - Complete a second fixed AMP measurement on B/C/D:34 native model/channel
   and numeric-restoration steps preserve complete baseline state. Fresh
   Axe-Edit confirms all four models and eight controls per channel. Mandatory

@@ -13,7 +13,7 @@ COMPARISON=dict(recommended='either',reason='Both can approximate warm crunch.',
 
 
 @pytest.mark.parametrize('firmware,variant,amp,nam',[
-    ('32.06',None,True,False),(fw33_profile.KEY,'mk2',False,True),
+    ('32.06',None,True,False),(fw33_profile.KEY,'mk2',True,True),
     (fw33_profile.KEY,'mk1',False,False),('33.01','mk2',False,False)])
 def test_capabilities_do_not_force_or_promote_nam(firmware,variant,amp,nam):
     reg=Registry(firmware);reg.hardware_variant=variant
@@ -22,7 +22,7 @@ def test_capabilities_do_not_force_or_promote_nam(firmware,variant,amp,nam):
     expected=dict(amp=amp,nam=nam)
     if firmware==fw33_profile.KEY and variant=='mk2':expected['serial']=True
     assert {x['mode']:x['enabled'] for x in choices}==expected
-    assert choices[0]['label']=='AMP / CAB + pedals'
+    assert choices[0]['label']==('AMP / CAB: acht albumscenes' if firmware==fw33_profile.KEY and variant=='mk2' else 'AMP / CAB + pedals')
 
 
 def request(api,dev,monkeypatch):

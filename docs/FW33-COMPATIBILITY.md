@@ -661,9 +661,9 @@ recorded numeric literals. The former Python-double path differs by one packed
 ULP for some values. This correction establishes frame fidelity; it is not
 evidence of an audible difference or the cause of earlier weak guitar tones.
 
-The calibration remains deliberately outside normal planner/SEND capabilities.
-Public FW33 AMP model/CAB selection and the final eight-scene album build,
-independent comparison, Store/reload and listening still require acceptance.
+The calibration remains a developer operation, separate from normal SEND.
+The bounded album contract below records its own selected-AI/SEND, independent
+comparison and Store/reload acceptance. Listening remains a user check.
 
 ### CAB Legacy IR1 measurement, 2026-10-11
 
@@ -702,3 +702,82 @@ complete state equals the baseline. After MIDI release, fresh Axe-Edit confirms
 the models and controls on A/B/C/D and returns toA. The final mandatory and
 changed simulator suites pass321 tests. This completes the bounded measurement,
 not the normal eight-scene SEND, Store/reload or audible acceptance.
+
+### Bounded eight-scene album integration candidate
+
+The normal AMP request has an exact MK2/FW33 eight-scene contract, separate
+from the retained one-scene serial template and one/two-scene NAM mode. Four
+album voices map to Amp/Cab A,A,B,B,C,C,D,D. Only Amp14/267 and Factory2 IR1
+ordinals515/799 are enabled inside a reviewed ordered album session. Generic
+model rosters/setters remain closed. Legacy IR1-only mixer state is required;
+IR2-4 selections, levels, pan and mute are preserved, not manufactured.
+Delay/Chorus each share A; effect models are retained. Output A is fixed-18dB.
+The fixed14-block construction and every subsequent action preserve whole
+device state outside the explicitly addressed field/channel. Unknown outcomes
+consume the session without a write retry, alternate opcode or rollback.
+
+An initial actual selected-AI/SEND test on329 verifies267 individual actions,
+but a final scene survey finds that pre-transition bypass staging overwrites
+the previous scene. That attempt is NOT eight-scene acceptance and was not
+stored. The compiler now selects the new scene before bypass staging, under
+confirmed external mute and already quiet A-D/output levels. Synthetic tests
+persist real per-scene channel/bypass mappings, exposing regressions that a
+stateless fixture misses. Corrected native acceptance remains pending here.
+
+Separate same-slot Store review supports an album only after complete normal
+SEND, with an unchanged full-state fingerprint on the same device connection.
+Incomplete or stale builds cannot enable it. No automatic Store or reload.
+The browser shows the bounded choices, all eight mappings and-18dB Output,
+omits NAM-slot requests in AMP mode and preserves NAM/serial scene ceilings.
+
+The corrected actual configured-AI/registered SEND on329 verifies267 actions
+and an explicit native survey of all eight saved mappings, names, Amp controls
+and IR selections. A fresh Axe-Edit then independently confirms all eight
+scenes, four model/voicing channels, IR1 names/factory slots/mute pixels and
+the complete84-cell grid. This test remains unstored; it is not a listening
+or exact-album-tone claim.
+
+The album contract additionally compiles eight explicit final scene-select checks
+into SEND without rewriting the saved mappings. Its final fingerprint comes
+from the executor's last independently verified state, not a new unverified
+baseline. Separate Store reselects and verifies all eight scenes under the
+explicit mute/permanent-write confirmation before sending Store. Hidden edits
+to another scene therefore cannot evade a current-scene-only fingerprint.
+Unknown zero FX values are excluded in the album schema; normalized numeric
+bulk must match the requested display within one quantization word.
+### Eight-scene preset326 acceptance, 2026-10-11
+
+The actual configured AI chooses four distinct album voices and generates the
+normal review for AI-Metallica albums on326. Registered SEND completes275
+actions, including the final eight-scene verification survey. Native checks
+confirm A,A,B,B,C,C,D,D Amp/Cab assignments, all eight saved names/bypass maps,
+model/IR selectors, gain/EQ/master/depth/presence/levels and full preserved
+grid, modifiers and other bulk words. Output A remains-18dB.
+
+After MIDI release, fresh Axe-Edit independently confirms all eight scenes,
+four model/voicing channels, IR1 names/Factory2 positions, IR1-only mute state
+and the complete84-cell grid. It closes normally without Save or model/numeric
+UI writes. TC reconnects and requires unchanged complete state before its
+separate registered Store review and permanent-write confirmation. Store
+verifies all eight saved scenes again, stores326, then the acceptance harness
+explicitly reloads326 and checks complete state equality. The preset is saved
+as AI-Metallica albums, ending on scene8.
+
+KEA uses Brit800/Greenback; RTL uses Brit800/Recto; MOP and AJFA use distinct
+USA JP IIC+ Yellow/Recto voicings. Each lead/solo pair shares an amp voice;
+solos engage the shared delay, with chorus on RTL/MOP solos. Reserve blocks
+remain bypassed. This verifies the bounded TC workflow and saved settings,
+not an audible match to the albums or guaranteed physical loudness. Audition
+at low physical volume. Arbitrary models, graphs, controllers, other FX
+channels and CAB mixer writes are not promoted by this acceptance.
+
+The single live TC on8909 also passes a real Chrome read-only GUI check:
+preset326/scene8, eight names,14 labeled blocks, white bypass text/red channel
+markers, the enabled AMP option and reachable Input/Output at three viewport
+widths. No AI, SEND, Store or device selection is invoked by that GUI check.
+
+Before the album commit, TONECOMMAND_SIM=1 mandatory contract/capability/
+UI-warning and changed regression suites pass570 tests in246.49s. Real Chrome
+mocked-API workflow tests also pass, retaining NAM/serial/consent/reset/source
+behavior. Simulator and browser results supplement, not replace, the native
+and independent-editor acceptance above.

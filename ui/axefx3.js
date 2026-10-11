@@ -59,20 +59,23 @@ function controls(){
   if(!sourceSupported){sourceKind.value='tone';rigMode.value='closest';}
   sourceKind.disabled=busy;rigMode.disabled=busy;
   const serial=el('buildRoute').value==='serial';
+  const album=el('buildRoute').value==='amp'&&!!state?.album_build_supported;
+  el('buildRoute').querySelector('option[value="amp"]').textContent=state?.album_build_supported?'AMP / CAB: acht albumscenes':'AMP / CAB + pedals';
   const serialOption=el('buildRoute').querySelector('option[value="serial"]');
   serialOption.hidden=!state?.serial_build_supported;
   serialOption.disabled=!state?.serial_build_supported||sourceKind.value==='rig';
-  captureLabel.hidden=!state?.nam_selection_supported||serial;
+  captureLabel.hidden=!state?.nam_selection_supported||(state?.route_options_supported&&el('buildRoute').value!=='nam');
   captureSlot.disabled=busy||!state?.nam_selection_supported;
   for(const id of ['refresh','generate','cabImport','prompt','scenes','wah','cabKind','cabFile','discard','variant','deviceChoice','connectDevice','newDesign','audioFile','namQuery','namFormat','namSearch','namLogin','namWithRequest','editRequest','toReview','backPlan','toConfirm','backReview','returnRequest']) el(id).disabled=busy;
   el('connectDevice').disabled=busy||!!state?.connected;
   el('wahMode').disabled=busy||!el('wah').value;
   const fw33=state?.firmware==='33.00-beta.20261006';
-  const maxScenes=serial?1:fw33?(state.route?.length?2:1):state?.multiscene_planning_supported?8:4;
-  for(const option of el('scenes').options)option.disabled=Number(option.value)>maxScenes;
+  const maxScenes=album?8:serial?1:fw33?(state.route?.length?2:1):state?.multiscene_planning_supported?8:4;
+  for(const option of el('scenes').options)option.disabled=album?Number(option.value)!==8:Number(option.value)>maxScenes;
+  if(album)el('scenes').value='8';
   if(Number(el('scenes').value)>maxScenes)el('scenes').value=String(maxScenes);
   el('generate').disabled=busy||el('deviceChoice').value!=='axefx3'||!state?.connected||!!state.route_problem||(!fw33&&!state.cab_count);
-  if(serial&&state?.scene!==1)el('generate').disabled=true;
+  if((serial||album)&&state?.scene!==1)el('generate').disabled=true;
   if(chooseRoute&&!routeExploration?.routes.some(r=>r.mode===el('buildRoute').value&&r.enabled))el('generate').disabled=true;
   for(const id of ['namSaveKey','namDisconnect','namSuggest','namKey'])el(id).disabled=busy;
   el('namSlotsRefresh').disabled=busy||!namAccount?.installation_supported||!state?.connected;
@@ -85,7 +88,7 @@ function controls(){
   el('storeCommit').disabled=busy||!storePreview||!el('storeMute').checked||!el('storeFlash').checked;
   el('send').disabled=busy||currentStage!==3||el('deviceChoice').value!=='axefx3'||!proposal||!el('confirmed').checked||!el('muted').checked;
   stage(currentStage);
-  el('controllerHint').textContent=serial?'Gemeten AMP/CAB-testketen: uitsluitend scene1/A. Modellen blijven behouden, reserveblokken blijven bypassed. Geen nieuwe controllers.':fw33?'FW33 NAM: eerst 1 scene vanuit leeg; daarna maximaal 2 met NAM A/B. Nieuwe controllerkoppelingen zijn voor dit profiel nog niet geverifieerd.':!el('wah').value?'Geen nieuwe controllerkoppeling. Bestaande Auto Engage blijft behouden en kan de scene-bypass beinvloeden.':
+  el('controllerHint').textContent=album?'FW33: acht albumscenes, vier gemeten Amp/Cab-kanalen A-D. Delay/Chorus delen A, Output -18dB. Geen NAM of nieuwe controllers.':serial?'Gemeten AMP/CAB-testketen: uitsluitend scene1/A. Modellen blijven behouden, reserveblokken blijven bypassed. Geen nieuwe controllers.':fw33?'FW33 NAM: eerst 1 scene vanuit leeg; daarna maximaal 2 met NAM A/B. Nieuwe controllerkoppelingen zijn voor dit profiel nog niet geverifieerd.':!el('wah').value?'Geen nieuwe controllerkoppeling. Bestaande Auto Engage blijft behouden en kan de scene-bypass beinvloeden.':
     el('wahMode').value==='Fast Pos'?'Fast Pos: pedaalbeweging kan de Wah ook inschakelen in een scene met Wah uit. Kies Off voor aan/uit via de scenes.':
     el('wahMode').value==='Off'?'Off: het pedaal stuurt de Wah-filterstand, maar schakelt de Wah niet automatisch aan of uit.':
     'Bestaande Auto Engage-modus blijft behouden. Bij een nieuwe koppeling gebruikt het apparaat zijn standaard; controleer het gedrag.';
@@ -211,7 +214,7 @@ el('returnRequest').onclick=()=>navigate(0);
 el('storePrepare').onclick=()=>run(async()=>{
   await api('discard',{});storePreview=await api('store/prepare',{expected_preset:state.preset});
   el('storeMute').checked=el('storeFlash').checked=false;
-  el('storeSummary').textContent=`Preset ${storePreview.preset}: ${storePreview.replaces} -> ${storePreview.name}. Permanent. Nog niets opgeslagen.`;
+  el('storeSummary').textContent=`Preset ${storePreview.preset}: ${storePreview.replaces} -> ${storePreview.name}. Permanent. Nog niets opgeslagen. ${storePreview.verification_note||''}`;
 });
 el('storeMute').onchange=el('storeFlash').onchange=controls;
 el('storeCommit').onclick=()=>run(async()=>{
@@ -391,6 +394,17 @@ async function analyseRequestAudio(){
 }
 function showDesign(plan){
   const design=plan.design, controller=plan.controller;
+  if(plan.mode==='album'){
+    el('toneChoice').textContent='Vier gemeten albumvoicings A-D, alleen Legacy IR1 in mix; Output A -18dB.';
+    el('controllerChoice').textContent='Reserveblokken bypassed, geen nieuwe controllers of NAM.';
+    el('planWarnings').replaceChildren();for(const warning of plan.warnings||[]){const li=document.createElement('li');li.textContent=warning;el('planWarnings').append(li);}
+    el('sceneTable').hidden=false;el('sceneRows').replaceChildren();
+    for(const [c,album] of design.albums.entries())for(const [offset,role] of [album.lead,album.solo].entries()){
+      const cab=plan.cab_choices[c],row=document.createElement('tr');
+      for(const value of [`${c*2+offset+1}. ${role.name} / ${'ABCD'[c]}`,`${album.amp_model} | gain ${album.amp.gain} | ${album.amp.level}dB`,'Uit',role.chorus?`${design.chorus.rate_hz}Hz / ${design.chorus.mix}% (A)`:'Uit',role.delay?`${design.delay.time_ms}ms / ${design.delay.feedback}% / ${design.delay.mix}% (A)`:'Uit','Niet in route',`${cab.name} | Factory 2 slot ${cab.slot} / ${cab.channel} | Output A -18dB`]){const td=document.createElement('td');td.textContent=value;row.append(td);}
+      el('sceneRows').append(row);
+    }return;
+  }
   if(plan.mode==='serial'){
     el('toneChoice').textContent='Gemeten AMP/CAB-testketen: bestaande/standaard modellen behouden, geen model- of IR-keuze.';
     el('controllerChoice').textContent='Wah en andere reserveblokken bypassed; geen nieuwe controllerkoppeling.';
@@ -462,7 +476,7 @@ el('generate').onclick=()=>run(async()=>{
     wah_auto_engage:el('wah').value?(el('wahMode').value||null):null,audio_reference:audioReference,
     ...(state.route_options_supported?{mode:el('buildRoute').value}:{}),
     nam_query:el('namWithRequest').checked?(el('namQuery').value||null):null,
-    ...(state.nam_selection_supported&&el('buildRoute').value!=='serial'?{nam_slot:captureSlot.value?Number(captureSlot.value):null}:{}),
+    ...(state.nam_selection_supported&&(!state.route_options_supported||el('buildRoute').value==='nam')?{nam_slot:captureSlot.value?Number(captureSlot.value):null}:{}),
     ...(state.source_support?.rig_reader?{source_kind:sourceKind.value,rig_mode:rigMode.value}:{})});
   el('conversation').textContent=proposal.summary;el('conversationPanel').hidden=false;
   el('emptyConversation').hidden=true;
