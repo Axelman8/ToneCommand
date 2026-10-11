@@ -30,7 +30,7 @@ require_supported_install()
 
 from fm9.adapter import (CAPABILITY_PROTOCOLS, UNDECLARED, Capabilities,
                          DeviceAdapter)
-from fm9.device import FM9, FM9NotFound, get_cab_slots, get_store_slots
+from fm9.device import FM9, FM9NotFound, ReadOnly, get_cab_slots, get_store_slots
 from fm9.registry import Registry
 from fm9 import (acquire, ai_settings, artist_pack, axechange, bundlefile, cabfile,
                  describe, designs, diagnostics, editbuffer, gallery, gallery_install,
@@ -1834,7 +1834,11 @@ def snapshot(fm9: DeviceAdapter) -> dict:
     # not blocks); the planner then planned to move a block that was not
     # there. When the grid cannot be read, the status list stands as before.
     read_grid = getattr(fm9, "read_grid", None)
-    cells = read_grid() if callable(read_grid) else None
+    try:
+        cells = read_grid() if callable(read_grid) else None
+    except ReadOnly:
+        # the FM3 is read-only and its grid read is not in what it may send
+        cells = None
     if cells:
         held = _on_grid(cells, blocks)
         blocks = [b for b in blocks if b.effect_id in held]
