@@ -46,6 +46,11 @@ server/UI and hardware gates. `server.py` has 8,229 lines in this stage.
 FX3 `navigation` is an explicit human-only selection service, separate from
 planner actions and automatic reload. State-bound single-use confirmations
 protect scene/preset transitions; native readback verifies selection, not sound.
+`block_probe.py` is a developer-only322 boundary for captured isolated blocks
+and a fixed complete serial chain. Ordered one-use permits check fresh whole
+grid states, including a separately bounded connection-only continuation.
+It is not reachable from planner/API/SEND and does not authorize arbitrary
+graph or model writes. Physical mute and measured output staging remain separate.
 Source ingestion in `rig_source.py` reuses upstream `describe` and `riggraph`
 with the explicitly selected text AI, not the FM9 executor or implicit Claude.
 Sound references stay separate from rig explanations. The bounded FX3

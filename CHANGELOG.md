@@ -4,6 +4,12 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Verify a complete14-block/13-cable FW33 developer chain on322 using the
+  previously captured row1 frames. Native checks preserve full block words,
+  status, modifiers, scene names and NAM hash. Output1 is independently
+  staged to-18dB before connecting. An exact uncabled-state continuation
+  avoids replaying verified placements after a test-script lookup error.
+  No Store, feedback, general AI/GUI graph capability or loudness guarantee.
 - Add an exact isolated FW33 developer block probe on322, using34 separately
   captured first-instance placements and deletions. Fresh whole-grid checks,
   fixed order and one-use permits exclude cables, Send/Return, extra outputs,

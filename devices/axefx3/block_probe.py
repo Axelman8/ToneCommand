@@ -1,14 +1,15 @@
-"""Exact isolated FW33 block measurements on322, never a planner capability.
+"""Exact FW33 developer measurements on322, never a planner capability.
 
 Source: owner-operated Quick Build321, 2026-10-11, independently compared
 with visible labels and native eight-bit IDs. Selection/INSERT payloads are
 retained literally; DELETE was separately observed. Feedback Send/Return and
-Output2-4 are excluded. No cables, parameters, models, Store or memory writes.
+Output2-4 are excluded. Isolated mode has no cables; chain mode reuses only
+the independently captured14-block row1 sequence. No model/Store/memory writes.
 """
 import time
 from functools import lru_cache
 from fm9 import protocol as shared
-from . import fw33_profile, grid, protocol
+from . import fw33_profile, grid, protocol, row_fixture
 
 
 # Human row, column, effect ID, captured INSERT payload (not a grid cursor).
@@ -25,8 +26,15 @@ BLOCKS = (
 )
 
 
-@lru_cache(maxsize=1)
-def steps():
+@lru_cache(maxsize=3)
+def steps(mode='isolated'):
+    if type(mode) is not str or mode not in ('isolated','chain','chain_connect'):
+        raise ValueError('Only independently captured isolated or row1-chain references')
+    if mode=='chain':
+        return tuple((tuple(frame),tuple(before.items()),tuple(after.items()))
+                     for frame,before,after in row_fixture.steps()[:41])
+    if mode=='chain_connect':
+        return steps('chain')[28:]
     result = []
     for row,col,eid,payload in BLOCKS:
         select = grid.reframe(shared.build_select_grid_cell(row,col))
@@ -46,33 +54,36 @@ def steps():
 def allowed(dev,frame):
     probe = getattr(dev,'_block_probe',None)
     return (isinstance(probe,Probe) and probe.dev is dev and probe.failed
-            and probe.index < len(steps())
+            and probe.index < len(steps(probe.mode))
             and dev.reg.firmware == fw33_profile.KEY
             and getattr(dev.reg,'hardware_variant',None) == 'mk2'
             and getattr(dev,'_edit_target',None) == 322
             and getattr(dev,'_block_probe_permit',None) == tuple(frame)
-            and tuple(frame) == steps()[probe.index][0])
+            and tuple(frame) == steps(probe.mode)[probe.index][0])
 
 
 class Probe:
-    def __init__(self,dev):
+    def __init__(self,dev,*,mode='isolated'):
+        if type(mode) is not str or mode not in ('isolated','chain','chain_connect'):
+            raise PermissionError('Only independently captured developer sequences')
         dev._check_edit_target()
         if (dev.reg.firmware != fw33_profile.KEY or dev._edit_target != 322
                 or getattr(dev.reg,'hardware_variant',None) != 'mk2'
-                or grid.snapshot(dev.read_grid())
+                or grid.snapshot(dev.read_grid()) != dict(steps(mode)[0][1])
                 or getattr(dev,'_block_probe',None) is not None):
-            raise PermissionError('Only exact MK2/FW33, empty322 and one confirmed probe')
+            raise PermissionError('Only exact MK2/FW33, captured322 prestate and one confirmed probe')
         self.dev,self.index,self.failed = dev,0,False
+        self.mode=mode
         dev._block_probe = self
 
     def write(self,frame):
         with self.dev._lock:
-            if self.failed or self.index >= len(steps()):
+            if self.failed or self.index >= len(steps(self.mode)):
                 raise PermissionError('Block probe consumed or complete; no retry')
             self.failed = True
             dev = self.dev
             dev._check_edit_target()
-            expected,before,after = steps()[self.index]
+            expected,before,after = steps(self.mode)[self.index]
             if (tuple(frame) != expected or dev.reg.firmware != fw33_profile.KEY
                     or dev._edit_target != 322 or getattr(dev.reg,'hardware_variant',None) != 'mk2'
                     or getattr(dev,'_block_probe',None) is not self

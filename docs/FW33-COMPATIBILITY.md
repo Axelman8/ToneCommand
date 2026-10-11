@@ -455,7 +455,48 @@ All bulk lengths match the independent populated321 reference. After each
 deletion the entire empty preset state equals baseline, including32 modifiers,
 eight scene names and referenced NAM hash. The final complete state also equals
 baseline. No cables, model/parameter/level, Store, global or NAM/IR memory writes.
-Native MIDI is released; independent post-replay editor comparison is pending.
+Native MIDI is released. A subsequent owner-opened Axe-Edit322 screenshot and
+84-cell main-grid UIA independently confirm every cell empty.
 Synthetic mandatory device/capability/UI-warning plus changed tests pass357
 locally; another86 graph/topology/packaging/maintenance tests pass. These are
 separate from native results, not remote CI or audible/headroom acceptance.
+
+### Complete serial developer construction, 2026-10-11
+
+The same322 developer boundary has a separate fixed chain mode. It reuses
+only the previously captured14-block row1 reference, not invented coordinates:
+Input1, Wah1, Drive1, Amp1, Cab1, Chorus1, Compressor1, Delay1, Enhancer1,
+Filter1, Flanger1, GEQ1, PEQ2 and Output1. Fourteen selected placements plus
+thirteen serial cables make41 grid commands. Exact order and fresh complete
+grid pre/post states are checked, with no feedback or extra outputs.
+
+The first native harness stops after the last independently verified INSERT,
+before any cables or output-stage write, because its test-only parameter
+lookup used the wrong Python call signature. The incomplete report is retained.
+No insertion is retried. A new full read verifies the exact14-block uncabled
+state and all preserved baseline fields, then a separate fixed connection-only
+mode sends the thirteen previously unsent cable frames. It accepts only this
+known uncabled state, not an arbitrary partial graph or resumption index.
+
+Output1 uses the existing verified setter at-18dB before connecting. Independent
+display/bulk confirms that only its channelA level word changes; other output
+channels and all other blocks remain unchanged. Every connection subsequently
+verifies all complete block words/status,32 modifiers, eight scene names and
+referenced NAM hash. Native serial-route and graph checks confirm14 nodes,
+13 edges and a complete Input1-to-Output1 route. Two final full snapshots match.
+There is no Store, model change, NAM/IR installation, global or firmware write.
+
+Native MIDI is released. A subsequent owner-opened Axe-Edit322 screenshot and
+84-cell main-grid UIA independently confirm all14 expected blocks in row1;
+the screenshot also shows all13 serial cables. The remaining70 cells are empty.
+The un-stored technical chain remains on322. It is not a voiced musical preset or evidence
+of physical loudness, bypass transparency or controller operation. The-18dB
+output is not a limiter; external audio must remain muted for this test.
+No public AI action, graph execution endpoint or arbitrary FW33 build support
+is promoted by the fixed developer modes. Their own GUI/executor integration
+and independent tests remain separate work.
+
+Final mandatory device/capability/UI-warning plus changed tests pass373 locally;
+another86 graph/topology/packaging/maintenance tests pass. These synthetic runs
+do not replace the native and independent editor evidence above, or prove
+remote CI, audible tone, safe physical volume or general graph execution.
