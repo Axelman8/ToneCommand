@@ -272,7 +272,8 @@ After the user closed Axe-Edit, TC natively replayed all ten exact frames on
 scene names and referenced NAM hash are independently checked after each step.
 Final complete snapshot equals the baseline, with no Store, model/level,
 global or memory writes. Only this developer fixture is extended; free-grid
-UI/planner execution is still gated. Post-replay editor comparison is pending.
+UI/planner execution is still gated. A later user-opened editor comparison
+independently confirms the original324 rig and empty test rows5/6.
 
 The next source seam is a read-only explicit graph contract. Proposed cells
 use one-based positions plus a named block/instance or an explicit shunt;
@@ -409,11 +410,52 @@ full preset snapshot. Both destinations have cable mask96 (source bits32 and
 removed. All four-channel Compressor/Drive words and status,32 modifiers,
 eight scene-name replies and referenced NAM hash remain unchanged. Final full
 empty state equals baseline. No Store, model/level, global or NAM/IR memory
-write. Native MIDI is released before an independent final editor comparison,
-which is pending. This detached measurement is not a complete playable rig,
+write. Native MIDI is released before the owner opens the editor again.
+Independent screenshot/UIA confirms320 and all84 main-grid cells empty.
+This detached measurement is not a complete playable rig,
 musical proof or parallel mixer/headroom verification. General graph/SEND
 integration remains blocked until its own state-bound execution acceptance.
 
 Mandatory device/capability/UI-warning plus changed adapter/grid/fixture tests
 pass334 locally, and86 graph/topology/packaging/maintenance cases also pass.
 Native acceptance above is recorded separately from these synthetic results.
+
+### Broad first-instance reference, 2026-10-11
+
+The owner builds321 using Axe-Edit Quick Build under confirmed external mute.
+Separate passive recordings capture41 placements and37 explicit grid cables,
+then37 disconnects and41 freshly selected deletions. All checksums are valid.
+Screenshot and84-cell main-grid UIA match the complete construction and later
+empty grid. Native read-only inspection independently confirms all41 effect
+IDs, positions and cable masks, all complete block bulks,32 complete modifier
+records, eight scene names and referenced NAM memory. Two full snapshots are
+identical. Dynamic Distortion202 and NAM206 retain full identities, not aliases.
+
+The reference includes two Feedback Send/Return pairs and Output2-4. One cable
+is missing between Reverb1 and Send2 on row2. Neither implicit feedback pairing
+nor a complete playable route is inferred from the picture. The owner reports
+saving the populated321; TC does not Store, reload or overwrite that reference.
+After separate removal, native inspection confirms an empty321 work buffer.
+Explicit selection of owner-designated322 confirms that test target is empty.
+No automatic rollback, NAM install, global or firmware change is performed.
+
+`block_probe.py` defines a developer-only isolated322 sequence for34 observed
+blocks, excluding all four Send/Return blocks and Output2-4. Each block is
+selected, inserted with its literal captured payload, reselected and deleted
+before the next type. There are no cables or model/parameter writes. Exact
+firmware/MK2, an empty baseline, a confirmed edit session and a freshly read
+whole-grid prestate are required. A failure consumes the probe and its permit;
+there is no uncertain write retry or restoration. This is not an AI action,
+HTTP endpoint, generic block-placement capability or parameter-voicing proof.
+
+Native execution on322 completes all136 ordered frames:34 isolated placements,
+34 deletions and68 selections. Each step verifies the whole grid; each created
+block is read twice with its complete bulk/status, including after reselecting.
+All bulk lengths match the independent populated321 reference. After each
+deletion the entire empty preset state equals baseline, including32 modifiers,
+eight scene names and referenced NAM hash. The final complete state also equals
+baseline. No cables, model/parameter/level, Store, global or NAM/IR memory writes.
+Native MIDI is released; independent post-replay editor comparison is pending.
+Synthetic mandatory device/capability/UI-warning plus changed tests pass357
+locally; another86 graph/topology/packaging/maintenance tests pass. These are
+separate from native results, not remote CI or audible/headroom acceptance.

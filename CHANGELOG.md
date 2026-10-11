@@ -4,6 +4,13 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Add an exact isolated FW33 developer block probe on322, using34 separately
+  captured first-instance placements and deletions. Fresh whole-grid checks,
+  fixed order and one-use permits exclude cables, Send/Return, extra outputs,
+  model/parameter/Store writes and arbitrary planner operations. No public
+  free-chain capability is enabled by this measurement tool. Native replay
+  completes136 frames with full created-block and empty-baseline checks;
+  post-replay editor comparison remains a separate acceptance step.
 - Verify a detached FW33 parallel developer fixture on320: Compressor1,
   Drive1 and two shunts, four horizontal/cross cables, selective disconnects
   and deletion. All24 native frames preserve complete block words/status,

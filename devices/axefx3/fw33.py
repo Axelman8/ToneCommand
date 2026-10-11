@@ -55,8 +55,8 @@ def check_frame(dev, frame):
             return
     if sub in ([0x28, 0], [0x2b, 0], [0x26, 0]):
         return
-    from . import grid_probe,row_probe
-    if grid_probe.allowed(dev,frame) or row_probe.allowed(dev,frame):
+    from . import grid_probe,row_probe,block_probe
+    if grid_probe.allowed(dev,frame) or row_probe.allowed(dev,frame) or block_probe.allowed(dev,frame):
         return
     if sub in ([0x30, 0], [0x32, 0], [0x35, 0]) and getattr(dev, '_fw33_route_permit', None) == tuple(frame):
         return

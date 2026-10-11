@@ -147,6 +147,11 @@ class AxeFxIII:
                     if len(payload) != 15 or frame != pedal_control.allocation_frame(shared.decode14(*payload[2:4])):
                         raise PermissionError("Unverified modifier allocation frame")
                 elif (self.reg.firmware == '33.00-beta.20261006'
+                      and getattr(self, '_block_probe_permit', None) == tuple(frame)):
+                    from . import block_probe
+                    if not block_probe.allowed(self,frame):
+                        raise PermissionError('Outside the exact ordered developer block fixture')
+                elif (self.reg.firmware == '33.00-beta.20261006'
                       and getattr(self, '_row_probe_permit', None) == tuple(frame)):
                     from . import row_probe
                     if not row_probe.allowed(self,frame):
