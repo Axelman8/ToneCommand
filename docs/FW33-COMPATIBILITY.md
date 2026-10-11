@@ -614,3 +614,91 @@ It is only a temporary model/channel measurement foundation. No selector,
 Store, NAM-memory write or Metallica326/327 build occurred. This avoids asking
 the owner to rebuild a chain by hand; independent selector/channel comparison
 still remains necessary before enabling the new FW33 album execution route.
+
+### AMP channel measurement, 2026-10-11
+
+The owner-operated Axe-Edit capture on328 changes Amp1A and Amp1C to
+Brit8002204High, then returns through B/C/D/A. The final independent editor
+screen shows channelA and Brit8002204High. Native read-only inspection confirms
+four142-word amp channels with model ordinals14/267/14/267 and a stable full
+14-block route. Only the A/C model writes were emitted; B/D model selection
+was unchanged. This capture does not establish a writable ordinal267 selector.
+
+The editor uses internal subcommand0x16 with raw channels1/2/3/0 here, rather
+than the shared FM9 FN_CHANNEL command. A separate fixed developer probe
+replays only those four literal commands on328, with a confirmed muted edit
+session, exact chain, inactive modifiers, existing Output1 attenuation-18dB,
+fresh complete state and single-use frame permissions. After every command,
+native status and full block words verify that only the current Amp1 channel
+changed. Final complete state equals the baseline, with no model, parameter,
+grid, controller, NAM-memory or Store write. Post-replay independent editor
+comparison confirms the complete chain and final channelA. No normal planner/GUI channel capability, general
+model roster or eight-scene FW33 execution is enabled by this probe.
+
+### AMP model and numeric calibration, 2026-10-11
+
+After explicit owner authorization for autonomous editor operation, a fresh
+recording on328 captures model267 (USA JP IIC+ Yellow), model14 (Brit8002204
+High), bypass and eight numeric controls on each of B/C/D. The final editor
+state is independently read twice through the native adapter. There are568
+amp words, four142-word channels, no active modifiers and Output1-18dB.
+The passive observer captured outgoing frames only; it is not inbound proof.
+
+A separate fixed developer calibration executes58 literal steps: two model
+changes onA, channel navigation,24 numeric changes across B/C/D, then24
+restoration writes and a return toA. Amp stays bypassed throughout. Every
+numeric step verifies its independent display and exact addressed bulk word,
+with all other state preserved. A model change can reset only its own channel's
+142-word voicing; the other channels, route, status, modifiers and names must
+remain unchanged. Unknown outcomes consume the calibration without retries
+or automatic rollback. No Store, IR installation, NAM-memory or global write.
+
+After native MIDI release, a newly opened Axe-Edit independently confirms the
+two models and all eight controls on A/B/C/D, then returns toA. B-D are back
+at their original editor-calibrated values. Gain/EQ/master/depth/presence SETs
+first round the display input to float32 before division by10, matching all24
+recorded numeric literals. The former Python-double path differs by one packed
+ULP for some values. This correction establishes frame fidelity; it is not
+evidence of an audible difference or the cause of earlier weak guitar tones.
+
+The calibration remains deliberately outside normal planner/SEND capabilities.
+Public FW33 AMP model/CAB selection and the final eight-scene album build,
+independent comparison, Store/reload and listening still require acceptance.
+
+### CAB Legacy IR1 measurement, 2026-10-11
+
+Owner-authorized editor recording on328 independently identifies Factory2
+slot516, 4x12 Brit70s GB57A, and slot800, 4x12 Recto57A. Their wire ordinals
+are515 and799; bank1 selects Factory2. A separate changed selection of the
+Factory1/Pig slot1 records exact-zero bank and slot SET09 literals. No IR file
+is installed. Cab channel B/C/D/A uses the captured internal0x16 commands.
+
+The custom editor picker can expose underlying UIA buttons. An initial
+measurement-helper overlay mistake selected a different IR1, Factory2 slot841,
+on328. It was not stored or accepted as a planner choice. Native read-only
+comparison proves that only CabA bank and IR1 ordinal changed; complete other
+state stayed intact. The helper now requires unobscured grid/sidebar pixels
+before opening a picker and validates the specific IR1 name/bank/slot afterward.
+This is a local developer UI helper correction, not a change to TC's GUI.
+
+A fixed developer probe starts from that independently established baseline
+and performs21 captured-literal native steps. Bank/IR1 choices and current
+Cab channel are the only allowed changes. Four106-word Legacy channels are
+required; other IR selections, level/pan/mute words, route, amp, modifiers and
+names are preserved after every step. The final CabA/C IR1 is Greenback516,
+CabB/D IR1 is Recto800, all in Factory2. Amp remains bypassed and Output-18dB.
+Failures consume the probe without a write retry or automatic rollback.
+
+A freshly opened Axe-Edit independently confirms all four IR1 names, displayed
+bank/slot and unchanged mute control pixels: IR1 in mix, IR2-4 muted. It returns
+toA. This is selection and preservation proof, not a stereo-panning, measured
+loudness or audible-match claim. Neither the testpreset nor shared IR memory
+is stored. Normal planner selectors, arbitrary IR ordinals, mixer writes and
+the eight-scene326 build remain separate acceptance gates.
+
+A second native AMP pass changes both measured models on each of B/C/D and
+restores all eight calibrated controls. All34 steps verify full state; final
+complete state equals the baseline. After MIDI release, fresh Axe-Edit confirms
+the models and controls on A/B/C/D and returns toA. The final mandatory and
+changed simulator suites pass321 tests. This completes the bounded measurement,
+not the normal eight-scene SEND, Store/reload or audible acceptance.

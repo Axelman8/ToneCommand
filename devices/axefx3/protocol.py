@@ -6,6 +6,7 @@ is never changed globally. SET units and read paths are device-specific.
 from __future__ import annotations
 
 import math
+import struct
 from numbers import Real
 
 from fm9 import protocol as shared
@@ -73,6 +74,11 @@ def set_parameter(registry: Registry, spec: ParamSpec, value: float) -> list[int
             raise ValueError("No independently verified zero SET for this parameter")
         return param_frame(spec.effect_id, spec.param_id,
                            AXE_FX_III_32_06_ZERO_NORMALIZED[spec.name], opcode=0x52)
+    if (registry.firmware == fw33_profile.KEY and spec.family == 'DISTORT'
+            and spec.name in fw33_profile.NAMES['DISTORT'][:-1]):
+        # Editor batch10 first rounds the display value to float32. Dividing
+        # a Python double instead differs by one packed ULP for some knobs.
+        value = struct.unpack('<f',struct.pack('<f',value))[0]
     return param_frame(spec.effect_id, spec.param_id, value / spec.set_divisor,
                        opcode=int(spec.set_opcode, 16))
 

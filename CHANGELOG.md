@@ -4,6 +4,27 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Complete a second fixed AMP measurement on B/C/D:34 native model/channel
+  and numeric-restoration steps preserve complete baseline state. Fresh
+  Axe-Edit confirms all four models and eight controls per channel. Mandatory
+  and changed simulator suites pass321 tests; no eight-scene Store claim.
+- Add a fixed developer-only FW33 Cab1 Legacy IR1 probe on328. Captured
+  bank0/1, slot0/515/799 and B/C/D/A channel literals verify21 native steps
+  against full state. Independent Axe-Edit confirms Greenback/Recto names,
+  factory positions and preserved mute controls on all four channels. No
+  generic CAB selection, mixer/IR installation or eight-scene Store promotion.
+- Add a separate fixed FW33 Amp1 calibration on muted328. Two recorded model
+  literals and48 numeric writes change and restore B-D with full-state and
+  independent display checks. Axe-Edit subsequently confirms all four channel
+  models and eight controls per channel. Match the editor's float32-before-
+  division encoding for the seven FW33 Amp knobs; FW32/FM9 remain unchanged.
+  This is developer evidence, not enabled eight-scene model/CAB execution.
+- Add a fixed developer-only FW33 Amp1 channel probe on preset328. Four
+  independently recorded editor commands switch B/C/D/A with fresh full-state
+  checks and consumed failures. Native replay preserves all block words and
+  returns exactly to the baseline. No planner model/channel, CAB or Store
+  capability is enabled by this measurement. The separate post-replay editor
+  comparison confirms the preserved chain and final channelA.
 - Accept eight-scene requests and compile AMP/CAB album pairs without treating
   scene5-8 as nonexistent channels E-H. Identical stored settings share A-D;
   a fifth distinct configuration fails before review or writes. Models and

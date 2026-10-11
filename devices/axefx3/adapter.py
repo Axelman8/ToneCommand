@@ -103,7 +103,17 @@ class AxeFxIII:
             if self._approved_frame != tuple(frame):
                 raise PermissionError("Raw writes must pass the verified Axe-Fx III action path")
             if fn == 1:
-                if payload[:2] in ([9, 0], [0x52, 0]) and len(payload) == 15:
+                if (self.reg.firmware == '33.00-beta.20261006'
+                        and getattr(self, '_cab_probe_permit', None) == tuple(frame)):
+                    from . import cab_probe
+                    if not cab_probe.allowed(self, frame):
+                        raise PermissionError('Outside the fixed developer Cab measurement')
+                elif (self.reg.firmware == '33.00-beta.20261006'
+                        and getattr(self, '_amp_probe_permit', None) == tuple(frame)):
+                    from . import amp_probe
+                    if not amp_probe.allowed(self, frame):
+                        raise PermissionError('Outside the fixed developer AMP measurement')
+                elif payload[:2] in ([9, 0], [0x52, 0]) and len(payload) == 15:
                     effect_id = shared.decode14(payload[2], payload[3])
                     family = self.reg.family_of_effect_id(effect_id)
                     if effect_id in range(3, 35):
