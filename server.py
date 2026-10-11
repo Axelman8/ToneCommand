@@ -333,12 +333,17 @@ def api_fm3_port():
     """#221: current binding and visible names, without opening any port."""
     from fm9 import midi_transport
     binding = midi_transport.load_fm3_binding()
-    return {"port": binding["port"],
+    readable = midi_transport.readable_port
+    inputs = [n for n in dict.fromkeys(midi_transport.port_names()) if readable(n)]
+    outputs = [n for n in dict.fromkeys(midi_transport.output_names()) if readable(n)]
+    return {"port": binding["port"], "port_in": binding["port_in"], "port_out": binding["port_out"],
             "source": None if binding["source"] == "none" else binding["source"],
             "fixed": binding["source"] == "env",
-            # only names a save can accept: present as both an input and an output
-            "ports": [name for name in dict.fromkeys(midi_transport.port_names())
-                      if name in set(midi_transport.output_names())]}
+            # #255: each direction from its own list; an interface may name
+            # them differently ("MidiPort 1" in, "MidiPort 2" out)
+            "inputs": inputs, "outputs": outputs,
+            # the #221 field: names present as both an input and an output
+            "ports": [name for name in inputs if name in set(outputs)]}
 
 
 @app.post("/api/fm3/port")
@@ -348,9 +353,11 @@ def api_fm3_port_save(body: dict):
     from fm9 import midi_transport
     with _lock:
         try:
-            binding = midi_transport.save_fm3_binding(body.get("port"))
+            port_in = body.get("port_in") or body.get("port")
+            binding = midi_transport.save_fm3_binding(port_in, body.get("port_out") or port_in)
         except midi_transport.TransportError as e:
-            status = 409 if midi_transport.FM3_PORT_ENV in os.environ else 400
+            fixed = (midi_transport.FM3_PORT_ENV, midi_transport.FM3_PORT_OUT_ENV)
+            status = 409 if any(name in os.environ for name in fixed) else 400
             return JSONResponse({"ok": False, "error": str(e)}, status_code=status)
         ctx = device_context()
         reconnected = False
@@ -1816,6 +1823,15 @@ def snapshot(fm9: DeviceAdapter) -> dict:
         raise FM9NotFound("the FM9 stopped answering; is it still plugged in?")
     scene = fm9.scene_name()
     blocks = fm9.status_dump() or []
+    # #253: a block counts only when a grid cell holds it. The status dump can
+    # list a block whose cell was cleared (the starter template clears cells,
+    # not blocks); the planner then planned to move a block that was not
+    # there. When the grid cannot be read, the status list stands as before.
+    read_grid = getattr(fm9, "read_grid", None)
+    cells = read_grid() if callable(read_grid) else None
+    if cells:
+        held = _on_grid(cells, blocks)
+        blocks = [b for b in blocks if b.effect_id in held]
     out_blocks = []
     values = {}
     # What each value IS, so the UI can offer a control instead of a readout.
@@ -3907,7 +3923,8 @@ def _add_block(fm9: DeviceAdapter, a: Action) -> dict:
     exists rather than guessing (no cable drawing in the planner path)."""
     fam, eid = reg.resolve_block(a.block or "", a.instance)
     blocks = fm9.status_dump() or []
-    if any(b.effect_id == eid for b in blocks):
+    # #253: present means a grid cell holds it, not merely the status dump
+    if eid in _on_grid(fm9.read_grid() or [], blocks):
         # The goal state, not the verb: "add amp 1" asks for amp 1 to be
         # present, and it is. Halting a build over this turned an
         # auto-provisioned starting chain (which already carries amp and

@@ -3890,8 +3890,13 @@
         <p class="hint">Read-only support: view presets, scenes and blocks, and
           switch presets and scenes. Sound editing is unavailable.
           Not yet verified on a real FM3.</p>
-        <label for="fm3port">FM3 MIDI interface port</label>
+        <label for="fm3port">MIDI input (from the FM3's MIDI OUT)</label>
         <select id="fm3port" aria-describedby="fm3portreason" disabled
+                style="display:block;width:100%;margin:10px 0">
+          <option value="">Loading MIDI ports...</option>
+        </select>
+        <label for="fm3portout">MIDI output (to the FM3's MIDI IN)</label>
+        <select id="fm3portout" aria-describedby="fm3portreason" disabled
                 style="display:block;width:100%;margin:10px 0">
           <option value="">Loading MIDI ports...</option>
         </select>
@@ -8238,7 +8243,12 @@ function describe(a) {
   if (a.kind === 'set_channel') return `${a.block} ${a.instance}: channel ${'ABCD'[a.value]}`;
   if (a.kind === 'set_tempo') return `Tempo: ${a.value} BPM`;
   if (a.kind === 'set_type') return `${a.block} ${a.instance}: model → ${a.type_name}`;
+  // #251: an anchored addition and a move say what they do; the move used to
+  // fall through to the parameter wording, "drive 1 / null: set to null"
+  if (a.kind === 'add_block' && (a.position === 'before' || a.position === 'after') && a.ref)
+    return `ADD ${a.block} ${a.instance} (${a.position} ${a.ref})`;
   if (a.kind === 'add_block') return `ADD ${a.block} ${a.instance}${a.position ? ' (' + a.position + '-amp)' : ''}`;
+  if (a.kind === 'reorder') return `Move ${a.block} ${a.instance} ${a.position || 'before'} ${a.ref}`;
   if (a.kind === 'bind_pedal') return `Pedal 2 → ${a.block} ${a.instance} ${a.param}${a.value ? ' (floor ' + a.value + '%)' : ''}`;
   // Without its own branch this fell through to the set_param wording and
   // rendered as "Mix: null", because an unbind carries no value. Reachable
@@ -12286,8 +12296,22 @@ let fm3PortFixed = false;
 let fm3PortLoad = 0;
 function updateFM3PortControls() {
   $('fm3port').disabled = fm3PortBusy || fm3PortFixed;
-  $('fm3portsave').disabled = fm3PortBusy || fm3PortFixed || !$('fm3port').value
-    || $('fm3port').selectedOptions[0].disabled;
+  $('fm3portout').disabled = fm3PortBusy || fm3PortFixed;
+  const chosen = id => $(id).value && !$(id).selectedOptions[0].disabled;
+  $('fm3portsave').disabled = fm3PortBusy || fm3PortFixed || !chosen('fm3port') || !chosen('fm3portout');
+}
+// #255: an interface can list its input and output under different names, so
+// the FM3 card picks each from its own list
+function fillFM3Picker(id, names, saved, prompt) {
+  const picker = $(id);
+  picker.replaceChildren(new Option(prompt, ''));
+  for (const port of names) picker.add(new Option(port, port));
+  if (saved && !names.includes(saved)) {
+    const missing = new Option(saved + ' (not available)', saved);
+    missing.disabled = true;
+    picker.add(missing);
+  }
+  picker.value = saved || '';
 }
 async function loadFM3Port() {
   if (fm3PortBusy) return;
@@ -12301,21 +12325,16 @@ async function loadFM3Port() {
     const d = await r.json();
     if (load !== fm3PortLoad) return;
     fm3PortFixed = d.fixed || d.source === 'env';
-    const picker = $('fm3port');
-    picker.replaceChildren(new Option('Choose a MIDI interface port', ''));
-    for (const port of d.ports) picker.add(new Option(port, port));
-    if (d.port && !d.ports.includes(d.port)) {
-      const missing = new Option(d.port + ' (not available)', d.port);
-      missing.disabled = true;
-      picker.add(missing);
-    }
-    picker.value = d.port || '';
+    const inputs = d.inputs || d.ports, outputs = d.outputs || d.ports;
+    fillFM3Picker('fm3port', inputs, d.port_in || d.port, 'Choose the MIDI input');
+    fillFM3Picker('fm3portout', outputs, d.port_out || d.port, 'Choose the MIDI output');
     $('fm3portreason').textContent = fm3PortFixed
       ? 'This port is fixed by TONECOMMAND_FM3_PORT in the environment. It cannot be changed here.'
       : 'Choose the interface connected to your FM3, then Save.';
-    $('fm3portstatus').textContent = d.port && !d.ports.includes(d.port)
+    const savedIn = d.port_in || d.port, savedOut = d.port_out || d.port;
+    $('fm3portstatus').textContent = (savedIn && !inputs.includes(savedIn)) || (savedOut && !outputs.includes(savedOut))
       ? 'The saved FM3 port is not available. Check that your MIDI interface is connected.'
-      : d.ports.length ? '' : 'No MIDI ports found. Connect your USB MIDI interface, then reopen Devices.';
+      : inputs.length && outputs.length ? '' : 'No MIDI ports found. Connect your USB MIDI interface, then reopen Devices.';
   } catch (_) {
     fm3PortFixed = true;
     $('fm3portreason').textContent = '';
@@ -12325,7 +12344,13 @@ async function loadFM3Port() {
     updateFM3PortControls();
   }
 }
-$('fm3port').onchange = updateFM3PortControls;
+$('fm3port').onchange = () => {
+  // the usual case: the same interface in both directions
+  const name = $('fm3port').value;
+  if (name && [...$('fm3portout').options].some(o => o.value === name && !o.disabled)) $('fm3portout').value = name;
+  updateFM3PortControls();
+};
+$('fm3portout').onchange = updateFM3PortControls;
 $('fm3portsave').onclick = async () => {
   if (fm3PortBusy || fm3PortFixed || $('fm3portsave').disabled) return;
   fm3PortBusy = true;
@@ -12334,7 +12359,7 @@ $('fm3portsave').onclick = async () => {
   try {
     const r = await fetch('/api/fm3/port', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({port: $('fm3port').value}),
+      body: JSON.stringify({port_in: $('fm3port').value, port_out: $('fm3portout').value}),
     });
     const d = await r.json();
     if (!r.ok || !d.ok) {

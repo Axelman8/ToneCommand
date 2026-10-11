@@ -5,6 +5,22 @@ Notable changes to ToneCommand. Dates are UTC.
 ## Unreleased
 
 ### Fixed
+- **An FM3 on a MIDI interface can be chosen when the interface names its
+  input and output differently (#255).** The FM3 card now has a picker for
+  each direction (from the FM3's MIDI OUT, to its MIDI IN), so an adapter
+  that lists "MidiPort 1" in and "MidiPort 2" out can be saved. A binding
+  saved earlier still works.
+- **The FM9 not-found message no longer sends FM3 owners to Fractal's USB
+  driver (#255).** The driver advice now says it is for an FM9, and when a
+  MIDI interface is present the message suggests choosing FM3 under Devices
+  and names the interface's ports. A port name the driver garbles is marked
+  unreadable in the problem report.
+- **A failed block move reads as a move (#251).** The plan and its result
+  say "Move Drive 2 after Amp 1" and "ADD Wah 1 (before Drive 1)" instead
+  of "set to null".
+- **A block that has no grid cell no longer counts as present (#253).** The
+  FM9 can list a block in its status with nothing on the grid; the preset
+  view leaves it out and adding it places it instead of saying it is there.
 - **Blocks a rig build adds land where the rig has them (#248).** A new
   block can now be placed before or after a named block, and a build from a
   rig places each added block next to its neighbour in the rig, in the rig's
