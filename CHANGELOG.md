@@ -4,6 +4,8 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+## 1.5.15 (2026-10-11)
+
 ### Fixed
 - **An FM3 on a MIDI interface can be chosen when the interface names its
   input and output differently (#255).** The FM3 card now has a picker for
@@ -46,6 +48,11 @@ Notable changes to ToneCommand. Dates are UTC.
   tempo back, so the change is sent and marked unverified; the send no
   longer names it as the failure.
 
+- **Compare with the loaded preset on a scene with no signal (#240).** It
+  used to call every piece of gear missing. It now matches the gear against
+  the blocks cabled from Input and says first that no signal reaches the
+  output.
+
 ### Changed
 - **Any Python 3.11 or newer installs, with no compiler (#172).** From
   Python 3.13 the MIDI binding is supriya-midi, which has prebuilt wheels to
@@ -55,12 +62,6 @@ Notable changes to ToneCommand. Dates are UTC.
   back, and a user cab installed and read back by name all matched. CI now
   installs on Python 3.14 on Linux, Windows and macOS with prebuilt wheels
   only. On Windows, 3.12 stays the choice proven on a connected unit.
-
-### Fixed
-- **Compare with the loaded preset on a scene with no signal (#240).** It
-  used to call every piece of gear missing. It now matches the gear against
-  the blocks cabled from Input and says first that no signal reaches the
-  output.
 
 ### Found
 - The FM9's status reply can report Input 1 as bypassed on one read and
