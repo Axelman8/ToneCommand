@@ -353,8 +353,14 @@ def api_fm3_port_save(body: dict):
     from fm9 import midi_transport
     with _lock:
         try:
-            port_in = body.get("port_in") or body.get("port")
-            binding = midi_transport.save_fm3_binding(port_in, body.get("port_out") or port_in)
+            if "port_in" in body or "port_out" in body:
+                # #255: a split pair names both directions; a missing one is
+                # refused, never filled in from the other
+                port_out = body.get("port_out")
+                binding = midi_transport.save_fm3_binding(body.get("port_in"),
+                                                          "" if port_out is None else port_out)
+            else:
+                binding = midi_transport.save_fm3_binding(body.get("port"))
         except midi_transport.TransportError as e:
             fixed = (midi_transport.FM3_PORT_ENV, midi_transport.FM3_PORT_OUT_ENV)
             status = 409 if any(name in os.environ for name in fixed) else 400

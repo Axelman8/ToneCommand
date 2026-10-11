@@ -266,3 +266,15 @@ def test_output_only_environment_fixes_output_and_refuses_save(rig, monkeypatch,
     else:
         assert rig.client.post("/api/device/select", json={"kind": "fm3"}).status_code != 200
         assert not rig.events
+
+
+@pytest.mark.parametrize("body", [{"port_in": "Interface A"}, {"port_in": "Interface A", "port_out": ""},
+                                  {"port_in": "Interface A", "port_out": None},
+                                  {"port_out": "Interface A"}, {"port_in": None, "port_out": "Interface A"}])
+def test_split_pair_with_a_missing_direction_is_refused(rig, body):
+    """#255 review: a split request never fills one direction from the other."""
+    rig.path.write_text(json.dumps({"port": "Interface B"}), encoding="utf-8")
+    before = rig.path.read_bytes()
+    response = rig.client.post("/api/fm3/port", json=body)
+    assert response.status_code == 400
+    assert rig.path.read_bytes() == before and not rig.events
