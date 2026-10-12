@@ -1,5 +1,6 @@
 """Bounded FW33 album pairs, four measured voices and eight real scenes."""
 import json
+import re
 from typing import Annotated, Literal
 from pydantic import Field, StrictBool
 from . import planning, serial_build, route_guard, executor
@@ -8,7 +9,18 @@ MODELS = {14: 'Brit 800 2204 High', 267: 'USA JP IIC+ Yellow'}
 CABS = {'Greenback': (1, 515, '4x12 Brit70s GB57A'),
         'Recto': (1, 799, '4x12 Recto57A')}
 KNOBS = ('gain','bass','mid','treble','master','depth','presence','level')
+USER_CAB_NOTICE = ('Usercabselectie op dit FW33-profiel is nog niet onafhankelijk geverifieerd. '
+    'Importeren leest alleen namen; het bewijst geen toegestane selectorwrite. '
+    'Kies voor deze acht-scene AMP/CAB-build de gemeten Factory2-cabs '
+    '(Greenback slot516 of Recto slot800), of wacht op de User-bankmeting. '
+    'TC vervangt je gevraagde User-cab niet stilzwijgend door een Factory-cab. Niets verzonden.')
 Positive = Annotated[float, Field(gt=0, le=10, allow_inf_nan=False, strict=True)]
+
+
+def user_cab_requested(prompt):
+    # Conservative explicit intent check, not a model/IR matching heuristic.
+    return bool(re.search(r'\buser[\s_-]*cabs?\b|\buser\s*[12]\b|\bu[12]\.\d{1,4}\b',
+                          prompt, re.I))
 
 
 class Amp(planning.Amp):

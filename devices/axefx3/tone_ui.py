@@ -12,7 +12,7 @@ from fm9 import ai_settings, planner
 from fm9.paths import resource_path
 from . import planning, route_guard, tone_review, profile, tone_search, reference_audio, nam_planning, fw33_profile, rig_source, route_options, navigation, serial_build, serial_planning
 from .controller_ui import Confirmation
-from . import album_build,album_planning
+from . import album_build,album_planning,runtime
 
 
 class Measurements(BaseModel):
@@ -74,6 +74,7 @@ class CabImport(BaseModel):
 
 def register(app, host):
     reviews, planning_lock = tone_review.Reviews(), threading.Lock()
+    workspace = runtime.identity()
 
     def selected():
         ctx = host.device_context()
@@ -107,22 +108,23 @@ def register(app, host):
         with host._lock:
             ctx = host.device_context()
             if ctx.kind != 'axefx3' or ctx.adapter is None:
-                return dict(connected=False)
+                return dict(connected=False,workspace=workspace)
             try:
                 dev = selected()
                 policy = profile.memory_policy(dev.reg.firmware, getattr(dev.reg, 'hardware_variant', None))
                 nam_profile_missing = dev.reg.firmware == fw33_profile.KEY and policy['variant'] != 'mk2'
                 if not policy['write_supported'] or nam_profile_missing:
                     preset = dev.current_preset()
-                    return dict(connected=True, firmware=dev.reg.firmware, profile=policy,
+                    return dict(connected=True, workspace=workspace, firmware=dev.reg.firmware, profile=policy,
                                 preset=preset[0] if preset else None, name=preset[1] if preset else '',
                                 scene=dev.current_scene(), cab_count=len(dev.reg.cab_catalog.names),
                                 route_problem='Choose MK2 for the measured FW33 NAM profile; MK1 NAM is not verified.' if nam_profile_missing else 'Firmware not verified for writes. Search/import are available; preset planning and sending are blocked.')
-                return dict(connected=True, profile=policy,
+                return dict(connected=True, workspace=workspace, profile=policy,
                             navigation_supported=navigation.supported(dev),
                             route_options_supported=True,
                             serial_build_supported=serial_build.supported(dev.reg),
                             album_build_supported=album_build.supported(dev.reg),
+                            cab_selection_note=album_planning.USER_CAB_NOTICE if album_build.supported(dev.reg) else '',
                             multiscene_planning_supported=dev.reg.firmware == '32.06',
                             request_scene_limit=8,
                             source_support=dict(rig_reader=True, modes=rig_source.MODES),
@@ -240,6 +242,8 @@ def register(app, host):
                 if album_mode and (not album_build.supported(dev.reg) or body.scenes!=8
                         or body.wah_source or body.nam_slot is not None or body.source_kind!='tone'):
                     raise ValueError('Measured FW33 AMP/CAB album route: eight scenes, four voices, no NAM/controller or rig translation')
+                if album_mode and album_planning.user_cab_requested(body.prompt):
+                    raise ValueError(album_planning.USER_CAB_NOTICE)
                 if serial_mode and (not serial_build.supported(dev.reg) or body.scenes != 1
                         or body.wah_source or body.nam_slot is not None or body.source_kind != 'tone'):
                     raise ValueError('Measured serial template: exact FW33/MK2, one scene, no NAM/controller or rig-translation selection')

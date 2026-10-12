@@ -109,10 +109,12 @@ async function run(work){if(busy)return;busy=true;controls();try{await work();}c
 async function refresh(){
   navigationPreview=null;el('navigationDialog').close();
   clearRouteExploration();invalidate();clearNamSlots();state=null;state=await api('state');
+  el('workspaceIdentity').textContent='TC FX3'+(state.workspace?.revision?' '+state.workspace.revision:'');
+  el('workspaceIdentity').title=state.workspace?`${state.workspace.source_root} | PID ${state.workspace.pid}`:'Werkruimte-identiteit niet beschikbaar; controleer je startscript.';
   el('target').textContent=state.connected?`Preset ${state.preset}: ${state.name} \u25be`:'Verbind eerst via Verbinding & controllers.';
   el('target').title=state.connected?`Axe-Fx III | ${state.firmware} | Preset ${state.preset}: ${state.name} | Scene ${state.scene}. Klik om een preset te kiezen.`:'Verbind eerst via Verbinding & controllers.';
   el('connectDevice').title=state.connected?`Axe-Fx III | ${state.firmware}`:'Verbind met de Fractal';
-  el('cabCount').textContent=state.connected?`${state.cab_count} cabnamen beschikbaar.`:'';
+  el('cabCount').textContent=state.connected?`${state.cab_count} cabnamen beschikbaar. ${state.cab_selection_note||''}`:'';
   el('variant').value=state.profile?.variant||'';
   el('memoryWarning').textContent=state.profile?.warning||'Kies MK1 of MK2 om de juiste geheugenindeling te tonen.';
   if(state.nam_selection_supported){

@@ -202,6 +202,26 @@ def test_registered_amp_plan_review_and_send_without_nam(monkeypatch):
     server._afx3_tone_reviews.clear()
 
 
+def test_user_cab_request_is_clear_pre_ai_refusal_even_with_imported_names(monkeypatch):
+    d=device(monkeypatch)
+    d.reg.import_cab_names('U1.0028 Metallica V30', 'user')
+    monkeypatch.setattr(server,'_context',server.DeviceContext('axefx3',d.reg,d,'Axe-Fx III'))
+    monkeypatch.setattr(server,'_gig_mode',{'on':False});monkeypatch.setattr(server,'_plan_revisions',{})
+    monkeypatch.setattr(server,'_audition',{'open':False})
+    ask=Mock();monkeypatch.setattr(server.planner,'plan',ask)
+    with TestClient(server.app) as client:
+        state=client.get('/api/axefx3/state').json()
+        assert state['workspace']['contract']=='fx3-workspace-20261012'
+        assert state['album_build_supported'] and 'Usercabselectie' in state['cab_selection_note']
+        response=client.post('/api/axefx3/plan',json=dict(
+            prompt='Metallica albums, zoek een geschikte CAB in de usercab bibliotheek',
+            expected_preset=322,mode='amp',scenes=8))
+        assert response.status_code==409 and 'niet stilzwijgend' in response.text
+        assert 'Factory2' in response.text and 'NAM-route' not in response.text
+    ask.assert_not_called();d._write.assert_not_called();d.set_param_display.assert_not_called()
+    d.store_preset.assert_not_called()
+
+
 def test_album_store_is_separate_and_requires_complete_unchanged_send(monkeypatch):
     d=device(monkeypatch);p=plan(d);stores=store_review.Stores()
     monkeypatch.setattr(store_review,'get_store_slots',lambda:{322})

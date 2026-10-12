@@ -40,7 +40,9 @@ def parse_names(text: str, kind: str) -> dict[tuple[int, int], str]:
         except ValueError:
             raise ValueError("Bank and slot must be whole numbers.") from None
         if bank not in (1, 2) or not 1 <= slot <= limit:
-            raise ValueError(f"{kind.title()} banks are 1–2; slots are 1–{limit}.")
+            raise ValueError(f"{kind.title()} bank {bank}, slot {slot} is not an Axe-Fx III name-list address. "
+                             f"Supported banks: 1-2; slots: 1-{limit}. "
+                             "No entries imported or silently renumbered.")
         name = re.sub(r'\s+\(\*\)\s*$', '', name).strip()
         if not name or len(name) > 160 or any(ord(c) < 32 for c in name):
             raise ValueError("Cabinet names must contain 1–160 printable characters.")

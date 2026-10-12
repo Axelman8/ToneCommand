@@ -63,7 +63,9 @@ const path=require('node:path');
           profile:{variant,warning:'Memory policy from declared variant',user2_cabs:true}};
         if(!sourceBackendReady)delete result.source_support;
         if(serialReady)result.serial_build_supported=true;
-        if(albumReady)result.album_build_supported=true;
+        if(albumReady){result.album_build_supported=true;
+          result.workspace={revision:'abc1234',source_root:'C:/test/current-checkout',pid:1234};
+          result.cab_selection_note='Usercabselectie is niet onafhankelijk geverifieerd.';}
         if(multiSceneReady){result.multiscene_planning_supported=!fw33;result.request_scene_limit=8;}
         if(routeOptionsReady)result.route_options_supported=true;
         if(navigationReady){result.navigation_supported=true;result.scene_names=Array.from({length:8},(_,i)=>[i+1,i?'Solo':'Rhythm']);}
@@ -440,6 +442,9 @@ const path=require('node:path');
     await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
     await page.click('#exploreRoutes');await page.locator('#exploreRoutes:not([disabled])').waitFor();
     await page.selectOption('#buildRoute','amp');
+    assert.equal(await page.textContent('#workspaceIdentity'),'TC FX3 abc1234');
+    assert.match(await page.locator('#workspaceIdentity').getAttribute('title'),/current-checkout.*PID 1234/);
+    assert.match(await page.textContent('#cabCount'),/Usercabselectie/);
     assert.equal(await page.inputValue('#scenes'),'8');
     assert(!await page.locator('#namBuildSlot').isVisible());
     await review();assert.equal(plans.at(-1).scenes,8);assert.equal(plans.at(-1).mode,'amp');

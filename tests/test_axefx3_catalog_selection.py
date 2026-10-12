@@ -12,6 +12,15 @@ from devices.axefx3.registry import Registry
 from fm9.protocol import decode_f32_septets, decode14
 
 
+def test_unsupported_user3_export_is_explicit_and_atomic():
+    reg=Registry('32.06')
+    reg.import_cab_names('U1.0028 Existing', 'user')
+    before=dict(reg.cab_catalog.names)
+    with pytest.raises(ValueError,match='User bank 3, slot 1'):
+        reg.import_cab_names('U1.0029 New\nU3.0001 Unsupported', 'user')
+    assert reg.cab_catalog.names==before
+
+
 def test_banks_and_one_based_slots_are_not_fm9_legacy_aliases():
     assert wire_address("user", 1, 1) == (2, 0)
     assert wire_address("user", 1, 512) == (2, 511)

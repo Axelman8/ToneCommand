@@ -4,6 +4,21 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Add one guarded Windows FX3 launcher on8909. It identifies the running
+  checkout/PID and pinned FX3/shared-core/UI source hashes, refusing old,
+  unrelated or stale runtimes and a second8910 instance. Existing settings
+  remain external references. Optional explicit connection/profile never
+  builds, selects, sends or stores a preset. The connected root URL now opens
+  the FX3 tone workspace; FM9 home is unchanged. Show source/revision in GUI.
+  Explicit User-cab requests on the bounded FW33 album profile fail before
+  AI instead of silently selecting Factory; name imports disclose this
+  separate write-evidence gate. Invalid User3 exports identify the offending
+  bank/slot and preserve the existing catalogue without renumbering.
+  Actual configured-AI GUI exploration/AMP choice/plan produces eight album
+  scenes and275 review actions on empty322. No SEND, Store or navigation in
+  this acceptance; the existing stored326 reference is not modified.
+  Mandatory and changed simulator suites pass399 tests; real Chrome mocked
+  workflow and actual configured-provider GUI plan checks pass separately.
 - Add a bounded FW33/MK2 eight-scene AMP/CAB album contract to the normal
   selected-AI, review and SEND workflow. Four album voices share A-D; only
   two measured Amp1 models and two Factory2 Legacy IR1 selections are allowed.

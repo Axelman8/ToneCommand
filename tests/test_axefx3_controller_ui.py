@@ -113,7 +113,7 @@ def test_legacy_write_routes_and_generic_handle_stay_blocked(api):
                        ('/api/plan',{'prompt':'anything'}),('/api/device/select',{'kind':'fm9'}),
                        ('/api/controllers/../apply',{'actions':[]})]:
         assert client.post(route,json=body).status_code == 409
-    assert client.get('/',follow_redirects=False).headers['location'] == '/controllers'
+    assert client.get('/',follow_redirects=False).headers['location'] == '/axefx3'
     with pytest.raises(server.CapabilityDeclined): server.get_fm9()
     dev._write.assert_not_called()
 
@@ -175,6 +175,16 @@ def test_connection_failure_never_falls_back_to_fm9(api,monkeypatch):
     assert not state['connected'] and state['controller_selected']
     assert client.get('/api/state').status_code == 409
     assert client.post('/api/controllers/disconnect').status_code == 200
+
+
+def test_main_url_opens_tone_workspace_for_fx3_and_keeps_fm9_home(api):
+    client,dev,_=api
+    initial=client.get('/',follow_redirects=False)
+    assert initial.status_code==200 and 'afx3-workspace' not in initial.text
+    client.post('/api/controllers/connect')
+    response=client.get('/',follow_redirects=False)
+    assert response.status_code==307 and response.headers['location']=='/axefx3'
+    dev._write.assert_not_called()
 
 
 def test_no_automatic_retry_when_write_fails(api):

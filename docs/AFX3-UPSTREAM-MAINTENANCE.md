@@ -20,6 +20,70 @@ certify untested firmware, controllers, NAM formats or upstream features.
 
 ## Repeatable update check
 
+### One Windows runtime and startup verification, 2026-10-12
+
+From the maintained integration checkout, use:
+
+```powershell
+.\tools\start_tonecommand.ps1
+```
+
+This opens Chrome at8909/axefx3 and starts/reuses only this checkout. It checks
+the running source root, real listener PID and startup-pinned FX3/shared-core/
+UI hashes. An old owner checkout, occupied8910, another app or changed imported
+code is refused, not killed or silently reused. No8909-to8910 fallback exists.
+Restart a stale instance normally before running the launcher again. The GUI
+footer shows the FX3 revision; its tooltip identifies the source root and PID.
+The connected root URL also opens the tone workspace, not a legacy planner.
+
+Private settings can stay in their existing directory:
+
+```powershell
+.\tools\start_tonecommand.ps1 -SettingsDirectory 'C:\YourExistingTCSettings'
+```
+
+The directory must contain existing ai_settings.json and store_slots.json;
+user_cabs.json is optional. Nothing is copied into Git or added to a slot
+allowlist. Optional -Connect -AxeFxVariant mk2 explicitly opens a read-only
+connection and sets the locally declared profile; it does not prove chassis
+identity, mute audio or send any preset action. With an already matching
+connection it preserves pending reviews instead of redundantly resetting
+the profile. Axe-Edit must be closed normally first. -NoBrowser is supported.
+
+FW33 album mode still uses the measured Factory2 IR1 selections only. Uploaded
+User names are metadata, not selector calibration. Explicit User-cab intent
+is refused before AI, without silently replacing it by Factory. A User3 export
+is outside this FX3 catalogue and is rejected atomically with the exact bank/
+slot; do not trim or remap it without an explicit bank/source decision. Native
+User-bank acceptance requires a separate independent muted measurement.
+
+Actual GUI acceptance on2026-10-12 uses the configured real AI, EXPLORE ROUTES,
+manual AMP/CAB selection and GENERATE PLAN on empty322/scene1. It produces
+AI-Metallica albums, eight named album lead/solo scenes, A,A,B,B,C,C,D,D and275
+reviewable actions. The complete public before/after state is unchanged apart
+from two explicitly synthetic import-test name labels. SEND, Store, navigation
+and installer requests are forbidden in this browser test. Temporary labels
+are cleared by a normal disconnect/reconnect afterward. This is plan formation
+from the GUI, not new hardware-write acceptance or an audible assessment.
+Final mandatory contract/capability/UI-warning and changed simulator suites
+pass399 tests in122.69s, four workers. Actual mocked-API Chrome also covers
+the revision/source footer, cab-selection warning and retained legacy workflows.
+
+The owner desktop launcher had pointed to the preserved legacy checkout; the
+running server consequently sent the AI the obsolete NAM-only FW33 reference.
+Its replacement delegates to this maintained launcher while referencing the
+same private AI/Store settings. The legacy checkout is not rewritten or used
+as a server. Exact source identity matters more than browser refresh alone.
+
+Next User-bank gate: with freshly confirmed external mute, use an authorized
+test preset distinct from the stored reference and the independently verified
+Legacy IR1-only foundation. Record Axe-Edit's changed bank/slot selectors,
+including User1/User2 boundaries and exact-zero behavior, then correlate the
+visible names/slots with complete native Cab words. Only afterward implement
+bounded native replay with whole-state preservation and a fresh independent
+editor comparison. Imported labels never replace that measurement, and IR
+memory installation/mixer/pan writes remain separate permissions/capabilities.
+
 ### Roadmap reconciliation, 2026-10-09
 
 There is no standalone ROADMAP file in the inspected upstream main tree.
