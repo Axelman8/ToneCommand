@@ -16,7 +16,9 @@ def frames():
 
 
 def allowed(dev, frame):
-    from . import amp_calibration
+    from . import amp_calibration,amp_inventory_probe
+    if amp_inventory_probe.allowed(dev, frame):
+        return True
     if amp_calibration.allowed(dev, frame):
         return True
     probe = getattr(dev, '_amp_probe', None)

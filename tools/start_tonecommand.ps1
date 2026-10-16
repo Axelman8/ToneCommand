@@ -12,7 +12,7 @@ $tcUrl = "http://127.0.0.1:$Port/axefx3"
 $tcStateUrl = "http://127.0.0.1:$Port/api/axefx3/state"
 if (-not (Test-Path -LiteralPath $tcPython)) { throw "Python environment missing: $tcPython" }
 $tcFiles = @('server.py','fm9/planner.py','fm9/protocol.py','fm9/device.py',
-    'ui/axefx3.js','ui/axefx3.html','ui/index.html') + @(
+    'ui/axefx3.js','ui/axefx3.html','ui/index.html','devices/axefx3/data/fw33_amp_models.json') + @(
     Get-ChildItem -LiteralPath (Join-Path $tcSource 'devices\axefx3') -File -Filter '*.py' |
         ForEach-Object { 'devices/axefx3/' + $_.Name })
 function Assert-TcWorkspace($State, $Listener) {

@@ -130,7 +130,7 @@ def test_invalid_contract_fails_before_writes(monkeypatch,fault):
     if fault=='output':a[0]['value']=-6
     if fault=='unsafe_amp':next(x for x in a if x.get('param')=='DISTORT_LEVEL')['value']=-1
     if fault=='zero':next(x for x in a if x.get('param')=='DISTORT_DEPTH')['value']=0
-    if fault=='model':next(x for x in a if x['kind']=='set_type')['type_name']='FAS Modern'
+    if fault=='model':next(x for x in a if x['kind']=='set_type')['type_name']='Unknown amplifier'
     if fault=='cab':next(x for x in a if x['kind']=='set_cab')['value']=841
     if fault=='bank':next(x for x in a if x['kind']=='set_cab')['bank']=2
     if fault=='right':next(x for x in a if x['kind']=='set_cab')['cab_side']='right'

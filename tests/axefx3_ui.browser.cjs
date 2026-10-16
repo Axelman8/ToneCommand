@@ -64,6 +64,8 @@ const path=require('node:path');
         if(!sourceBackendReady)delete result.source_support;
         if(serialReady)result.serial_build_supported=true;
         if(albumReady){result.album_build_supported=true;
+          const models=JSON.parse(fs.readFileSync(path.join(__dirname,'../devices/axefx3/data/fw33_amp_models.json'),'utf8')).models;
+          result.amp_inventory={count:336,models:Object.entries(models).map(([ordinal,name])=>({ordinal:Number(ordinal),name}))};
           result.workspace={revision:'abc1234',source_root:'C:/test/current-checkout',pid:1234};
           result.cab_selection_note='Usercabselectie is niet onafhankelijk geverifieerd.';}
         if(multiSceneReady){result.multiscene_planning_supported=!fw33;result.request_scene_limit=8;}
@@ -448,6 +450,13 @@ const path=require('node:path');
     assert.equal(await page.textContent('#workspaceIdentity'),'TC FX3 abc1234');
     assert.match(await page.locator('#workspaceIdentity').getAttribute('title'),/current-checkout.*PID 1234/);
     assert.match(await page.textContent('#cabCount'),/Usercabselectie/);
+    assert.match(await page.textContent('#ampCount'),/336 modellen/);
+    assert.equal(await page.locator('#ampModels li').count(),336);
+    assert.equal(await page.locator('#ampModels li').first().textContent(),'59 Bassguy Bright');
+    assert.equal(await page.locator('#ampModels li').last().textContent(),'Brit JVM Crunch Red');
+    await page.locator('#ampPanel summary').click();
+    assert(await page.locator('#ampModels').isVisible());
+    await page.locator('#ampPanel summary').click();
     assert.equal(await page.inputValue('#scenes'),'8');
     assert(!await page.locator('#namBuildSlot').isVisible());
     await review();assert.equal(plans.at(-1).scenes,8);assert.equal(plans.at(-1).mode,'amp');

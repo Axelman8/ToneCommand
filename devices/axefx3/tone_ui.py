@@ -12,7 +12,7 @@ from fm9 import ai_settings, planner
 from fm9.paths import resource_path
 from . import planning, route_guard, tone_review, profile, tone_search, reference_audio, nam_planning, fw33_profile, rig_source, route_options, navigation, serial_build, serial_planning
 from .controller_ui import Confirmation
-from . import album_build,album_planning,runtime,scene_intent
+from . import album_build,album_planning,runtime,scene_intent,amp_inventory
 
 AnnotatedSceneNumber = Annotated[StrictInt, Field(ge=1,le=8)]
 
@@ -128,6 +128,7 @@ def register(app, host):
                             route_options_supported=True,
                             serial_build_supported=serial_build.supported(dev.reg),
                             album_build_supported=album_build.supported(dev.reg),
+                            amp_inventory=amp_inventory.report(dev.reg) if album_build.supported(dev.reg) else None,
                             scene_intent_supported=True, refinement_supported=True,
                             cab_selection_note=album_planning.USER_CAB_NOTICE if album_build.supported(dev.reg) else '',
                             multiscene_planning_supported=dev.reg.firmware == '32.06',

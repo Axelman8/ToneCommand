@@ -139,6 +139,10 @@ async function refresh(){
   el('target').title=state.connected?`Axe-Fx III | ${state.firmware} | Preset ${state.preset}: ${state.name} | Scene ${state.scene}. Klik om een preset te kiezen.`:'Verbind eerst via Verbinding & controllers.';
   el('connectDevice').title=state.connected?`Axe-Fx III | ${state.firmware}`:'Verbind met de Fractal';
   el('cabCount').textContent=state.connected?`${state.cab_count} cabnamen beschikbaar. ${state.cab_selection_note||''}`:'';
+  const amps=state.amp_inventory;
+  el('ampCount').textContent=amps?`${amps.count} modellen beschikbaar voor de acht-scene AMP/CAB-bouwer. De AI kiest uit deze volledige FW33-lijst. Dit verandert niets zonder review en SEND.`:'De volledige FW33-versterkerlijst vereist het ondersteunde MK2-profiel.';
+  el('ampModels').replaceChildren();
+  if(amps)for(const amp of amps.models){const item=document.createElement('li');item.textContent=amp.name;el('ampModels').append(item);}
   el('variant').value=state.profile?.variant||'';
   el('memoryWarning').textContent=state.profile?.warning||'Kies MK1 of MK2 om de juiste geheugenindeling te tonen.';
   if(state.nam_selection_supported){

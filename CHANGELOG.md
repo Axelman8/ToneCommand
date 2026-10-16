@@ -4,6 +4,22 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Expand the exact FW33/MK2 eight-scene AMP/CAB planner from two amplifier
+  models to the complete 336-name firmware inventory. Bundle factual editor
+  names/IDs, expose a collapsible AMP LIBRARY, and give the configured AI a
+  strict full-model enum. Generic setters, firmware pins, preset allowlists,
+  Cab choices and unrelated effect/controller gates remain unchanged.
+  Preserve quiet staging, independent active-channel model/full-state checks,
+  matching-model retention and separate Store consent. An isolated recorded
+  all-model developer probe is not a public AI action. See
+  `docs/AFX3-AMP-INVENTORY.md` for scope and verification boundaries.
+  All336 independent editor name/selector checks and all336 native TC model
+  selections/full-state checks pass on muted test322, without preset Store.
+  An actual configured-AI normal review/SEND completes263 actions with four
+  representative models on A-D; eight native surveys and independent editor
+  scene/model/voicing checks pass. Full original328 state is preserved;326
+  is untouched. Full regression:4957 passes/16 skips; Chrome library and
+  consent workflow and isolated built-wheel inventory/schema checks pass.
 - Add device-specific scene intent to AMP/CAB, NAM and serial planning, with
   per-scene musical targets, roles and realization notes. Reject promised
   base-tone contrasts implemented only by names, level or ambience; disclose

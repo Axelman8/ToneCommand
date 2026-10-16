@@ -3,9 +3,10 @@ import json
 import re
 from typing import Annotated, Literal
 from pydantic import Field, StrictBool, StrictInt
-from . import planning, serial_build, route_guard, executor, scene_intent
+from . import planning, serial_build, route_guard, executor, scene_intent, amp_inventory, fw33_profile
 
-MODELS = {14: 'Brit 800 2204 High', 267: 'USA JP IIC+ Yellow'}
+MODELS = amp_inventory.roster(fw33_profile.KEY)
+AmpName = Literal[tuple(MODELS.values())]
 CABS = {'Greenback': (1, 515, '4x12 Brit70s GB57A'),
         'Recto': (1, 799, '4x12 Recto57A')}
 KNOBS = ('gain','bass','mid','treble','master','depth','presence','level')
@@ -41,7 +42,7 @@ class Role(planning.Shape):
 
 
 class Album(planning.Shape):
-    amp_model: Literal['Brit 800 2204 High', 'USA JP IIC+ Yellow']
+    amp_model: AmpName
     cab: Literal['Greenback', 'Recto']
     amp: Amp
     lead: Role
@@ -182,7 +183,7 @@ def compile_design(reg,raw,current_route,scene_count):
         channel_mapping=[dict(scene=i+1,amp='ABCD'[item['amp_channel']],cab='ABCD'[item['cab_channel']],
             delay='A',chorus='A',output='A') for i,item in enumerate(assignments)],
         warnings=['Maximaal vier ampvoicings en vier cabkanalen A-D; zie de expliciete scene-indeling. Delay/Chorus delen A.',
-            'Twee geverifieerde ampmodellen/twee Factory-cabs. Nieuwe Drive/post-EQ-voicing vereist aanvullende meting, niet alleen inschakelen.',
+            f'{len(MODELS)} FW33-ampmodellen en twee Factory-cabs. Nieuwe Drive/post-EQ-voicing vereist aanvullende meting, niet alleen inschakelen.',
             'Gemeten vaste14-blokkenketen. Reserve-effecten blijven bypassed; geen nieuwe controllers.',
             'Alleen IR1 in de mix; IR2-4 blijven gemute. Geen stereopanning of IR-installatie.',
             'Output -18dB; voorlopige scenevolumes. Externe mute is verplicht, geen limiter.',
