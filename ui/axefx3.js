@@ -11,6 +11,10 @@ let currentStage=0;
 let routeExploration=null;
 let navigationPreview=null,presetLibrary=[];
 let refineContext=null,adjusting=false;
+const ampRefreshButton=document.createElement('button');ampRefreshButton.id='ampRefresh';ampRefreshButton.textContent='REFRESH AMP MODELS';
+const ampRefreshStatus=document.createElement('p');ampRefreshStatus.id='ampRefreshStatus';ampRefreshStatus.setAttribute('role','status');
+const ampChanges=document.createElement('ul');ampChanges.id='ampChanges';ampChanges.style.maxHeight='200px';ampChanges.style.overflow='auto';ampChanges.hidden=true;
+el('ampCount').after(ampRefreshButton,ampRefreshStatus,ampChanges);
 const intentPanel=document.createElement('section');intentPanel.id='sceneIntent';intentPanel.hidden=true;
 el('controllerChoice').after(intentPanel);
 const refineButton=document.createElement('button');refineButton.id='refineSound';refineButton.textContent='BIJSTUREN NA LUISTERTEST';refineButton.hidden=true;
@@ -65,6 +69,7 @@ function stage(index){
   el('navHelp').textContent=['Vertel TC wat je wilt.','Voorstel, nog niets verzonden.','Controleer alle wijzigingen.','Bevestig doel en externe demping.','Resultaat van de verzending.'][index];
 }
 function controls(){
+  ampRefreshButton.disabled=busy||!state?.connected||!state?.amp_refresh_supported;
   el('target').disabled=busy||!state?.connected||!state?.navigation_supported;
   el('connectDevice').textContent=state?.connected?'VERBONDEN':'VERBIND';
   el('connectDevice').classList.toggle('linked',!!state?.connected);
@@ -129,6 +134,25 @@ async function api(name,body){
   return data;
 }
 async function run(work){if(busy)return;busy=true;controls();try{await work();}catch(e){invalidate();note(e.message);}finally{busy=false;controls();}}
+function renderAmps(amps){
+  el('ampCount').textContent=amps?`${amps.count} modellen beschikbaar voor de acht-scene AMP/CAB-bouwer. De AI kiest uit deze volledige FW33-lijst. Dit verandert niets zonder review en SEND.`:'De volledige FW33-versterkerlijst vereist het ondersteunde MK2-profiel.';
+  el('ampModels').replaceChildren();
+  if(amps)for(const amp of amps.models){const item=document.createElement('li');item.textContent=amp.name;el('ampModels').append(item);}
+}
+ampRefreshButton.onclick=async()=>{
+  if(busy||!state?.connected)return;
+  busy=true;controls();ampRefreshStatus.textContent='Firmware en lokale modellenlijst controleren...';ampChanges.replaceChildren();ampChanges.hidden=true;
+  try{
+    const result=await api('amps/refresh',{expected_firmware:state.firmware});
+    renderAmps(result.inventory);ampRefreshStatus.textContent=result.message;
+    ampRefreshStatus.className=result.status==='up_to_date'?'':'warning';
+    for(const [key,label] of [['added','Nieuw, nog geblokkeerd'],['changed','Gewijzigd, nog geblokkeerd'],['removed','Ontbreekt in lokale cache']]){
+      for(const model of result[key]){const row=document.createElement('li');row.textContent=`${label}: ${model.name}${model.verified_name?' (geverifieerd: '+model.verified_name+')':''}`;ampChanges.append(row);}
+    }
+    ampChanges.hidden=!ampChanges.childElementCount;
+  }catch(error){ampRefreshStatus.className='warning';ampRefreshStatus.textContent=error.message;}
+  finally{busy=false;controls();}
+};
 async function refresh(){
   navigationPreview=null;el('navigationDialog').close();
   clearRouteExploration();invalidate();clearNamSlots();state=null;state=await api('state');
@@ -139,10 +163,7 @@ async function refresh(){
   el('target').title=state.connected?`Axe-Fx III | ${state.firmware} | Preset ${state.preset}: ${state.name} | Scene ${state.scene}. Klik om een preset te kiezen.`:'Verbind eerst via Verbinding & controllers.';
   el('connectDevice').title=state.connected?`Axe-Fx III | ${state.firmware}`:'Verbind met de Fractal';
   el('cabCount').textContent=state.connected?`${state.cab_count} cabnamen beschikbaar. ${state.cab_selection_note||''}`:'';
-  const amps=state.amp_inventory;
-  el('ampCount').textContent=amps?`${amps.count} modellen beschikbaar voor de acht-scene AMP/CAB-bouwer. De AI kiest uit deze volledige FW33-lijst. Dit verandert niets zonder review en SEND.`:'De volledige FW33-versterkerlijst vereist het ondersteunde MK2-profiel.';
-  el('ampModels').replaceChildren();
-  if(amps)for(const amp of amps.models){const item=document.createElement('li');item.textContent=amp.name;el('ampModels').append(item);}
+  renderAmps(state.amp_inventory);ampRefreshStatus.textContent='';ampChanges.replaceChildren();ampChanges.hidden=true;
   el('variant').value=state.profile?.variant||'';
   el('memoryWarning').textContent=state.profile?.warning||'Kies MK1 of MK2 om de juiste geheugenindeling te tonen.';
   if(state.nam_selection_supported){

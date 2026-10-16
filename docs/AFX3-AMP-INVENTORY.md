@@ -15,6 +15,17 @@ scenes; eight independent amp channels do not exist. Exact requested names
 can be included in the request. Musical suitability is still a design choice,
 not proof of the equipment on an original recording or an audible match.
 
+REFRESH AMP MODELS verifies the connected firmware, reloads the bundled list
+and compares it with the newest local product10 Axe-Edit metadata cache when
+available. It does not need a running editor or fetch a live model enumeration
+from the unit. Missing or unreadable caches are reported; other product
+caches, unknown record layouts and partial files cannot silently become a
+valid roster. Only amp labels leave the parser, never private IR tables.
+New, renamed, renumbered or missing entries are shown separately and require
+independent verification plus a TC update before becoming selectable. Refresh
+does not change the planner enum, pending plan, draft, controller assignments,
+preset or storage. It is safe to check during review without regenerating.
+
 The expanded inventory does not enable generic raw model writes. Normal
 review and SEND retain the deterministic build grammar, explicit mute
 acknowledgement, pre-transition bypass and quiet level, unchanged output
@@ -57,9 +68,17 @@ separate Normal Gain. Explicit successful-test navigation returned to328/7
 with complete original snapshot equality. Reference326 was not selected or
 modified, and the test preset was not permanently saved.
 
-The complete simulator regression passes4,957 tests with16 skips. The
+The all-model release's complete simulator regression passes4,957 tests with16 skips. The
 mandatory safety and all FX3 suites pass1,832 tests; subsequent focused
 inventory/encoding tests pass35. Actual Chrome mocked workflow/library tests
 pass, including all336 rendered names and normal consent. A built wheel also
 imports the complete inventory and strict model enum in isolation from the
 checkout. These checks are not an audio or safe-loudness measurement.
+
+The subsequent refresh addition passes1,856 mandatory/FX3/encoding tests.
+Chrome's mocked workflow verifies refresh success, new blocked names, failure
+messages, XSS-safe rendering, and preservation of a draft and existing review.
+A separate registered-API refresh on the connected unit reports all336 names
+current and preserves complete before/after hardware snapshots on328/scene7.
+That native test forbids every mutating device write, uses no AI and stores
+nothing. Source metadata never becomes new selector authority.

@@ -12,7 +12,7 @@ from fm9 import ai_settings, planner
 from fm9.paths import resource_path
 from . import planning, route_guard, tone_review, profile, tone_search, reference_audio, nam_planning, fw33_profile, rig_source, route_options, navigation, serial_build, serial_planning
 from .controller_ui import Confirmation
-from . import album_build,album_planning,runtime,scene_intent,amp_inventory
+from . import album_build,album_planning,runtime,scene_intent,amp_inventory,amp_refresh
 
 AnnotatedSceneNumber = Annotated[StrictInt, Field(ge=1,le=8)]
 
@@ -49,6 +49,11 @@ class Request(BaseModel):
 class Profile(BaseModel):
     model_config = ConfigDict(extra='forbid')
     variant: Literal['mk1','mk2']
+
+
+class AmpRefresh(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    expected_firmware: str = Field(min_length=1,max_length=80)
 
 
 class Explore(BaseModel):
@@ -120,6 +125,7 @@ def register(app, host):
                 if not policy['write_supported'] or nam_profile_missing:
                     preset = dev.current_preset()
                     return dict(connected=True, workspace=workspace, firmware=dev.reg.firmware, profile=policy,
+                                amp_refresh_supported=True,
                                 preset=preset[0] if preset else None, name=preset[1] if preset else '',
                                 scene=dev.current_scene(), cab_count=len(dev.reg.cab_catalog.names),
                                 route_problem='Choose MK2 for the measured FW33 NAM profile; MK1 NAM is not verified.' if nam_profile_missing else 'Firmware not verified for writes. Search/import are available; preset planning and sending are blocked.')
@@ -128,6 +134,7 @@ def register(app, host):
                             route_options_supported=True,
                             serial_build_supported=serial_build.supported(dev.reg),
                             album_build_supported=album_build.supported(dev.reg),
+                            amp_refresh_supported=True,
                             amp_inventory=amp_inventory.report(dev.reg) if album_build.supported(dev.reg) else None,
                             scene_intent_supported=True, refinement_supported=True,
                             cab_selection_note=album_planning.USER_CAB_NOTICE if album_build.supported(dev.reg) else '',
@@ -136,6 +143,21 @@ def register(app, host):
                             source_support=dict(rig_reader=True, modes=rig_source.MODES),
                             nam_selection_supported=dev.reg.firmware == fw33_profile.KEY,
                             **tone_review.public_state(tone_review.snapshot(dev,include_nam=None),dev.reg))
+            except (ValueError,RuntimeError,OSError) as exc:
+                raise HTTPException(409,str(exc)) from exc
+
+    @app.post('/api/axefx3/amps/refresh')
+    def refresh_amps(body: AmpRefresh):
+        # Read-only metadata must not discard plans, drafts or refinement tokens.
+        with host._lock:
+            dev=selected()
+            try:
+                if dev.firmware_label()!=body.expected_firmware or dev.reg.firmware!=body.expected_firmware:
+                    raise ValueError('Firmware changed; RESCAN before refreshing model metadata.')
+                result=amp_refresh.refresh(dev.reg)
+                if dev.firmware_label()!=body.expected_firmware:
+                    raise ValueError('Firmware changed during refresh; discard this metadata result.')
+                return result
             except (ValueError,RuntimeError,OSError) as exc:
                 raise HTTPException(409,str(exc)) from exc
 

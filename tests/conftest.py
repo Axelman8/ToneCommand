@@ -41,6 +41,9 @@ def isolated_env(tmp_path, monkeypatch):
     later.
     """
     from fm9 import planner, share
+    from devices.axefx3 import amp_refresh
+    # Never inspect a developer's real editor cache from an API test.
+    monkeypatch.setattr(amp_refresh,'cache_directory',lambda:tmp_path/'no-editor-cache')
     monkeypatch.setattr(planner, "_env_path", lambda: tmp_path / ".env")
     # Third time, same lesson. share.endpoint() gained a .env fallback the day
     # the service was deployed, because reading only os.environ meant the

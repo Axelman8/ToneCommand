@@ -4,6 +4,15 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Add REFRESH AMP MODELS to the FW33 AMP LIBRARY. Check live firmware and
+  reload the bundled roster, optionally comparing the newest local product10
+  Axe-Edit metadata cache. Show added/changed/missing names as unverified;
+  never alter selector permissions, AI enums, presets or pending reviews.
+  Missing/corrupt caches are explained without launching Axe-Edit, downloading
+  data, querying model selectors or silently accepting another firmware.
+  Mandatory/FX3/encoding regression:1856 passes. Native read-only registered
+  refresh confirms336 current models and complete328 state preservation;
+  Chrome mocked draft/review/error/unverified-name handling passes.
 - Expand the exact FW33/MK2 eight-scene AMP/CAB planner from two amplifier
   models to the complete 336-name firmware inventory. Bundle factual editor
   names/IDs, expose a collapsible AMP LIBRARY, and give the configured AI a

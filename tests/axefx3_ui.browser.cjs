@@ -15,6 +15,7 @@ const path=require('node:path');
     const serialRoute=['Input 1','Wah 1','Drive 1','Amp 1','Cab 1','Chorus 1','Compressor 1','Delay 1','Enhancer 1','Filter 1','Flanger 1','GEQ 1','PEQ 2','Output 1'];
     const navigationSelections=[];
     const explorations=[];
+    let ampRefreshMode='same';const ampRefreshes=[];
     page.on('pageerror',e=>errors.push(e.message));
     let failPlan=false,failSend=false,failRead=false,addedExtras=false;
     let variant=null,fw33=false,namRoute=false,selected=null,slotsFull=false,slotsFail=false;
@@ -32,6 +33,14 @@ const path=require('node:path');
       }
       if(!url.pathname.startsWith('/api/axefx3/'))return route.fulfill({status:404,body:''});
       let status=200,result={};
+      if(url.pathname==='/api/axefx3/amps/refresh'){
+        ampRefreshes.push(req.postDataJSON());
+        const names=JSON.parse(fs.readFileSync(path.join(__dirname,'../devices/axefx3/data/fw33_amp_models.json'),'utf8')).models;
+        result={inventory:{count:336,models:Object.entries(names).map(([ordinal,name])=>({ordinal:Number(ordinal),name}))},
+          status:ampRefreshMode==='new'?'verification_required':'up_to_date',message:ampRefreshMode==='new'?'Nieuw model, eerst verificatie vereist':'Actueel: 336 modellen',
+          added:ampRefreshMode==='new'?[{ordinal:336,name:'<img src=x onerror=alert(1)> New amp'}]:[],changed:[],removed:[]};
+        if(ampRefreshMode==='error'){status=409;result={detail:'Firmware changed; RESCAN first'};}
+      }
       if(url.pathname==='/api/axefx3/tone3000/status')result={configured:true,connected:true,selected,installation_supported:fw33&&variant==='mk2'};
       if(url.pathname==='/api/axefx3/tone3000/tones')result={data:[{id:42,title:'<img src=x onerror=alert(1)> Plexi',creator:{username:'test'}}]};
       if(url.pathname==='/api/axefx3/tone3000/tones/42')result={tone:{title:'Capture',description:'Untrusted creator claim'},models:[{id:7,name:'Synthetic A2'}]};
@@ -63,7 +72,7 @@ const path=require('node:path');
           profile:{variant,warning:'Memory policy from declared variant',user2_cabs:true}};
         if(!sourceBackendReady)delete result.source_support;
         if(serialReady)result.serial_build_supported=true;
-        if(albumReady){result.album_build_supported=true;
+        if(albumReady){result.album_build_supported=true;result.amp_refresh_supported=true;
           const models=JSON.parse(fs.readFileSync(path.join(__dirname,'../devices/axefx3/data/fw33_amp_models.json'),'utf8')).models;
           result.amp_inventory={count:336,models:Object.entries(models).map(([ordinal,name])=>({ordinal:Number(ordinal),name}))};
           result.workspace={revision:'abc1234',source_root:'C:/test/current-checkout',pid:1234};
@@ -456,12 +465,31 @@ const path=require('node:path');
     assert.equal(await page.locator('#ampModels li').last().textContent(),'Brit JVM Crunch Red');
     await page.locator('#ampPanel summary').click();
     assert(await page.locator('#ampModels').isVisible());
+    const draftBeforeRefresh=await page.inputValue('#prompt');
+    await page.click('#ampRefresh');await page.locator('#ampRefresh:not([disabled])').waitFor();
+    assert.match(await page.textContent('#ampRefreshStatus'),/Actueel: 336/);
+    assert.equal(await page.inputValue('#prompt'),draftBeforeRefresh);
+    assert.equal(ampRefreshes.at(-1).expected_firmware,'33.00-beta.20261006');
+    ampRefreshMode='new';await page.click('#ampRefresh');await page.locator('#ampRefresh:not([disabled])').waitFor();
+    assert.match(await page.textContent('#ampChanges'),/Nieuw, nog geblokkeerd/);
+    assert.equal(await page.locator('#ampChanges img').count(),0);
+    assert.equal(await page.locator('#ampModels li').count(),336);
+    ampRefreshMode='error';await page.click('#ampRefresh');await page.locator('#ampRefresh:not([disabled])').waitFor();
+    assert.match(await page.textContent('#ampRefreshStatus'),/Firmware changed/);
+    assert.equal(await page.inputValue('#prompt'),draftBeforeRefresh);
+    ampRefreshMode='same';
     await page.locator('#ampPanel summary').click();
     assert.equal(await page.inputValue('#scenes'),'8');
     assert(!await page.locator('#namBuildSlot').isVisible());
     await review();assert.equal(plans.at(-1).scenes,8);assert.equal(plans.at(-1).mode,'amp');
     assert(!Object.hasOwn(plans.at(-1),'nam_slot'));
     assert.equal(await page.locator('#sceneRows tr').count(),8);
+    await page.locator('#ampPanel summary').click();
+    const plansBeforeRefresh=plans.length,sendsBeforeRefresh=sends.length;
+    await page.click('#ampRefresh');await page.locator('#ampRefresh:not([disabled])').waitFor();
+    assert.equal(await page.locator('#sceneRows tr').count(),8);
+    assert.equal(plans.length,plansBeforeRefresh);assert.equal(sends.length,sendsBeforeRefresh);
+    await page.locator('#ampPanel summary').click();
     assert.match(await page.textContent('#sceneRows'),/8\. Album 4 Solo \/ D/);
     assert.match(await page.textContent('#sceneRows'),/Factory 2 slot 800 \/ D/);
     assert.match(await page.textContent('#sceneRows'),/Output A -18dB/);
