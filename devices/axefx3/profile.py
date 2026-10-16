@@ -25,5 +25,11 @@ def apply(reg, variant):
     reg.hardware_variant = variant
     policy = memory_policy(reg.firmware, variant)
     reg.cab_catalog.restrict_user2(policy['user2_cabs'])
+    from . import cab_metadata
+    try:
+        policy['cab_names_restored']=cab_metadata.restore_if_empty(reg)
+    except (OSError,ValueError,TypeError,KeyError):
+        policy['cab_names_restored']=0
+        reg.cab_catalog.cache_note='Lokale cabnamen niet leesbaar; importeer de actuele namenlijst opnieuw.'
     reg.cab_rosters = reg.cab_catalog.rosters()
     return policy

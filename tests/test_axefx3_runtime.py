@@ -45,7 +45,8 @@ PS = shutil.which('powershell')
 
 @pytest.mark.skipif(not PS, reason='Windows PowerShell launcher')
 @pytest.mark.parametrize('case', ['reuse', 'reuse-connect', 'wrong-root', 'stale-code',
-                                 'stale-inventory', 'occupied-old', 'new', 'new-settings', 'second-port'])
+                                 'stale-inventory', 'stale-drive-probe', 'stale-effect-inventory',
+                                 'occupied-old', 'new', 'new-settings', 'second-port'])
 def test_launcher_reuses_only_exact_runtime_and_never_kills_or_writes(tmp_path, case):
     source = tmp_path / 'checkout with spaces'
     (source / 'tools').mkdir(parents=True)
@@ -65,6 +66,10 @@ def test_launcher_reuses_only_exact_runtime_and_never_kills_or_writes(tmp_path, 
         info['files']['devices/axefx3/album_build.py'] = 'stale'
     if case == 'stale-inventory':
         info['files']['devices/axefx3/data/fw33_amp_models.json'] = 'stale'
+    if case == 'stale-drive-probe':
+        info['files']['devices/axefx3/data/fw33_drive_probe.json'] = 'stale'
+    if case == 'stale-effect-inventory':
+        info['files']['devices/axefx3/data/fw33_effect_models.json'] = 'stale'
     state = json.dumps(dict(connected=case=='reuse-connect', profile={'variant':'mk2'}, workspace=info))
     extra = '-Connect -AxeFxVariant mk2' if case=='reuse-connect' else ''
     if case=='new-settings':

@@ -11,19 +11,19 @@ unchanged. MK2 hardware does not prove MK1 or other firmware compatibility.
 | 2 | Full Factory cab catalog and selection | Integrated 2048 names; fixed native replay and actual AI/normal SEND pass within measured FW33/MK2 route. |
 | 3 | Full User banks and separate FullRes | Correct FW33 addressing and whole-bank MK1 protection; normal User1/2 SEND and independent editor pass. FullRes names/restrictions separate, no occupied FullRes audition claimed. |
 | 4 | Four-slot cab mixer and stereo | All four slots and A-D: captured/native mode, selector, level/pan, actual339-action SEND and independent eight-scene editor checks pass. |
-| 5 | Drive, compressor and post-EQ | Additional independently measured FW33 controls/models needed. |
+| 5 | Drive, compressor and post-EQ | All87 Drive selector captures and171-step native calibration pass; no normal planner promotion yet. Compressor auto-makeup/attack and post-EQ still need independent measurements. |
 | 6 | Additional effects and model selection | First-instance configurable effect coverage needs measured expansion. |
 | 7 | Additional block instances/channels | Native layouts and preservation need measurement per supported family. |
 | 8 | Free route construction | Developer graph evidence exists; normal route planner/executor not generally enabled. Send/Return separately guarded. |
 | 9 | One to eight scenes | Eight-scene AMP/CAB and narrow serial/NAM modes exist; unified count support pending. |
 | 10 | Controllers/modifiers | FW33 new bindings and preservation need independent evidence. Global CC maps remain user-owned. |
 | 11 | Tempo sync and exact zero | Remaining FW33 enum/zero writes need captured setters and native replay. |
-| 12 | Persistent designs and existing-preset refinement | Same-session refinement exists. Persistent trustworthy adoption needs implementation and restart tests. |
+| 12 | Persistent designs and existing-preset refinement | Successful eight-scene AMP/CAB designs persist privately. Cold GUI resume verifies all8 scenes and independent native full-state readback passes. Arbitrary third-party preset adoption remains unsupported. |
 | 13 | Multi-capture/multiscene NAM | Native install and narrow builds exist. Broader selection/build support pending. |
-| 14 | Audio segments, isolation and comparison | Existing local features are not isolated-guitar analysis or an auditory clone. Capture/compare workflow pending. |
+| 14 | Audio segments, isolation and comparison | Explicit start/length windows up to60 seconds, strict bounds, range-cache invalidation and browser synthetic-clip tests pass. Guitar isolation and recorded-unit comparison remain pending. |
 | 15 | Save As, backup and recovery | Narrow Store proofs exist; general recovery must never retry an unknown write automatically. |
 | 16 | Firmware/chassis/platform coverage | Only exact measured FW33/MK2/Windows write profile accepted; other hardware needs its own evidence. |
-| 17 | Publication acceptance | Clean-install/package/CI/PR acceptance remains separate from local simulator success. No remote publication performed. |
+| 17 | Publication acceptance | CAB checkpoint passes fresh checkout/venv/install and HTTP/resource smoke on this Windows machine. Candidate restart/browser checks pass. Other-machine/platform and remote CI/PR acceptance remain pending; no publication performed. |
 
 ## Execution boundaries
 
@@ -46,3 +46,24 @@ Each hardware feature requires exact identity, scoped native execution,
 independent display/full-state readback, unrelated-state preservation and an
 independent Axe-Edit comparison. Store/reload, physical listening/controller
 tests, other-platform installation and remote CI are separate acceptance steps.
+
+## Interactive measurement requirement
+
+Windows foreground/screenshot access became unavailable during the compressor
+measurement. No compressor write was captured; no unproven setter is enabled.
+The owner subsequently restored the desktop and independent measurements resumed.
+An inaccessible interactive session is not a hardware failure or permission to
+bypass Windows session security; unknown setters stay blocked until measured.
+
+## History and audio acceptance boundaries
+
+History contains design metadata and fingerprints, not saved executable actions,
+provider credentials or persistent SEND/Store consent. Resuming requires the
+currently selected target, fresh external-mute consent and an unchanged complete
+eight-scene survey. A mismatch stops without rollback or preset reload. Disk
+failure cannot turn a completed SEND into a retry. CAB name caches are separate
+per chassis and survive reconnects, but never prove installed IR contents.
+
+Selecting a reference window changes the measured samples, not the AI's ability
+to hear an isolated guitar. Synthetic browser tests verify range handling and
+invalidation only; no live reference-versus-unit sound-match claim follows.

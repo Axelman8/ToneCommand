@@ -21,8 +21,9 @@ def platform_supported():
 
 def check_frame(dev, frame):
     fn, payload = frame[5], frame[6:-2]
-    from . import amp_probe,cab_probe,album_build
-    if amp_probe.allowed(dev, frame) or cab_probe.allowed(dev,frame) or album_build.frame_allowed(dev,frame):
+    from . import amp_probe,cab_probe,album_build,effect_probe
+    if (amp_probe.allowed(dev, frame) or cab_probe.allowed(dev,frame)
+            or album_build.frame_allowed(dev,frame) or effect_probe.allowed(dev,frame)):
         return
     if fn != 1:
         if fn == 0x0c and payload != [127] and payload not in ([0],[1]):

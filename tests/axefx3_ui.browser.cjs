@@ -19,7 +19,7 @@ const path=require('node:path');
     page.on('pageerror',e=>errors.push(e.message));
     let failPlan=false,failSend=false,failRead=false,addedExtras=false;
     let variant=null,fw33=false,namRoute=false,selected=null,slotsFull=false,slotsFail=false;
-    const installs=[],stores=[],previews=[];
+    const installs=[],stores=[],previews=[],historyResumes=[];
     await page.route('**/*',async route=>{
       const req=route.request(),url=new URL(req.url()),name=url.pathname.split('/').pop();
       if(url.pathname==='/logo.png')return route.fulfill({contentType:'image/png',body:fs.readFileSync(path.join(__dirname,'../ui/logo.png'))});
@@ -72,7 +72,7 @@ const path=require('node:path');
           profile:{variant,warning:'Memory policy from declared variant',user2_cabs:true}};
         if(!sourceBackendReady)delete result.source_support;
         if(serialReady)result.serial_build_supported=true;
-        if(albumReady){result.album_build_supported=true;result.amp_refresh_supported=true;
+        if(albumReady){result.album_build_supported=true;result.amp_refresh_supported=true;result.design_history_supported=true;
           const models=JSON.parse(fs.readFileSync(path.join(__dirname,'../devices/axefx3/data/fw33_amp_models.json'),'utf8')).models;
           result.amp_inventory={count:336,models:Object.entries(models).map(([ordinal,name])=>({ordinal:Number(ordinal),name}))};
           result.workspace={revision:'abc1234',source_root:'C:/test/current-checkout',pid:1234};
@@ -95,6 +95,12 @@ const path=require('node:path');
           routes:[{mode:'amp',label:'AMP / CAB + pedals',enabled:!fw33||albumReady,reason:'Model selection requires measured firmware'},
                   {mode:'nam',label:'NAM + passende effecten',enabled:fw33,reason:'Installed compatible capture required'}],nam_candidates:[]};
         if(serialReady)result.routes.push({mode:'serial',label:'AMP / CAB: gemeten testketen',enabled:true,reason:'Vaste14-blokkenketen, modellen behouden.'});
+      }
+      if(name==='history')result={designs:[{id:'a'.repeat(32),preset:currentPreset,name:'<img src=x> Saved design',created:'2026-10-16T12:00:00Z'}],unreadable:0,hardware_written:false};
+      if(url.pathname==='/api/axefx3/history/resume'){
+        historyResumes.push(req.postDataJSON());currentScene=1;
+        result={ok:true,refine_token:'new-history-refine-token',preset:currentPreset,scene:1,
+          scenes:Array.from({length:8},(_,i)=>'Scene'+(i+1)),mode:'amp',warning:'Alle acht scenes opnieuw gecontroleerd; geen parameters geschreven.'};
       }
       if(name==='plan'){
         plans.push(req.postDataJSON());
@@ -264,6 +270,21 @@ const path=require('node:path');
     assert.equal(measurement.url,'https://youtu.be/test');assert(Math.abs(measurement.centroid_hz-440)<30);
     assert(measurement.sample_seconds>1.9&&measurement.sample_seconds<=2);
     assert.equal(sends.length,2);
+    assert.equal(measurement.start_seconds,0);assert.equal(measurement.source_seconds,2);
+    await request();await page.locator('#audioPanel summary').click();
+    await page.fill('#audioStart','1');await page.fill('#audioLength','0.5');
+    assert(await page.locator('#pane-review').isHidden());
+    const fetchesBeforeWindow=audioFetches;
+    await review();
+    const selectedWindow=plans.at(-1).audio_reference;
+    assert.equal(selectedWindow.start_seconds,1);assert.equal(selectedWindow.sample_seconds,0.5);
+    assert(Math.abs(selectedWindow.centroid_hz-440)<40);assert.equal(audioFetches,fetchesBeforeWindow+1);
+    await request();await page.fill('#audioStart','5');
+    const plansBeforeInvalidWindow=plans.length;await page.click('#engage');
+    await page.locator('#engage:not([disabled])').waitFor();
+    assert.equal(plans.length,plansBeforeInvalidWindow);assert.match(await page.textContent('#status'),/starttijd valt buiten/);
+    await page.fill('#audioStart','0');await page.fill('#audioLength','60');
+    await page.locator('#audioPanel summary').click();
     // The FW33 foundation cannot select unverified scenes or Wah bindings.
     fw33=true;failSend=false;await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
     assert.equal(await page.inputValue('#scenes'),'1');assert(await page.locator('#wah').isDisabled());
@@ -532,6 +553,24 @@ const path=require('node:path');
     assert.equal(plans.at(-1).mode,'amp');
     // Leave adjustment mode through the explicit new-design workflow.
     await request();
+    page.once('dialog',dialog=>dialog.accept());await page.click('#newDesign');await page.locator('#refresh:not([disabled])').waitFor();
+    assert(await page.locator('#adjustScenes').isHidden());
+    await page.locator('#historyPanel summary').click();
+    assert.equal(await page.locator('#historyDesign option').count(),2);
+    assert.equal(await page.locator('#historyDesign img').count(),0);
+    await page.selectOption('#historyDesign','a'.repeat(32));
+    assert(await page.locator('#historyResume').isDisabled());
+    await page.check('#historyTarget');assert(await page.locator('#historyResume').isDisabled());
+    await page.check('#historyMute');assert(await page.locator('#historyResume').isEnabled());
+    await page.fill('#prompt','Scene 3 graag meer punch');
+    const plansBeforeResume=plans.length,sendsBeforeResume=sends.length;
+    await page.click('#historyResume');await page.locator('#refresh:not([disabled])').waitFor();
+    assert.equal(historyResumes.length,1);
+    assert.equal(historyResumes[0].external_audio_muted,true);assert.equal(historyResumes[0].target_confirmed,true);
+    assert.equal(plans.length,plansBeforeResume);assert.equal(sends.length,sendsBeforeResume);
+    assert.equal(await page.inputValue('#prompt'),'Scene 3 graag meer punch');
+    assert.equal(await page.locator('#adjustScenes input').count(),8);
+    assert.match(await page.textContent('#historyStatus'),/geen parameters geschreven/);
     page.once('dialog',dialog=>dialog.accept());await page.click('#newDesign');await page.locator('#refresh:not([disabled])').waitFor();
     assert(await page.locator('#adjustScenes').isHidden());
     await request();await page.fill('#prompt','Nieuw verzoek met NAM');

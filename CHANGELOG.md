@@ -4,6 +4,28 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Persist successful measured FW33/MK2 eight-scene AMP/CAB designs privately,
+  with checksummed metadata and complete scene fingerprints, never executable
+  actions or saved SEND/Store consent. Add explicit GUI resume with fresh target
+  and mute confirmation, all-eight-scene readback and a new refinement ticket.
+  Reject changed state/profile/catalog without automatic rollback or reload.
+  A history disk failure does not invalidate or retry a successful hardware SEND.
+  Persist imported CAB names separately per chassis; restoring names never
+  installs IR audio or proves the current contents of shared memory.
+  Normal339-action SEND/history, cold GUI all-scene resume and separate native
+  read-only full-state verification pass on322 without Store.
+- Add start/length reference-audio selection up to60 seconds with source bounds,
+  range-keyed analysis caching and proposal invalidation. Browser clip tests
+  cover selected samples, changed ranges and out-of-source refusal. This does
+  not add guitar isolation, device recording or measured sound matching.
+- Record all87 FW33 Drive model selections and171 exact ordered calibration
+  steps with native independent display/full-state verification. A narrowly
+  scoped developer replay does not enable generic Drive or compressor/EQ writes
+  in the planner. Runtime hashes include these factual inventories. Further
+  independent effect measurements remain separate from this checkpoint.
+  Full regression:5093 passes/16 skips; final mandatory/changed130 passes;
+  actual Chrome workflow and private cold-runtime/native acceptance pass.
+
 - Expand measured FW33/MK2 Cab1 A-D planning to all2048 Factory names and
   imported nonempty User1/2 names, correcting each User bank to1024 slots.
   Keep FullRes as its own64-position bank eligible only for IR3/4 and protect

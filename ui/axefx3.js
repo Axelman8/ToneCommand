@@ -21,8 +21,8 @@ const refineButton=document.createElement('button');refineButton.id='refineSound
 el('returnRequest').after(refineButton);
 const adjustPanel=document.createElement('fieldset');adjustPanel.id='adjustScenes';adjustPanel.hidden=true;
 el('requestPanel').querySelector('.formbar').after(adjustPanel);
-refineButton.onclick=()=>{
-  if(busy||!refineContext)return;
+function enterRefinement(){
+  if(!refineContext)return;
   adjusting=true;invalidate();el('buildRoute').value=refineContext.mode;
   el('scenes').value=String(refineContext.count);el('prompt').value='';
   adjustPanel.replaceChildren();const legend=document.createElement('legend');legend.textContent='Welke scenes bijsturen? Andere scene-instellingen blijven beschermd.';adjustPanel.append(legend);
@@ -33,7 +33,8 @@ refineButton.onclick=()=>{
   adjustPanel.hidden=false;el('generate').textContent='VOORSTEL VOOR AANPASSING';
   el('requestPanel').open=true;stage(0);controls();el('prompt').focus();
   note('Beschrijf wat je hoort en wat moet veranderen. Selecteer scenes. Voor FW33 AMP/CAB eerst scene 1 selecteren; opnieuw bevestigen voor SEND.');
-};
+}
+refineButton.onclick=()=>{if(!busy)enterRefinement();};
 function clearRouteExploration(){routeExploration=null;el('buildRoute').value=adjusting&&refineContext?refineContext.mode:'';el('routeOptions').replaceChildren();el('routeReason').textContent=adjusting?'Bestaande bouwroute behouden bij deze luisteraanpassing.':'Vul je verzoek in en klik EXPLORE ROUTES. NAM wordt niet automatisch gekozen.';}
 const note=text=>{el('status').textContent=text;};
 const stageNames=['request','plan','review','confirm','send'];
@@ -69,6 +70,7 @@ function stage(index){
   el('navHelp').textContent=['Vertel TC wat je wilt.','Voorstel, nog niets verzonden.','Controleer alle wijzigingen.','Bevestig doel en externe demping.','Resultaat van de verzending.'][index];
 }
 function controls(){
+  historyControls();
   ampRefreshButton.disabled=busy||!state?.connected||!state?.amp_refresh_supported;
   el('target').disabled=busy||!state?.connected||!state?.navigation_supported;
   el('connectDevice').textContent=state?.connected?'VERBONDEN':'VERBIND';
@@ -91,7 +93,7 @@ function controls(){
   serialOption.disabled=!state?.serial_build_supported||sourceKind.value==='rig';
   captureLabel.hidden=!state?.nam_selection_supported||(state?.route_options_supported&&el('buildRoute').value!=='nam');
   captureSlot.disabled=busy||!state?.nam_selection_supported;
-  for(const id of ['refresh','generate','cabImport','prompt','scenes','wah','cabKind','cabFile','discard','variant','deviceChoice','connectDevice','newDesign','audioFile','namQuery','namFormat','namSearch','namLogin','namWithRequest','editRequest','toReview','backPlan','toConfirm','backReview','returnRequest']) el(id).disabled=busy;
+  for(const id of ['refresh','generate','cabImport','prompt','scenes','wah','cabKind','cabFile','discard','variant','deviceChoice','connectDevice','newDesign','audioFile','audioStart','audioLength','namQuery','namFormat','namSearch','namLogin','namWithRequest','editRequest','toReview','backPlan','toConfirm','backReview','returnRequest']) el(id).disabled=busy;
   el('connectDevice').disabled=busy||!!state?.connected;
   el('wahMode').disabled=busy||!el('wah').value;
   const fw33=state?.firmware==='33.00-beta.20261006';
@@ -152,6 +154,37 @@ function renderCabs(){
     const row=document.createElement('li');row.textContent=`IR${slot.slot}: ${name?.name||`bank ${slot.bank}, positie ${slot.ordinal+1}`} | ${slot.status} | ${slot.level_db}dB | pan ${slot.pan}`;el('cabMixer').append(row);
   }
 }
+function renderHistory(data){
+  el('historyDesign').replaceChildren(new Option('Kies een ontwerp voor de huidige preset',''));
+  for(const item of data.designs){
+    const option=new Option(`${item.preset}: ${item.name} | ${new Date(item.created).toLocaleString()}`,item.id);
+    option.disabled=item.preset!==state?.preset;el('historyDesign').append(option);
+  }
+  el('historyTarget').checked=el('historyMute').checked=false;
+  el('historyStatus').textContent=`${data.designs.length} ontwerpen gevonden${data.unreadable?`; ${data.unreadable} onleesbare records overgeslagen`:''}. Hervatten verzendt geen opgeslagen parameteracties.`;
+  historyControls();
+}
+function historyControls(){
+  for(const id of ['historyRefresh','historyDesign','historyTarget','historyMute'])el(id).disabled=busy||!state?.design_history_supported;
+  el('historyResume').disabled=busy||!state?.design_history_supported||!!proposal||!el('historyDesign').value||!el('historyTarget').checked||!el('historyMute').checked;
+}
+el('historyDesign').onchange=()=>{el('historyTarget').checked=el('historyMute').checked=false;historyControls();};
+for(const id of ['historyTarget','historyMute'])el(id).onchange=historyControls;
+el('historyRefresh').onclick=async()=>{
+  if(busy)return;busy=true;controls();historyControls();
+  try{renderHistory(await api('history'));}catch(error){el('historyStatus').textContent=error.message;}
+  finally{busy=false;controls();historyControls();}
+};
+el('historyResume').onclick=()=>run(async()=>{
+  const draft=el('prompt').value;
+  const result=await api('history/resume',{record_id:el('historyDesign').value,expected_preset:state.preset,
+    external_audio_muted:el('historyMute').checked,target_confirmed:el('historyTarget').checked});
+  await refresh();
+  refineContext={token:result.refine_token,count:result.scenes.length,preset:result.preset,mode:result.mode};
+  enterRefinement();el('prompt').value=draft;
+  el('historyStatus').textContent=result.warning;
+  note('Ontwerp opnieuw gecontroleerd. Kies scenes en beschrijf je aanpassing; niets opgeslagen.');
+});
 el('cabSearch').oninput=renderCabs;
 function cabDescription(cab){
   if(!cab.irs)return `${cab.name} | Factory 2 slot ${cab.slot} / ${cab.channel}`;
@@ -184,9 +217,14 @@ async function refresh(){
   el('target').textContent=state.connected?`Preset ${state.preset}: ${state.name} \u25be`:'Verbind eerst via Verbinding & controllers.';
   el('target').title=state.connected?`Axe-Fx III | ${state.firmware} | Preset ${state.preset}: ${state.name} | Scene ${state.scene}. Klik om een preset te kiezen.`:'Verbind eerst via Verbinding & controllers.';
   el('connectDevice').title=state.connected?`Axe-Fx III | ${state.firmware}`:'Verbind met de Fractal';
-  el('cabCount').textContent=state.connected?`${state.cab_count} cabnamen beschikbaar. ${state.cab_selection_note||''}`:'';
+  el('cabCount').textContent=state.connected?`${state.cab_count} geimporteerde naamposities. ${state.cab_metadata_note||''} ${state.cab_selection_note||''}`:'';
   renderAmps(state.amp_inventory);ampRefreshStatus.textContent='';ampChanges.replaceChildren();ampChanges.hidden=true;
   renderCabs();
+  el('historyPanel').hidden=!state.design_history_supported;
+  if(state.design_history_supported){
+    try{renderHistory(await api('history'));}catch(error){el('historyStatus').textContent=error.message;}
+  }
+  historyControls();
   el('variant').value=state.profile?.variant||'';
   el('memoryWarning').textContent=state.profile?.warning||'Kies MK1 of MK2 om de juiste geheugenindeling te tonen.';
   if(state.nam_selection_supported){
@@ -312,6 +350,8 @@ el('connectDevice').onclick=()=>run(async()=>{
 el('newDesign').onclick=()=>run(async()=>{
   if((el('prompt').value||proposal)&&!confirm('Nieuw ontwerp beginnen? Het verzoek en voorstel worden gewist, niet de Fractal.'))return;
   await api('discard',{});invalidate();el('prompt').value='';audioReference=null;el('audioFile').value='';
+  el('audioStart').value='0';el('audioLength').value='60';audioReferenceKey='';
+  el('historyTarget').checked=el('historyMute').checked=false;
   refineContext=null;adjusting=false;adjustPanel.hidden=true;el('generate').textContent='GENERATE PLAN';
   clearRouteExploration();
   el('conversationPanel').hidden=true;el('requestPanel').open=true;el('requestPreview').hidden=true;
@@ -413,6 +453,9 @@ el('namInstallCommit').onclick=()=>run(async()=>{
 });
 for(const id of ['namQuery','namWithRequest'])el(id).addEventListener('input',invalidate);
 el('audioFile').addEventListener('input',()=>{audioReference=null;invalidate();});
+for(const id of ['audioStart','audioLength'])el(id).addEventListener('input',()=>{
+  audioReference=null;audioReferenceKey='';invalidate();clearRouteExploration();
+});
 function requestLinks(text){return [...new Set((text.match(/https?:\/\/[^\s<>"\]]+/g)||[]).map(x=>x.replace(/[).,;]+$/,'')))];}
 function spectrum(samples,rate){
   const size=2048,real=new Float64Array(size),imag=new Float64Array(size);
@@ -434,7 +477,10 @@ async function analyseRequestAudio(){
   if(file&&urls.length)throw new Error('Gebruik een audiolink OF een bestand, niet beide.');
   if(!file&&!urls.length)return null;
   if(file&&file.size>40*1024*1024)throw new Error('Maximaal 40 MiB audio.');
-  const key=file?JSON.stringify([file.name,file.size,file.lastModified]):urls[0];
+  const start=Number(el('audioStart').value),length=Number(el('audioLength').value);
+  if(!Number.isFinite(start)||start<0||start>86400||!Number.isFinite(length)||length<.25||length>60)
+    throw new Error('Kies een geldige starttijd en een fragmentlengte van 0,25 tot 60 seconden.');
+  const key=JSON.stringify([file?[file.name,file.size,file.lastModified]:urls[0],start,length]);
   if(audioReference&&audioReferenceKey===key){
     el('audioStatus').textContent='Eerder lokaal gemeten klankvoorbeeld hergebruikt; geen tweede download.';
     return audioReference;
@@ -449,9 +495,13 @@ async function analyseRequestAudio(){
   }
   const context=new AudioContext();
   try{
-    const buffer=await context.decodeAudioData(bytes),limit=Math.min(buffer.length,Math.floor(buffer.sampleRate*60));
+    const buffer=await context.decodeAudioData(bytes),first=Math.floor(start*buffer.sampleRate);
+    if(!Number.isFinite(buffer.duration)||buffer.duration>86400||first>=buffer.length)
+      throw new Error('De starttijd valt buiten het audiobestand of de bron is te lang.');
+    const limit=Math.min(buffer.length-first,Math.floor(buffer.sampleRate*length));
+    if(limit<buffer.sampleRate*.25)throw new Error('Het gekozen fragment is korter dan 0,25 seconde.');
     const step=Math.max(1,Math.floor(buffer.sampleRate/16000)),mono=new Float32Array(Math.ceil(limit/step));
-    for(let ch=0;ch<buffer.numberOfChannels;ch++){const data=buffer.getChannelData(ch);for(let i=0,j=0;i<limit;i+=step,j++)mono[j]+=data[i]/buffer.numberOfChannels;}
+    for(let ch=0;ch<buffer.numberOfChannels;ch++){const data=buffer.getChannelData(ch);for(let i=0,j=0;i<limit;i+=step,j++)mono[j]+=data[first+i]/buffer.numberOfChannels;}
     let power=0,peak=0;for(const x of mono){power+=x*x;peak=Math.max(peak,Math.abs(x));}
     if(peak<1e-7)throw new Error('Audiofragment bevat geen meetbaar signaal.');
     const rms=Math.sqrt(power/mono.length),db=x=>20*Math.log10(Math.max(x,1e-7));
@@ -461,8 +511,9 @@ async function analyseRequestAudio(){
       centroid+=frame.centroid/count;for(let b=0;b<5;b++)bands[b]+=frame.bands[b]/count;
     }
     const measured={url:urls[0]||null,file_name:file?.name?.slice(0,180)||null,sample_seconds:limit/buffer.sampleRate,
+      start_seconds:first/buffer.sampleRate,source_seconds:buffer.duration,
       rms_dbfs:db(rms),peak_dbfs:db(peak),crest_db:db(peak)-db(rms),centroid_hz:centroid,band_energy:bands};
-    el('audioStatus').textContent=`${measured.sample_seconds.toFixed(1)} s lokaal gemeten, RMS ${measured.rms_dbfs.toFixed(1)} dBFS. Geen gitaarisolatie of directe AI-beluisering.`;
+    el('audioStatus').textContent=`Fragment ${measured.start_seconds.toFixed(2)}-${(measured.start_seconds+measured.sample_seconds).toFixed(2)} s lokaal gemeten, RMS ${measured.rms_dbfs.toFixed(1)} dBFS. Geen gitaarisolatie of directe AI-beluistering.`;
     audioReferenceKey=key;
     return measured;
   }finally{await context.close();}
@@ -599,7 +650,7 @@ el('cabImport').onclick=()=>run(async()=>{
   const file=el('cabFile').files[0];if(!file)throw new Error('Kies een cabnamenlijst.');
   if(file.size>2*1024*1024)throw new Error('Maximaal 2 MiB tekst.');
   invalidate();const result=await api('cabs',{kind:el('cabKind').value,text:await file.text()});
-  await refresh();note(`${result.imported} namen geïmporteerd voor deze verbinding. Geen IR-audio of hardware gewijzigd.`);
+  await refresh();note(`${result.imported} namen geimporteerd${result.locally_saved?' en lokaal bewaard':' voor deze verbinding'}. Geen IR-audio of hardware gewijzigd. ${result.note||''}`);
 });
 el('send').onclick=()=>run(async()=>{
   if(!proposal||!el('confirmed').checked||!el('muted').checked)throw new Error('Bevestig eerst doel en externe demping.');

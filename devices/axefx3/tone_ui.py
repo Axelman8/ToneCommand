@@ -6,14 +6,14 @@ from typing import Annotated, Literal
 
 from fastapi import HTTPException
 from fastapi.responses import FileResponse, Response
-from pydantic import BaseModel, ConfigDict, Field, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictBool, model_validator
 
 from fm9 import ai_settings, planner
 from fm9.paths import resource_path
 from . import planning, route_guard, tone_review, profile, tone_search, reference_audio, nam_planning, fw33_profile, rig_source, route_options, navigation, serial_build, serial_planning
 from .controller_ui import Confirmation
 from . import album_build,album_planning,runtime,scene_intent,amp_inventory,amp_refresh
-from . import cab_inventory,cab_mix
+from . import cab_inventory,cab_mix,design_history,cab_metadata
 
 AnnotatedSceneNumber = Annotated[StrictInt, Field(ge=1,le=8)]
 
@@ -23,11 +23,19 @@ class Measurements(BaseModel):
     url: str | None = Field(default=None, max_length=2048)
     file_name: str | None = Field(default=None, max_length=180)
     sample_seconds: float = Field(gt=0, le=60)
+    start_seconds: float = Field(default=0,ge=0,le=86400)
+    source_seconds: float | None = Field(default=None,gt=0,le=86400)
     rms_dbfs: float = Field(ge=-200, le=40)
     peak_dbfs: float = Field(ge=-200, le=40)
     crest_db: float = Field(ge=0, le=200)
     centroid_hz: float = Field(ge=0, le=24000)
     band_energy: list[float] = Field(min_length=5, max_length=5)
+
+    @model_validator(mode='after')
+    def within_source(self):
+        if self.source_seconds is not None and self.start_seconds+self.sample_seconds>self.source_seconds+.001:
+            raise ValueError('Measured audio window extends beyond its source')
+        return self
 
 
 class Request(BaseModel):
@@ -80,6 +88,14 @@ class CabImport(BaseModel):
     model_config = ConfigDict(extra='forbid')
     kind: Literal['factory','user']
     text: str = Field(min_length=1,max_length=2*1024*1024)
+
+
+class ResumeDesign(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    record_id:str=Field(pattern='^[0-9a-f]{32}$')
+    expected_preset:StrictInt=Field(ge=0,le=511)
+    external_audio_muted:StrictBool=False
+    target_confirmed:StrictBool=False
 
 
 def register(app, host):
@@ -140,7 +156,9 @@ def register(app, host):
                             cab_inventory=cab_inventory.choices(dev.reg,include_fullres=True) if album_build.supported(dev.reg) else [],
                             cab_mix=cab_mix.inspect(dev,62) if any(b.effect_id==62 for b in dev.status_dump() or []) else None,
                             scene_intent_supported=True, refinement_supported=True,
+                            design_history_supported=album_build.supported(dev.reg),
                             cab_selection_note=album_planning.USER_CAB_NOTICE if album_build.supported(dev.reg) else '',
+                            cab_metadata_note=getattr(dev.reg.cab_catalog,'cache_note',''),
                             multiscene_planning_supported=dev.reg.firmware == '32.06',
                             request_scene_limit=8,
                             source_support=dict(rig_reader=True, modes=rig_source.MODES),
@@ -193,10 +211,15 @@ def register(app, host):
         with host._lock:
             editable()
             try:
-                count = selected().reg.import_cab_names(body.text,body.kind)
+                reg=selected().reg
+                count = reg.import_cab_names(body.text,body.kind)
                 reviews.clear()
-                return dict(imported=count,hardware_written=False,
-                            note='Names only, for this connection. No IR audio uploaded.')
+                warning=''
+                try:saved=cab_metadata.save(reg)
+                except (OSError,ValueError):
+                    saved=False;warning='Lokale opslag mislukt; namen gelden alleen voor deze verbinding.'
+                return dict(imported=count,hardware_written=False,locally_saved=saved,
+                            note='Names only. No IR audio uploaded. '+warning)
             except (ValueError,RuntimeError,OSError) as exc:
                 raise HTTPException(409,str(exc)) from exc
 
@@ -386,6 +409,21 @@ def register(app, host):
         with host._lock:
             reviews.clear()
             return dict(ok=True)
+
+    @app.get('/api/axefx3/history')
+    def history():
+        try:return design_history.entries()
+        except (ValueError,OSError) as exc:raise HTTPException(409,str(exc)) from exc
+
+    @app.post('/api/axefx3/history/resume')
+    def resume_history(body:ResumeDesign):
+        with host._lock:
+            editable()
+            if planning_lock.locked():raise HTTPException(409,'Finish the active planning request first')
+            try:
+                return reviews.resume(selected(),**body.model_dump())
+            except (ValueError,RuntimeError,OSError,KeyError,TypeError) as exc:
+                raise HTTPException(409,str(exc)) from exc
 
     @app.post('/api/axefx3/send')
     def send(body: Confirmation):

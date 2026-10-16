@@ -296,6 +296,8 @@ def _table(sim) -> list[dict]:
         ("GET", "/axefx3.js", {}, None, None),
         ("GET", "/axefx3.css", {}, None, None),
         ("GET", "/api/axefx3/state", {}, None, None),
+        ("GET", "/api/axefx3/history", {}, None, None),
+        ("POST", "/api/axefx3/history/resume", {}, {"record_id":"a"*32,"expected_preset":324}, None),
         ("POST", "/api/axefx3/amps/refresh", {}, {"expected_firmware":"33.00-beta.20261006"}, None),
         ("POST", "/api/axefx3/profile", {}, {"variant":"mk1"}, None),
         ("POST", "/api/axefx3/search", {}, {"query":"Marshall Plexi","format":"nam"}, None),

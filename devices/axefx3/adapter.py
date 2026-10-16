@@ -107,6 +107,11 @@ class AxeFxIII:
                 if album_build.frame_allowed(self,frame):
                     pass  # Exact active reviewed operation, plus approved frame above.
                 elif (self.reg.firmware == '33.00-beta.20261006'
+                        and getattr(self,'_effect_probe_permit',None)==tuple(frame)):
+                    from . import effect_probe
+                    if not effect_probe.allowed(self,frame):
+                        raise PermissionError('Outside the fixed recorded Drive calibration')
+                elif (self.reg.firmware == '33.00-beta.20261006'
                         and getattr(self, '_cab_probe_permit', None) == tuple(frame)):
                     from . import cab_probe
                     if not cab_probe.allowed(self, frame):

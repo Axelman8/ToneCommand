@@ -5,6 +5,7 @@ from copy import deepcopy
 
 from . import executor, modifiers, route_guard, fw33_profile, nam_selector, nam_slots
 from .controller_review import digest
+from . import design_history
 
 
 def snapshot(dev, nam_slot=None, *, include_nam=True):
@@ -88,6 +89,46 @@ class Reviews:
             raise ValueError('De preset, kanaaltoewijzing of catalogus is gewijzigd sinds SEND. De luisterbasis is niet meer betrouwbaar; niets verzonden.')
         return deepcopy(prior['plan'])
 
+    def resume(self,dev,record_id,*,expected_preset,external_audio_muted,target_confirmed):
+        """New readback, new token; never execute saved actions or restore memory."""
+        if external_audio_muted is not True or target_confirmed is not True:
+            raise PermissionError('Confirm current target and external mute for all-scene checking')
+        record=design_history.load(record_id)
+        with dev._lock:
+            if (record['preset']!=expected_preset or dev.reg.firmware!=record['firmware']
+                    or getattr(dev.reg,'hardware_variant',None)!=record['variant']):
+                raise ValueError('Saved design firmware, chassis or target differs; nothing resumed')
+            initial=snapshot(dev,include_nam=False)
+            if initial['preset'][0]!=expected_preset:
+                raise ValueError('Select the saved target preset first; no automatic preset reload')
+            proof=record['proof']
+            if digest(initial)!=proof['scene_fingerprints'][str(initial['scene'])]:
+                raise ValueError('Device settings or imported cab names differ from saved design; nothing resumed')
+            from . import album_planning,navigation
+            route=route_guard.serial_route(initial['grid'],initial['blocks'],dev.reg)
+            plan=album_planning.compile_design(dev.reg,record['plan']['design'],route,8)
+            self.clear();self.last_sent=None
+            # Scene selection is explicitly consented, but a mismatch never
+            # triggers a rollback, old SEND, model write or preset reload.
+            for number in range(1,9):
+                if dev.current_scene()!=number:
+                    navigation.switch_scene(dev,number,dev.current_preset(),external_audio_muted=True)
+                now=snapshot(dev,include_nam=False)
+                if digest(now)!=proof['scene_fingerprints'][str(number)]:
+                    raise ValueError(f'Scene {number} changed; resume stopped, retain external mute')
+            if digest(now)!=proof['final_fingerprint']:
+                raise ValueError('Final saved scene proof differs; nothing resumed')
+            navigation.switch_scene(dev,1,dev.current_preset(),external_audio_muted=True)
+            now=snapshot(dev,include_nam=False)
+            if digest(now)!=proof['scene_fingerprints']['1']:
+                raise ValueError('Scene1 changed after the survey; resume stopped')
+            token=secrets.token_urlsafe(32)
+            self.last_sent=dict(token=token,device=dev,plan=deepcopy(plan),stamp=digest(now),proof=deepcopy(proof))
+            return dict(ok=True,refine_token=token,preset=expected_preset,name=plan['name'],
+                scenes=plan['scenes'],mode='amp',scene=1,stored=False,parameters_written=False,
+                scenes_selected=True,history_id=record_id,
+                warning='Alle acht scenes opnieuw gecontroleerd. Scene1 staat klaar voor bijsturen. Geen oude SEND/Store-toestemming hergebruikt; gedeelde IR-audio en hoorbare klank zijn niet gemeten.')
+
     def clear(self):
         self.pending = None
 
@@ -139,6 +180,14 @@ class Reviews:
                     proof=result.get('album_verification',{}))
                 if len(plan['scenes'])==1 or len(result.get('album_verification',{}).get('scene_fingerprints',{}))==len(plan['scenes']):
                     result['refine_token']=pending['token']
+                if plan.get('mode')=='album':
+                    try:
+                        result['history']=design_history.remember(plan,result['album_verification'],
+                            snapshot(dev,include_nam=False))
+                    except (OSError,ValueError,KeyError,TypeError) as exc:
+                        # History failure cannot turn a successful hardware SEND
+                        # into a retry or silently discard its same-session proof.
+                        result['history_warning']='Preset verzonden, maar lokale ontwerpgeschiedenis niet bewaard: '+str(exc)
             # All action results are already independently verified by the executor.
             # No hidden scene switching for a final survey; that could itself alter
             # state. Report exactly what was executed and what remains unmeasured.

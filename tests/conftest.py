@@ -66,6 +66,7 @@ def isolated_env(tmp_path, monkeypatch):
     monkeypatch.setenv("TONECOMMAND_AI_SETTINGS", str(tmp_path / "ai_settings.json"))
     monkeypatch.setenv('TONECOMMAND_TONE3000_DIR',str(tmp_path / 'afx3-tone3000'))
     monkeypatch.setenv('TONECOMMAND_NAM_BACKUP_DIR',str(tmp_path / 'nam-backups'))
+    monkeypatch.setenv('TONECOMMAND_AXEFX3_STATE_DIR',str(tmp_path / 'afx3-state'))
     from devices.axefx3 import tone3000 as afx3_tone3000
     monkeypatch.delenv('TONECOMMAND_TONE3000_CLIENT_ID',raising=False)
     monkeypatch.setattr(afx3_tone3000,'build_opener',lambda *a,**kw: (_ for _ in ()).throw(AssertionError('Offline test reached Tone3000 network')))
