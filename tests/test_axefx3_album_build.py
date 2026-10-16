@@ -12,6 +12,7 @@ from devices.axefx3 import store_review
 from devices.axefx3.adapter import AxeFxIII
 from test_axefx3_serial_build import fake
 import server
+from tests.scene_intent_fixtures import with_goals
 
 
 def design():
@@ -187,7 +188,7 @@ def test_registered_amp_plan_review_and_send_without_nam(monkeypatch):
     monkeypatch.setattr(server,'_gig_mode',{'on':False});monkeypatch.setattr(server,'_plan_revisions',{})
     monkeypatch.setattr(server,'_audition',{'open':False})
     monkeypatch.setattr(server.ai_settings,'apply_to_env',lambda:None);monkeypatch.setenv('PLANNER_BACKEND','cli')
-    ask=Mock(side_effect=lambda *args,**kw:dict(**kw['validate'](design()),backend='cli',model='synthetic'))
+    ask=Mock(side_effect=lambda *args,**kw:dict(**kw['validate'](with_goals(design())),backend='cli',model='synthetic'))
     monkeypatch.setattr(server.planner,'plan',ask)
     server._afx3_tone_reviews.clear()
     with TestClient(server.app) as client:
@@ -195,7 +196,7 @@ def test_registered_amp_plan_review_and_send_without_nam(monkeypatch):
         assert response.status_code==200,response.text
         prepared=response.json();assert prepared['mode']=='album' and prepared['target']['nam'] is None
         d._write.assert_not_called();d.set_param_display.assert_not_called()
-        assert 'four album' in ask.call_args.kwargs['system']
+        assert 'not necessarily four album pairs' in ask.call_args.kwargs['system']
         sent=client.post('/api/axefx3/send',json=dict(token=prepared['token'],target_confirmed=True,external_audio_muted=True))
         assert sent.status_code==200 and sent.json()['ok'],sent.text
     d.read_nam_slot.assert_not_called();d.store_preset.assert_not_called()

@@ -4,6 +4,24 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Add device-specific scene intent to AMP/CAB, NAM and serial planning, with
+  per-scene musical targets, roles and realization notes. Reject promised
+  base-tone contrasts implemented only by names, level or ambience; disclose
+  small-EQ-only differences without claiming an audible threshold. Explicitly
+  required but unrealized effects cannot silently disappear. Generalize the
+  bounded FW33 eight-scene template to explicit measured A-D Amp/Cab scene
+  assignments, not mandatory album pairs; no new opcode or model permission.
+  A successful SEND offers a listening-feedback workflow with selected scenes.
+  Its previous design is bound to complete current hardware state; compiled
+  untargeted sound changes, shared-channel spillover, renaming and prose-only
+  tweaks are refused before SEND. Normal review, external mute and separate
+  Store remain mandatory. This is not listening, a limiter or unrestricted
+  FW33 Drive/post-EQ/model support.
+  Actual configured-AI normal API SEND on322 completes275 actions/eight scenes;
+  a second real AI listening adjustment completes263 actions, changing gain
+  only for scenes1/5. Original328 full state is preserved and nothing is stored.
+  Full regression passes4918 tests/16 skips; final mandatory/changed384 and
+  actual Chrome goals/refinement/consent workflow pass separately.
 - Add one guarded Windows FX3 launcher on8909. It identifies the running
   checkout/PID and pinned FX3/shared-core/UI source hashes, refusing old,
   unrelated or stale runtimes and a second8910 instance. Existing settings

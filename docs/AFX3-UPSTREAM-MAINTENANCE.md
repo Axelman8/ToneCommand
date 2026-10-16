@@ -20,6 +20,22 @@ certify untested firmware, controllers, NAM formats or upstream features.
 
 ## Repeatable update check
 
+### Scene-intent contribution boundary, 2026-10-16
+
+General scene-goal checks and listening-feedback preservation live in
+`devices/axefx3/scene_intent.py`, the device design compilers and device review
+service. They use upstream's selected planner; they do not fork `fm9/planner.py`,
+the FM9 executor or its transport/never-brick guard. The existing FX3 plan
+endpoint gains optional refinement context, not a second application or MIDI
+owner. See [AFX3-SCENE-INTENT.md](AFX3-SCENE-INTENT.md) for musical versus
+hardware guarantees, limits and the connection-local baseline requirement.
+
+When updating upstream, run the mandatory contract/capability/UI-warning tests,
+scene-intent, album/serial/NAM/text/eight-scene/review tests and the actual Chrome
+workflow. Musical prose or goal validation does not promote firmware, model,
+IR-bank, controller or effect-parameter evidence. New setters still need the
+hardware ladder in the local KB, with private evidence excluded from the PR.
+
 ### One Windows runtime and startup verification, 2026-10-12
 
 From the maintained integration checkout, use:

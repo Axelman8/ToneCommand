@@ -9,7 +9,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 
-from . import audio_safety, executor, models, route_guard,tone_design, scene_channels
+from . import audio_safety, executor, models, route_guard,tone_design, scene_channels, scene_intent
 
 Knob = Annotated[float, Field(ge=0, le=10, allow_inf_nan=False, strict=True)]
 Level = Annotated[float, Field(ge=-60, le=0, allow_inf_nan=False, strict=True)]
@@ -73,7 +73,7 @@ class Scene(Shape):
     output_level: Annotated[float, Field(ge=-60, le=-6, allow_inf_nan=False, strict=True)] = -6
 
 
-class Design(Shape):
+class Design(Shape, scene_intent.IntentDesign):
     name: Text
     summary: Annotated[str, Field(min_length=1, max_length=4000)]
     amp_model: Annotated[str, Field(min_length=1, max_length=120)]
@@ -95,9 +95,11 @@ Use distinct voicing where requested, not identical scenes with different names.
 There are eight scenes but only four channels per block. For one to four
 scenes the compiler retains independent amp/effect channels. For five to eight
 scenes it shares channels ONLY when all stored settings match, excluding bypass.
-Never request more than four different configurations per block. For four album
-rhythm/solo pairs, use one amp voice per album and distinguish solos through
-scene bypass, delay and output_level (usually rhythm -9 dB, solo -6 dB).
+Never request more than four different configurations per block. Allocate
+channels from the requested tonal goals, NOT mandatory rhythm/solo pairs.
+Share only intentionally identical stored voices. If a solo needs a different
+base voice, reserve a channel for it; explain insufficient channel capacity
+rather than collapsing requested sounds into a delay/level change.
 Keep identical delay settings in dry and wet scenes when sharing a channel.
 Optional scene amp_model overrides the default amp model; optional scene cab_left
 overrides BOTH default IR choices, with cab_right null meaning only IR1 active.
@@ -336,7 +338,7 @@ def compile_design(reg, raw, current_route, scene_count, wah_source=None,
                         position=reg.cab_catalog.position(cab.bank,cab.slot-1),
                         wire_bank=cab.bank, wire_ordinal=cab.slot-1)
                    for side,cab in (('IR1',design.cab_left),('IR2',design.cab_right)) if cab]
-    return dict(summary=design.summary, name=executor.preset_name(design.name),
+    return scene_intent.attach(dict(summary=design.summary, name=executor.preset_name(design.name),
                 scenes=[s.name for s in design.scenes], required_route=route,
                 actions=actions, design=design.model_dump(), warnings=warnings,
                 controller=dict(source=wah_source, auto_engage=wah_auto_engage if wah_source else None),
@@ -345,4 +347,4 @@ def compile_design(reg, raw, current_route, scene_count, wah_source=None,
                     choices=[dict(side=side,name=reg.cab_catalog.names[cab.bank,cab.slot-1],
                                   position=reg.cab_catalog.position(cab.bank,cab.slot-1))
                              for side,cab in (('IR1',left),('IR2',right)) if cab])
-                    for i,(left,right) in enumerate(cab_pairs)])
+                    for i,(left,right) in enumerate(cab_pairs)]))

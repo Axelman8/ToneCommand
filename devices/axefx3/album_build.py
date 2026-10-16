@@ -29,6 +29,20 @@ def validate_actions(reg,actions,existing):
     expected=planning.actions_for(reg,seed(),existing)
     if len(actions)!=len(expected): raise ValueError('Incomplete or extra album actions')
     role_flags={j for i,a in enumerate(expected) if a['kind']=='rename_scene' for j in (i-2,i-1)}
+    # Same measured A-D selectors; only musical assignment is generalized.
+    # Initial voicing/staging and the final verification survey stay fixed.
+    scene_channel_indices=set()
+    first_scene=next(i for i,a in enumerate(expected) if a['kind']=='set_scene')
+    scene=0
+    for i,a in enumerate(expected):
+        if a['kind']=='set_scene':scene=a['value']
+        if (first_scene<i<len(expected)-8 and a['kind']=='set_channel'
+                and a['block'] in ('DISTORT','CABINET')):
+            if type(actions[i].get('value')) is not int or actions[i]['value'] not in range(4):
+                raise ValueError('Scene channel must be a measured A-D channel')
+            if scene==1 and actions[i]['value']!=0:
+                raise ValueError('Scene1 retains Amp/Cab A as the review starting point')
+            scene_channel_indices.add(i)
     for index,(actual,template) in enumerate(zip(actions,expected)):
         if set(actual)!=set(template): raise ValueError('Unexpected album action fields')
         allowed=set()
@@ -49,6 +63,7 @@ def validate_actions(reg,actions,existing):
             allowed={'value'}
         if kind in ('rename_preset','rename_scene'): allowed={'type_name'}
         if index in role_flags: allowed={'bypassed'}
+        if index in scene_channel_indices: allowed={'value'}
         if any(actual[key]!=value for key,value in template.items() if key not in allowed):
             raise ValueError('Album action order, channel, reserve or safety staging differs')
 

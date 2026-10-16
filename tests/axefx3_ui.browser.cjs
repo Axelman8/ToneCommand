@@ -122,8 +122,9 @@ const path=require('node:path');
         }
         if(albumReady&&req.postDataJSON().mode==='amp'){
           result.mode='album';delete result.capture;result.required_route=serialRoute;
-          result.design={albums:Array.from({length:4},(_,c)=>({amp_model:c?'USA JP IIC+ Yellow':'Brit 800 2204 High',amp:{gain:5+c,level:-18},lead:{name:`Album ${c+1} Lead`,delay:false,chorus:false},solo:{name:`Album ${c+1} Solo`,delay:true,chorus:true}})),delay:{time_ms:350,feedback:25,mix:18},chorus:{rate_hz:.7,mix:10}};
+          result.design={albums:Array.from({length:4},(_,c)=>({amp_model:c?'USA JP IIC+ Yellow':'Brit 800 2204 High',amp:{gain:5+c,bass:4,mid:5,treble:6,level:-18},lead:{name:`Album ${c+1} Lead`,delay:false,chorus:false},solo:{name:`Album ${c+1} Solo`,delay:true,chorus:true}})),delay:{time_ms:350,feedback:25,mix:18},chorus:{rate_hz:.7,mix:10}};
           result.scenes=result.design.albums.flatMap(a=>[a.lead.name,a.solo.name]);
+          result.design.scene_layout=result.scenes.map((name,i)=>({name,amp_channel:i%4,cab_channel:[0,3,2,1,0,1,2,3][i],delay:i%2===1,chorus:i===7}));
           result.cab_choices=Array.from({length:4},(_,c)=>({channel:'ABCD'[c],slot:c?800:516,name:c?'4x12 Recto57A':'4x12 Brit70s GB57A'}));
         }
         if(req.postDataJSON().source_kind==='rig'){
@@ -131,10 +132,12 @@ const path=require('node:path');
           result.rig_report={mode:req.postDataJSON().rig_mode,status:{nodes:{amp:{label:'<img src=x> Amp',state:'changed',provenance:'observed',reason:'Installed capture interpretation'},wah:{label:'Wah',state:'not_reproduced',provenance:'observed',reason:'Not measured'}},edges:{pedal:{state:'not_reproduced',reason:'No verified controller mapping'}}}};
         }
         if(failPlan){status=409;result={detail:'AI output refused'};}
+        if(!failPlan)result.scene_intent={goals:result.scenes.map((name,i)=>({scene:i+1,target:'<img src=x> Requested tone',role:name,realization:'Settings follow the requested sound.'})),audible_match_verified:false};
       }
       if(name==='send'){
         sends.push(req.postDataJSON());
         result={ok:!failSend,skipped:failSend?100:0,stored:false,
+          ...(failSend?{}:{refine_token:'verified-sound-design-token'}),
           results:[{ok:!failSend,detail:failSend?'Readback mismatch':'Verified'}]};
         if(fw33&&!failSend)namRoute=true;
       }
@@ -453,7 +456,30 @@ const path=require('node:path');
     assert.match(await page.textContent('#sceneRows'),/8\. Album 4 Solo \/ D/);
     assert.match(await page.textContent('#sceneRows'),/Factory 2 slot 800 \/ D/);
     assert.match(await page.textContent('#sceneRows'),/Output A -18dB/);
-    await request();await page.selectOption('#buildRoute','nam');
+    assert.match(await page.locator('#sceneRows tr').nth(1).textContent(),/2\. Album 1 Solo \/ B/);
+    assert.match(await page.locator('#sceneRows tr').nth(1).textContent(),/Factory 2 slot 800 \/ D/);
+    await page.click('#backPlan');
+    assert.match(await page.textContent('#sceneIntent'),/KLANKDOEL PER SCENE/);
+    assert.equal(await page.locator('#sceneIntent img').count(),0);
+    await page.click('#reviewbtn');await confirmSend();await page.locator('#refresh:not([disabled])').waitFor();
+    assert(await page.locator('#refineSound').isVisible());
+    await page.click('#refineSound');
+    assert.equal(await page.inputValue('#prompt'),'');
+    assert.equal(await page.locator('#adjustScenes input').count(),8);
+    assert(await page.locator('#scenes').isDisabled());
+    await page.fill('#prompt','Scene 3 mist punch, behoud alle andere scenes');
+    await page.check('#adjustScenes input[value="3"]');
+    await review();
+    assert.deepEqual(plans.at(-1).adjust_scenes,[3]);
+    assert.equal(plans.at(-1).refine_token,'verified-sound-design-token');
+    assert.equal(plans.at(-1).mode,'amp');
+    // Leave adjustment mode through the explicit new-design workflow.
+    await request();
+    page.once('dialog',dialog=>dialog.accept());await page.click('#newDesign');await page.locator('#refresh:not([disabled])').waitFor();
+    assert(await page.locator('#adjustScenes').isHidden());
+    await request();await page.fill('#prompt','Nieuw verzoek met NAM');
+    await page.click('#exploreRoutes');await page.locator('#refresh:not([disabled])').waitFor();
+    await page.selectOption('#buildRoute','nam');
     assert(await page.locator('#scenes option').nth(7).evaluate(o=>o.disabled));
     assert.deepEqual(errors,[]);
     console.log('AFX3 shared FM9 layout: workflow, fit, consent, reset, MK, audio, XSS; FW33 NAM foundation/two scenes, permanent install and separate Store consent passed');

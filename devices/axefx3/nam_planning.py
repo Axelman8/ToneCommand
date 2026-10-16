@@ -8,7 +8,7 @@ import json
 from typing import Annotated
 
 from pydantic import Field, StrictBool
-from . import planning, executor, fw33_profile, route_guard, nam_slots
+from . import planning, executor, fw33_profile, route_guard, nam_slots, scene_intent
 
 
 class NAM(planning.Shape):
@@ -27,7 +27,7 @@ class Scene(planning.Shape):
     reverb: StrictBool
 
 
-class Design(planning.Shape):
+class Design(planning.Shape, scene_intent.IntentDesign):
     name: planning.Text
     summary: Annotated[str,Field(min_length=1,max_length=4000)]
     cab_active: StrictBool
@@ -110,7 +110,7 @@ def compile_design(reg, raw, current_route, scene_count, capture):
             emit('set_bypass',family,bypassed=not (getattr(scene,family.lower()) and config.active))
         emit('rename_scene',value=number,type_name=scene.name)
     for action in actions:executor.resolve(reg,action)
-    return dict(name=executor.preset_name(design.name),summary=design.summary,
+    return scene_intent.attach(dict(name=executor.preset_name(design.name),summary=design.summary,
         design=design.model_dump(),scenes=[s.name for s in design.scenes],actions=actions,
         required_route=route_guard.labels(fw33_profile.NAM_ROUTE,reg),cab_choices=[],
         capture=capture,controller=None,mode='nam',
@@ -118,4 +118,4 @@ def compile_design(reg, raw, current_route, scene_count, capture):
                   'Installed NAM001-256 selection is separate from memory installation; changed selection stays quiet/bypassed until voiced.',
                   'NAM A/B; effects share A. Scenes 3-8 can also share these settings.',
                   'Separate confirmation for permanent NAM install and preset Store.',
-                  'Readback is not proof of audible volume, guitar isolation or sound matching.'])
+                  'Readback is not proof of audible volume, guitar isolation or sound matching.']))

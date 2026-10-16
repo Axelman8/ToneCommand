@@ -2,10 +2,10 @@
 import json
 from typing import Annotated
 from pydantic import Field
-from . import planning, serial_build, route_guard, executor
+from . import planning, serial_build, route_guard, executor, scene_intent
 
 
-class Design(planning.Shape):
+class Design(planning.Shape, scene_intent.IntentDesign):
     name: planning.Text
     summary: Annotated[str,Field(min_length=1,max_length=2500)]
     scene_name: planning.Text
@@ -65,11 +65,11 @@ def compile_design(reg,raw,current_route,scene_count):
     actions.extend([dict(kind='rename_preset',type_name=design.name),
         dict(kind='rename_scene',value=1,type_name=design.scene_name)])
     for action in actions: executor.resolve(reg,action)
-    return dict(mode='serial',name=executor.preset_name(design.name),summary=design.summary,
+    return scene_intent.attach(dict(mode='serial',name=executor.preset_name(design.name),summary=design.summary,
         design=design.model_dump(),scenes=[design.scene_name],actions=actions,
         required_route=route_guard.labels(serial_build.ROUTE,reg),cab_choices=[],controller=None,
         warnings=['Vaste gemeten14-blokkenketen, uitsluitend scene1/kanaal A; geen vrije ketenindeling.',
             'Amp- en cabmodellen blijven bestaand/standaard. Geen modelkeuze of IR/mixerwijziging.',
             'Reserve-effecten blijven bypassed. Geen NAM, reverb of nieuwe controllerkoppeling.',
             'Delay/Chorus vereisen onafhankelijk uitgelezen Tempo NONE; anders stopt uitvoering.',
-            'Gedeelde A-kanalen kunnen andere scenes beinvloeden. Geen limiter, klankmatch of permanente opslag.'])
+            'Gedeelde A-kanalen kunnen andere scenes beinvloeden. Geen limiter, klankmatch of permanente opslag.']))

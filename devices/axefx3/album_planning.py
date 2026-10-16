@@ -2,8 +2,8 @@
 import json
 import re
 from typing import Annotated, Literal
-from pydantic import Field, StrictBool
-from . import planning, serial_build, route_guard, executor
+from pydantic import Field, StrictBool, StrictInt
+from . import planning, serial_build, route_guard, executor, scene_intent
 
 MODELS = {14: 'Brit 800 2204 High', 267: 'USA JP IIC+ Yellow'}
 CABS = {'Greenback': (1, 515, '4x12 Brit70s GB57A'),
@@ -58,22 +58,34 @@ class Chorus(planning.Chorus):
     mix: Annotated[float, Field(gt=0, le=100, allow_inf_nan=False, strict=True)]
 
 
-class Design(planning.Shape):
+class SceneLayout(Role):
+    amp_channel: Annotated[StrictInt, Field(ge=0, le=3)]
+    cab_channel: Annotated[StrictInt, Field(ge=0, le=3)]
+
+
+class Design(planning.Shape, scene_intent.IntentDesign):
     name: planning.Text
     summary: Annotated[str, Field(min_length=1, max_length=2500)]
     albums: Annotated[list[Album], Field(min_length=4, max_length=4)]
     delay: Delay
     chorus: Chorus
+    scene_layout: Annotated[list[SceneLayout], Field(min_length=8, max_length=8)] | None = None
 
 
-SYSTEM = '''Design eight Axe-Fx III scenes in four album lead/solo pairs.
-Choose one amp voice and one Legacy IR1 per album from the measured reference.
-Each pair shares one Amp/Cab channel A-D; no E-H channels exist. Preserve the
-requested album order and short names, distinguishing lead/main and solo.
+SYSTEM = '''Design eight Axe-Fx III scenes, not necessarily four album pairs.
+The historical schema key albums holds FOUR available Amp/Cab voice slots
+A-D, not a rule that four album pairs must share a sound. Return scene_layout
+with all eight scene names, amp_channel/cab_channel 0..3 and effect flags.
+Its assignments override the historical lead/solo fields, which remain schema
+compatibility data only. Choose up to four amp configurations and four Legacy
+IR1 configurations from the measured reference. Scene1 uses Amp/Cab A; other
+scenes freely reuse A-D only when that stored voice is intentionally shared.
+No E-H channels exist. Preserve requested order and roles, including backing.
+For four album pairs sharing a base tone is a musical choice, not compulsory.
 Use real gain and focused EQ; reduce LEVEL, not gain, for conservative volume.
-Solos differ through delay/chorus bypass, not invented extra amp channels or
-output boosts. Delay and Chorus each share exactly one fully voiced A channel.
-Their active fields are global defaults only; the lead/solo flags decide the
+Any scene may use a different available Amp/Cab voice; do not invent extra
+channels or output boosts. Delay and Chorus each share one fully voiced A.
+Their active fields are global defaults only; the scene_layout flags decide the
 actual scene states. Output A stays -18dB, Amp levels <=-12dB. Nonzero amp
 knobs only; exact-zero knobs were not measured. No wah/controller, drive,
 reverb, NAM, IR installation or arbitrary grid layout. Reserve blocks stay
@@ -124,44 +136,54 @@ def actions_for(reg, design, existing):
         (78,'CHORUS',dict(RATE=design.chorus.rate_hz,DEPTH=design.chorus.depth,MIX=design.chorus.mix,LEVEL=0))):
         for name,value in values.items(): param(eid,family+'_'+name,value)
     bypass(62,False)
-    for c,album in enumerate(design.albums):
-        for offset,role in enumerate((album.lead,album.solo),1):
-            number=c*2+offset
-            emit('set_scene',value=number)
-            # Bypass belongs to the NEW scene. Staging it before switching
-            # would overwrite the previous scene's final musical state.
-            # External mute and already quiet A-D levels protect the switch.
-            for eid in (58,70,78): bypass(eid)
-            for eid in (58,62): emit('set_channel',eid,value=c)
-            for eid in (70,78,42): emit('set_channel',eid,value=0)
-            for eid in sorted(serial_build.RESERVE): bypass(eid)
-            bypass(58,False); bypass(62,False)
-            bypass(70,not role.delay); bypass(78,not role.chorus)
-            emit('rename_scene',value=number,type_name=role.name)
+    for number,item in enumerate(layout(design.model_dump()),1):
+        emit('set_scene',value=number)
+        # Bypass belongs to the NEW scene. Staging it before switching
+        # would overwrite the previous scene's final musical state.
+        # External mute and already quiet A-D levels protect the switch.
+        for eid in (58,70,78): bypass(eid)
+        emit('set_channel',58,value=item['amp_channel'])
+        emit('set_channel',62,value=item['cab_channel'])
+        for eid in (70,78,42): emit('set_channel',eid,value=0)
+        for eid in sorted(serial_build.RESERVE): bypass(eid)
+        bypass(58,False); bypass(62,False)
+        bypass(70,not item['delay']); bypass(78,not item['chorus'])
+        emit('rename_scene',value=number,type_name=item['name'])
     emit('rename_preset',type_name=design.name)
     # Explicit final survey: select only, do NOT rewrite mappings while checking.
     for number in range(1,9): emit('set_scene',value=number)
     return actions
 
 
+def layout(design):
+    if design.get('scene_layout') is not None:
+        return design['scene_layout']
+    return [dict(**role,amp_channel=c,cab_channel=c)
+            for c,album in enumerate(design['albums']) for role in (album['lead'],album['solo'])]
+
+
 def compile_design(reg,raw,current_route,scene_count):
     design=Design.model_validate(raw)
+    assignments=layout(design.model_dump())
+    if assignments[0]['amp_channel'] != 0 or assignments[0]['cab_channel'] != 0:
+        raise ValueError('Scene1 must retain Amp/Cab A as the measured review starting point')
     if not serial_build.supported(reg) or scene_count!=8:
         raise ValueError('Measured album AMP/CAB mode requires exact FW33/MK2 and eight scenes')
     if current_route and tuple(current_route)!=serial_build.ROUTE:
         raise ValueError('Album build cannot replace or splice another route')
     actions=actions_for(reg,design,bool(current_route))
     for a in actions: executor.resolve(reg,a)
-    names=[role.name for album in design.albums for role in (album.lead,album.solo)]
-    return dict(mode='album',name=executor.preset_name(design.name),summary=design.summary,
+    names=[item['name'] for item in assignments]
+    return scene_intent.attach(dict(mode='album',name=executor.preset_name(design.name),summary=design.summary,
         design=design.model_dump(),scenes=names,actions=actions,
         required_route=route_guard.labels(serial_build.ROUTE,reg),controller=None,
         cab_choices=[dict(channel='ABCD'[c],bank=CABS[a.cab][0],slot=CABS[a.cab][1]+1,
             name=CABS[a.cab][2],side='IR1 only') for c,a in enumerate(design.albums)],
-        channel_mapping=[dict(scene=i+1,amp='ABCD'[i//2],cab='ABCD'[i//2],
-            delay='A',chorus='A',output='A') for i in range(8)],
-        warnings=['Vier albumvoicings delen A-D per lead/solopaar; delay en chorus delen A.',
+        channel_mapping=[dict(scene=i+1,amp='ABCD'[item['amp_channel']],cab='ABCD'[item['cab_channel']],
+            delay='A',chorus='A',output='A') for i,item in enumerate(assignments)],
+        warnings=['Maximaal vier ampvoicings en vier cabkanalen A-D; zie de expliciete scene-indeling. Delay/Chorus delen A.',
+            'Twee geverifieerde ampmodellen/twee Factory-cabs. Nieuwe Drive/post-EQ-voicing vereist aanvullende meting, niet alleen inschakelen.',
             'Gemeten vaste14-blokkenketen. Reserve-effecten blijven bypassed; geen nieuwe controllers.',
             'Alleen IR1 in de mix; IR2-4 blijven gemute. Geen stereopanning of IR-installatie.',
             'Output -18dB; voorlopige scenevolumes. Externe mute is verplicht, geen limiter.',
-            'Interpretatie, geen exacte albumreproductie. SEND slaat niets permanent op.'])
+            'Interpretatie, geen exacte reproductie. SEND slaat niets permanent op.']))

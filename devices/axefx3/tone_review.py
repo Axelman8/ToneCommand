@@ -1,6 +1,7 @@
 """Device-bound full-plan reviews. No AI response can authorize sending."""
 import secrets
 import time
+from copy import deepcopy
 
 from . import executor, modifiers, route_guard, fw33_profile, nam_selector, nam_slots
 from .controller_review import digest
@@ -72,7 +73,20 @@ def public_state(state, reg):
 
 class Reviews:
     def __init__(self, clock=time.monotonic):
-        self.clock, self.pending = clock, None
+        self.clock, self.pending, self.last_sent = clock, None, None
+
+    def refinement(self, dev, token, initial):
+        prior=self.last_sent
+        if (not prior or prior['device'] is not dev or not isinstance(token,str)
+                or not token.isascii() or not secrets.compare_digest(prior['token'],token)):
+            raise ValueError('Geen geverifieerd verzonden ontwerp in deze TC-sessie. Maak eerst een nieuw voorstel; TC raadt geen oude instellingen.')
+        proof=prior['proof']
+        if len(prior['plan']['scenes'])>1 and len(proof.get('scene_fingerprints',{}))!=len(prior['plan']['scenes']):
+            raise ValueError('Voor deze meer-scene-route ontbreekt een volledige laatste scenecontrole. Geen veilige luisterbasis; niets verzonden.')
+        expected=proof.get('scene_fingerprints',{}).get(str(initial['scene']),prior['stamp'])
+        if digest(initial)!=expected:
+            raise ValueError('De preset, kanaaltoewijzing of catalogus is gewijzigd sinds SEND. De luisterbasis is niet meer betrouwbaar; niets verzonden.')
+        return deepcopy(prior['plan'])
 
     def clear(self):
         self.pending = None
@@ -107,6 +121,7 @@ class Reviews:
             if digest(snapshot(dev, pending['nam_slot'], include_nam=pending['include_nam'])) != pending['stamp']:
                 raise ValueError('Device or cab catalogue changed since review. Nothing sent.')
             plan = pending['plan']
+            self.last_sent=None
             dev._album_store_stamp=None
             dev._album_store_proof=None
             result = executor.execute(dev,plan['actions'],plan['required_route'],
@@ -118,6 +133,12 @@ class Reviews:
                     raise ValueError('Final state changed after verified album execution; no Store proof')
                 dev._album_store_stamp=fresh
                 dev._album_store_proof=proof
+            if result['ok']:
+                self.last_sent=dict(token=pending['token'],device=dev,plan=deepcopy(plan),
+                    stamp=digest(snapshot(dev,pending['nam_slot'],include_nam=pending['include_nam'])),
+                    proof=result.get('album_verification',{}))
+                if len(plan['scenes'])==1 or len(result.get('album_verification',{}).get('scene_fingerprints',{}))==len(plan['scenes']):
+                    result['refine_token']=pending['token']
             # All action results are already independently verified by the executor.
             # No hidden scene switching for a final survey; that could itself alter
             # state. Report exactly what was executed and what remains unmeasured.

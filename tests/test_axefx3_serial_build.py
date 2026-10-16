@@ -14,6 +14,7 @@ from devices.axefx3.registry import Registry
 from devices.axefx3.adapter import AxeFxIII
 from fastapi.testclient import TestClient
 import server
+from tests.scene_intent_fixtures import with_goals
 
 
 def design():
@@ -202,7 +203,7 @@ def http(monkeypatch):
     monkeypatch.setattr(server,'_audition',{'open':False})
     monkeypatch.setattr(server.ai_settings,'apply_to_env',lambda:None)
     monkeypatch.setenv('PLANNER_BACKEND','cli')
-    ask=Mock(side_effect=lambda *args,**kw:dict(**kw['validate'](design()),backend='cli',model='synthetic'))
+    ask=Mock(side_effect=lambda *args,**kw:dict(**kw['validate'](with_goals(design())),backend='cli',model='synthetic'))
     monkeypatch.setattr(server.planner,'plan',ask)
     server._afx3_tone_reviews.clear()
     with TestClient(server.app) as client:yield client,d,ask

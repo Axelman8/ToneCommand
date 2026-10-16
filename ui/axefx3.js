@@ -10,7 +10,27 @@ let storePreview=null;
 let currentStage=0;
 let routeExploration=null;
 let navigationPreview=null,presetLibrary=[];
-function clearRouteExploration(){routeExploration=null;el('buildRoute').value='';el('routeOptions').replaceChildren();el('routeReason').textContent='Vul je verzoek in en klik EXPLORE ROUTES. NAM wordt niet automatisch gekozen.';}
+let refineContext=null,adjusting=false;
+const intentPanel=document.createElement('section');intentPanel.id='sceneIntent';intentPanel.hidden=true;
+el('controllerChoice').after(intentPanel);
+const refineButton=document.createElement('button');refineButton.id='refineSound';refineButton.textContent='BIJSTUREN NA LUISTERTEST';refineButton.hidden=true;
+el('returnRequest').after(refineButton);
+const adjustPanel=document.createElement('fieldset');adjustPanel.id='adjustScenes';adjustPanel.hidden=true;
+el('requestPanel').querySelector('.formbar').after(adjustPanel);
+refineButton.onclick=()=>{
+  if(busy||!refineContext)return;
+  adjusting=true;invalidate();el('buildRoute').value=refineContext.mode;
+  el('scenes').value=String(refineContext.count);el('prompt').value='';
+  adjustPanel.replaceChildren();const legend=document.createElement('legend');legend.textContent='Welke scenes bijsturen? Andere scene-instellingen blijven beschermd.';adjustPanel.append(legend);
+  for(let n=1;n<=refineContext.count;n++){
+    const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.value=String(n);
+    input.addEventListener('change',invalidate);label.append(input,document.createTextNode(` Scene ${n} `));adjustPanel.append(label);
+  }
+  adjustPanel.hidden=false;el('generate').textContent='VOORSTEL VOOR AANPASSING';
+  el('requestPanel').open=true;stage(0);controls();el('prompt').focus();
+  note('Beschrijf wat je hoort en wat moet veranderen. Selecteer scenes. Voor FW33 AMP/CAB eerst scene 1 selecteren; opnieuw bevestigen voor SEND.');
+};
+function clearRouteExploration(){routeExploration=null;el('buildRoute').value=adjusting&&refineContext?refineContext.mode:'';el('routeOptions').replaceChildren();el('routeReason').textContent=adjusting?'Bestaande bouwroute behouden bij deze luisteraanpassing.':'Vul je verzoek in en klik EXPLORE ROUTES. NAM wordt niet automatisch gekozen.';}
 const note=text=>{el('status').textContent=text;};
 const stageNames=['request','plan','review','confirm','send'];
 const stagePanes=['pane-request','planPanel','review','confirmPanel','result'];
@@ -52,15 +72,15 @@ function controls(){
   for(const button of el('sceneRack').querySelectorAll('button'))button.disabled=busy||!state?.navigation_supported;
   const chooseRoute=!!state?.route_options_supported;
   el('routeOptionsPanel').hidden=!chooseRoute;
-  el('exploreRoutes').disabled=busy||!state?.connected||!el('prompt').value.trim();
-  el('buildRoute').disabled=busy||!routeExploration;
+  el('exploreRoutes').disabled=busy||adjusting||!state?.connected||!el('prompt').value.trim();
+  el('buildRoute').disabled=busy||adjusting||!routeExploration;
   const sourceSupported=!!state?.source_support?.rig_reader;
   sourceLabel.hidden=!sourceSupported;modeLabel.hidden=!sourceSupported||sourceKind.value!=='rig';
   if(!sourceSupported){sourceKind.value='tone';rigMode.value='closest';}
   sourceKind.disabled=busy;rigMode.disabled=busy;
   const serial=el('buildRoute').value==='serial';
   const album=el('buildRoute').value==='amp'&&!!state?.album_build_supported;
-  el('buildRoute').querySelector('option[value="amp"]').textContent=state?.album_build_supported?'AMP / CAB: acht albumscenes':'AMP / CAB + pedals';
+  el('buildRoute').querySelector('option[value="amp"]').textContent=state?.album_build_supported?'AMP / CAB: acht scenes met klankdoelen':'AMP / CAB + pedals';
   const serialOption=el('buildRoute').querySelector('option[value="serial"]');
   serialOption.hidden=!state?.serial_build_supported;
   serialOption.disabled=!state?.serial_build_supported||sourceKind.value==='rig';
@@ -76,7 +96,10 @@ function controls(){
   if(Number(el('scenes').value)>maxScenes)el('scenes').value=String(maxScenes);
   el('generate').disabled=busy||el('deviceChoice').value!=='axefx3'||!state?.connected||!!state.route_problem||(!fw33&&!state.cab_count);
   if((serial||album)&&state?.scene!==1)el('generate').disabled=true;
-  if(chooseRoute&&!routeExploration?.routes.some(r=>r.mode===el('buildRoute').value&&r.enabled))el('generate').disabled=true;
+  if(chooseRoute&&!adjusting&&!routeExploration?.routes.some(r=>r.mode===el('buildRoute').value&&r.enabled))el('generate').disabled=true;
+  if(adjusting){el('scenes').disabled=true;el('wah').disabled=true;el('wahMode').disabled=true;sourceKind.disabled=true;captureSlot.disabled=true;}
+  refineButton.hidden=!refineContext;refineButton.disabled=busy;
+  for(const input of adjustPanel.querySelectorAll('input'))input.disabled=busy;
   for(const id of ['namSaveKey','namDisconnect','namSuggest','namKey'])el(id).disabled=busy;
   el('namSlotsRefresh').disabled=busy||!namAccount?.installation_supported||!state?.connected;
   el('namSlot').disabled=busy||!namSlots;
@@ -88,7 +111,7 @@ function controls(){
   el('storeCommit').disabled=busy||!storePreview||!el('storeMute').checked||!el('storeFlash').checked;
   el('send').disabled=busy||currentStage!==3||el('deviceChoice').value!=='axefx3'||!proposal||!el('confirmed').checked||!el('muted').checked;
   stage(currentStage);
-  el('controllerHint').textContent=album?'FW33: acht albumscenes, vier gemeten Amp/Cab-kanalen A-D. Delay/Chorus delen A, Output -18dB. Geen NAM of nieuwe controllers.':serial?'Gemeten AMP/CAB-testketen: uitsluitend scene1/A. Modellen blijven behouden, reserveblokken blijven bypassed. Geen nieuwe controllers.':fw33?'FW33 NAM: eerst 1 scene vanuit leeg; daarna maximaal 2 met NAM A/B. Nieuwe controllerkoppelingen zijn voor dit profiel nog niet geverifieerd.':!el('wah').value?'Geen nieuwe controllerkoppeling. Bestaande Auto Engage blijft behouden en kan de scene-bypass beinvloeden.':
+  el('controllerHint').textContent=album?'FW33: acht scenes met klankdoelen en maximaal vier ampvoicings/vier cabkanalen A-D. Geen verplichte sceneparen. Delay/Chorus delen A, Output -18dB. Start op scene 1; geen nieuwe controllers of onbewezen post-EQ.':serial?'Gemeten AMP/CAB-testketen: uitsluitend scene1/A. Modellen blijven behouden, reserveblokken blijven bypassed. Geen nieuwe controllers.':fw33?'FW33 NAM: eerst 1 scene vanuit leeg; daarna maximaal 2 met NAM A/B. Nieuwe controllerkoppelingen zijn voor dit profiel nog niet geverifieerd.':!el('wah').value?'Geen nieuwe controllerkoppeling. Bestaande Auto Engage blijft behouden en kan de scene-bypass beinvloeden.':
     el('wahMode').value==='Fast Pos'?'Fast Pos: pedaalbeweging kan de Wah ook inschakelen in een scene met Wah uit. Kies Off voor aan/uit via de scenes.':
     el('wahMode').value==='Off'?'Off: het pedaal stuurt de Wah-filterstand, maar schakelt de Wah niet automatisch aan of uit.':
     'Bestaande Auto Engage-modus blijft behouden. Bij een nieuwe koppeling gebruikt het apparaat zijn standaard; controleer het gedrag.';
@@ -109,6 +132,7 @@ async function run(work){if(busy)return;busy=true;controls();try{await work();}c
 async function refresh(){
   navigationPreview=null;el('navigationDialog').close();
   clearRouteExploration();invalidate();clearNamSlots();state=null;state=await api('state');
+  if(refineContext&&state.preset!==refineContext.preset){refineContext=null;adjusting=false;adjustPanel.hidden=true;el('generate').textContent='GENERATE PLAN';clearRouteExploration();}
   el('workspaceIdentity').textContent='TC FX3'+(state.workspace?.revision?' '+state.workspace.revision:'');
   el('workspaceIdentity').title=state.workspace?`${state.workspace.source_root} | PID ${state.workspace.pid}`:'Werkruimte-identiteit niet beschikbaar; controleer je startscript.';
   el('target').textContent=state.connected?`Preset ${state.preset}: ${state.name} \u25be`:'Verbind eerst via Verbinding & controllers.';
@@ -240,6 +264,7 @@ el('connectDevice').onclick=()=>run(async()=>{
 el('newDesign').onclick=()=>run(async()=>{
   if((el('prompt').value||proposal)&&!confirm('Nieuw ontwerp beginnen? Het verzoek en voorstel worden gewist, niet de Fractal.'))return;
   await api('discard',{});invalidate();el('prompt').value='';audioReference=null;el('audioFile').value='';
+  refineContext=null;adjusting=false;adjustPanel.hidden=true;el('generate').textContent='GENERATE PLAN';
   clearRouteExploration();
   el('conversationPanel').hidden=true;el('requestPanel').open=true;el('requestPreview').hidden=true;
   el('emptyConversation').hidden=false;el('resultText').textContent='';stage(0);
@@ -395,15 +420,25 @@ async function analyseRequestAudio(){
   }finally{await context.close();}
 }
 function showDesign(plan){
+  intentPanel.replaceChildren();intentPanel.hidden=!plan.scene_intent?.goals?.length;
+  if(!intentPanel.hidden){
+    const heading=document.createElement('h3');heading.textContent='KLANKDOEL PER SCENE';intentPanel.append(heading);
+    for(const goal of plan.scene_intent.goals){
+      const p=document.createElement('p'),title=document.createElement('strong');title.textContent=`${goal.scene}. ${goal.role}: `;
+      p.append(title,document.createTextNode(goal.target));const detail=document.createElement('div');detail.textContent=goal.realization;p.append(detail);intentPanel.append(p);
+    }
+    const hint=document.createElement('p');hint.textContent='Ontwerpcontrole, geen luisterbewijs. '+(plan.adjustment?`Bijgestuurd: ${plan.adjustment.changed_scenes.join(', ')}. Beschermd: ${plan.adjustment.preserved_scenes.join(', ')||'geen'}. Volledig ontwerp wordt gecontroleerd opnieuw toegepast, geen minimale live-patch.`:'Controleer na SEND de klank en balans op laag fysiek volume.');intentPanel.append(hint);
+  }
   const design=plan.design, controller=plan.controller;
   if(plan.mode==='album'){
-    el('toneChoice').textContent='Vier gemeten albumvoicings A-D, alleen Legacy IR1 in mix; Output A -18dB.';
+    el('toneChoice').textContent='Maximaal vier ampvoicings en vier cabkanalen A-D, expliciete indeling per scene; Output A -18dB.';
     el('controllerChoice').textContent='Reserveblokken bypassed, geen nieuwe controllers of NAM.';
     el('planWarnings').replaceChildren();for(const warning of plan.warnings||[]){const li=document.createElement('li');li.textContent=warning;el('planWarnings').append(li);}
     el('sceneTable').hidden=false;el('sceneRows').replaceChildren();
-    for(const [c,album] of design.albums.entries())for(const [offset,role] of [album.lead,album.solo].entries()){
-      const cab=plan.cab_choices[c],row=document.createElement('tr');
-      for(const value of [`${c*2+offset+1}. ${role.name} / ${'ABCD'[c]}`,`${album.amp_model} | gain ${album.amp.gain} | ${album.amp.level}dB`,'Uit',role.chorus?`${design.chorus.rate_hz}Hz / ${design.chorus.mix}% (A)`:'Uit',role.delay?`${design.delay.time_ms}ms / ${design.delay.feedback}% / ${design.delay.mix}% (A)`:'Uit','Niet in route',`${cab.name} | Factory 2 slot ${cab.slot} / ${cab.channel} | Output A -18dB`]){const td=document.createElement('td');td.textContent=value;row.append(td);}
+    const layout=design.scene_layout||design.albums.flatMap((a,c)=>[a.lead,a.solo].map(role=>({...role,amp_channel:c,cab_channel:c})));
+    for(const [index,role] of layout.entries()){
+      const album=design.albums[role.amp_channel],cab=plan.cab_choices[role.cab_channel],row=document.createElement('tr');
+      for(const value of [`${index+1}. ${role.name} / ${'ABCD'[role.amp_channel]}`,`${album.amp_model} | gain ${album.amp.gain} | EQ ${album.amp.bass}/${album.amp.mid}/${album.amp.treble} | ${album.amp.level}dB`,'Uit',role.chorus?`${design.chorus.rate_hz}Hz / ${design.chorus.mix}% (A)`:'Uit',role.delay?`${design.delay.time_ms}ms / ${design.delay.feedback}% / ${design.delay.mix}% (A)`:'Uit','Niet in route',`${cab.name} | Factory 2 slot ${cab.slot} / ${cab.channel} | Output A -18dB`]){const td=document.createElement('td');td.textContent=value;row.append(td);}
       el('sceneRows').append(row);
     }return;
   }
@@ -471,13 +506,16 @@ el('generate').onclick=()=>run(async()=>{
   note('AI werkt het voorstel uit. Er wordt nog niets naar de Fractal gestuurd...');
   stage(1);
   if(el('namWithRequest').checked&&!el('namQuery').value.trim())throw new Error('Vul een Tone3000-zoekterm in, of schakel zoeken bij dit voorstel uit.');
-  if(state.route_options_supported&&!routeExploration?.routes.some(r=>r.mode===el('buildRoute').value&&r.enabled))throw new Error('Verken eerst de routes en kies een uitvoerbare bouwroute.');
+  if(state.route_options_supported&&!adjusting&&!routeExploration?.routes.some(r=>r.mode===el('buildRoute').value&&r.enabled))throw new Error('Verken eerst de routes en kies een uitvoerbare bouwroute.');
+  const adjustTargets=[...adjustPanel.querySelectorAll('input:checked')].map(input=>Number(input.value));
+  if(adjusting&&(!adjustTargets.length||!el('prompt').value.trim()))throw new Error('Kies scenes en beschrijf je luisterfeedback.');
   if(sourceKind.value==='rig'&&el('audioFile').files.length)throw new Error('Rig-uitleg gebruikt tekst of een YouTube-link. Verwijder het klankbestand of kies klankvoorbeeld.');
   audioReference=sourceKind.value==='rig'?null:await analyseRequestAudio();
   proposal=await api('plan',{prompt:el('prompt').value,expected_preset:state.preset,scenes:Number(el('scenes').value),wah_source:el('wah').value||null,
     wah_auto_engage:el('wah').value?(el('wahMode').value||null):null,audio_reference:audioReference,
     ...(state.route_options_supported?{mode:el('buildRoute').value}:{}),
     nam_query:el('namWithRequest').checked?(el('namQuery').value||null):null,
+    ...(adjusting?{refine_token:refineContext.token,adjust_scenes:adjustTargets}:{}),
     ...(state.nam_selection_supported&&(!state.route_options_supported||el('buildRoute').value==='nam')?{nam_slot:captureSlot.value?Number(captureSlot.value):null}:{}),
     ...(state.source_support?.rig_reader?{source_kind:sourceKind.value,rig_mode:rigMode.value}:{})});
   el('conversation').textContent=proposal.summary;el('conversationPanel').hidden=false;
@@ -518,11 +556,15 @@ el('cabImport').onclick=()=>run(async()=>{
 el('send').onclick=()=>run(async()=>{
   if(!proposal||!el('confirmed').checked||!el('muted').checked)throw new Error('Bevestig eerst doel en externe demping.');
   if(currentStage!==3)throw new Error('Ga eerst naar CONFIRM.');
-  const token=proposal.token;invalidate();note('Bezig met gecontroleerd verzenden. Laat de externe audio gedempt.');
+  const sentPlan=proposal,token=proposal.token;refineContext=null;adjusting=false;
+  adjustPanel.hidden=true;el('generate').textContent='GENERATE PLAN';
+  invalidate();note('Bezig met gecontroleerd verzenden. Laat de externe audio gedempt.');
   stage(4);
   let result;
   try{result=await api('send',{token,target_confirmed:true,external_audio_muted:true});}
   catch(e){throw new Error('Verzending niet bevestigd. Houd audio gedempt; niet automatisch opnieuw verzenden. '+e.message);}
+  refineContext=result.ok&&result.refine_token?{token:result.refine_token,count:sentPlan.scenes.length,mode:sentPlan.mode==='album'?'amp':sentPlan.mode||'amp',preset:state.preset}:null;
+  adjusting=false;adjustPanel.hidden=true;el('generate').textContent='GENERATE PLAN';
   el('resultTitle').textContent=result.ok?'Schrijfopdrachten teruggelezen en bevestigd':'Verzending gestopt';
   el('resultText').textContent=`${result.results.filter(r=>r.ok).length} acties bevestigd; ${result.skipped} overgeslagen.\n`+
     (result.detail||'')+'\n'+result.results.filter(r=>!r.ok).map(r=>r.detail).join('\n')+

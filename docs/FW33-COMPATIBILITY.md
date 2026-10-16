@@ -705,6 +705,11 @@ not the normal eight-scene SEND, Store/reload or audible acceptance.
 
 ### Bounded eight-scene album integration candidate
 
+The following records the historical paired-scene acceptance. The subsequent
+general scene-goal and explicit A-D assignment workflow is documented in
+[AFX3-SCENE-INTENT.md](AFX3-SCENE-INTENT.md). It keeps the measured model/IR,
+route, safety and final survey boundaries, but does not require album pairs.
+
 The normal AMP request has an exact MK2/FW33 eight-scene contract, separate
 from the retained one-scene serial template and one/two-scene NAM mode. Four
 album voices map to Amp/Cab A,A,B,B,C,C,D,D. Only Amp14/267 and Factory2 IR1

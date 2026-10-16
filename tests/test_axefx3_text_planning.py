@@ -12,6 +12,7 @@ from devices.axefx3 import planning, tone_review, executor
 from devices.axefx3.registry import Registry
 from fm9.device import SetResult
 from fm9.protocol import GridCell, BlockStatus
+from tests.scene_intent_fixtures import with_goals
 
 REAL_PLAN = server.planner.plan
 
@@ -196,7 +197,7 @@ def test_user_controls_auto_engage_not_ai(dev,design,mode):
     elif mode is None:
         assert any('niet door dit ontwerp vastgesteld' in warning for warning in plan['warnings'])
     else:
-        assert not plan['warnings']
+        assert plan['warnings']==['Geen vastgelegde klankdoelen in dit oudere ontwerp.']
     assert [a['bypassed'] for a in plan['actions'] if a['kind']=='set_bypass'
             and a['block']=='WAH']==[True,False,True,True,False]
     executor.prepare(dev,plan['actions'],plan['required_route'],324)
@@ -416,7 +417,7 @@ def api(dev,design,monkeypatch):
     monkeypatch.setattr(server,'_settings_lock',threading.Lock())
     monkeypatch.setattr(server.ai_settings,'apply_to_env',lambda:None)
     monkeypatch.setenv('PLANNER_BACKEND','cli')
-    ask=Mock(side_effect=lambda *args,**kw:dict(**kw['validate'](copy.deepcopy(design)),backend='cli',model='test'))
+    ask=Mock(side_effect=lambda *args,**kw:dict(**kw['validate'](with_goals(design)),backend='cli',model='test'))
     monkeypatch.setattr(server.planner,'plan',ask)
     server._afx3_tone_reviews.clear()
     with TestClient(server.app) as client:yield client,ask
@@ -490,7 +491,7 @@ def test_whole_text_review_send_route_uses_afx3_and_no_fm9_executor(api,dev,monk
     assert dev.bind_pedal_control.call_args.args==(94,12,'Fast Pos')
     assert client.post('/api/axefx3/send',json=send).status_code==409
     generic.assert_not_called();dev.store_preset.assert_not_called()
-    assert ask.call_args.kwargs['system']==planning.SYSTEM
+    assert ask.call_args.kwargs['system'].startswith(planning.SYSTEM)
 
 
 @pytest.mark.parametrize('change',['preset','scene','bulk','catalogue','connection'])
@@ -597,7 +598,7 @@ def test_native_binding_failure_stops_without_store(api,dev):
 
 def test_actual_planner_entrypoint_compiles_selected_backend_design(api,dev,design,monkeypatch):
     client,_=api
-    runner=Mock(return_value=(design,'selected-model'))
+    runner=Mock(return_value=(with_goals(design),'selected-model'))
     monkeypatch.setattr(server.planner,'plan',REAL_PLAN)
     monkeypatch.setattr(server.planner,'_RUNNERS',{'cli':runner})
     response=client.post('/api/axefx3/plan',json=BODY)
@@ -605,7 +606,8 @@ def test_actual_planner_entrypoint_compiles_selected_backend_design(api,dev,desi
     result=response.json()
     assert result['backend']=='cli' and result['model']=='selected-model'
     assert len(result['actions'])>100 and result['plan_quality']=='actions'
-    assert runner.call_args.args[3]==planning.SYSTEM
+    assert runner.call_args.args[3].startswith(planning.SYSTEM)
+    assert 'scene_goals' in runner.call_args.args[3]
     assert result['actions'][-1]['kind']=='bind_controller'
     dev.edit_session.assert_not_called()
 
