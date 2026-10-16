@@ -20,6 +20,29 @@ certify untested firmware, controllers, NAM formats or upstream features.
 
 ## Repeatable update check
 
+### Current local acceptance boundary, 2026-10-16
+
+The earlier dated sections below record historical limits. The current released
+measured CAB scope is2048 Factory names, complete imported User1/2 addressing,
+four-IR mixing and separately restricted FullRes metadata. The entire MK1 User2
+bank is reserved for NAM; MK2 has separate NAM memory. See
+[AFX3-CAB-INVENTORY.md](AFX3-CAB-INVENTORY.md) for hardware acceptance.
+
+Successful eight-scene design metadata and imported CAB names now persist in
+the private owner state directory, never in Git. Explicit cold-runtime resume
+requires new consent and complete eight-scene readback. Source checkout clean
+installation and resource/API smoke have run in a fresh same-Windows environment;
+this is not other-machine/platform or remote CI acceptance. See
+[AFX3-DESIGN-HISTORY.md](AFX3-DESIGN-HISTORY.md).
+
+New effect calibration and the default-disabled Drive prototype stay within the
+adapter. They do not extend the shared FM9 planner, transport or never-brick
+guard. Add their tests and runtime/data hashes to upstream reconciliation. Do
+not release the prototype based on simulator success: exact engage/bypass,
+normal SEND and independent editor acceptance remain required. The complete
+seventeen-item status lives in
+[AFX3-COMPLETION-BACKLOG.md](AFX3-COMPLETION-BACKLOG.md).
+
 ### Scene-intent contribution boundary, 2026-10-16
 
 General scene-goal checks and listening-feedback preservation live in

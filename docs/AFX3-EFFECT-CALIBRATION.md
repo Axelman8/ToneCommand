@@ -1,0 +1,54 @@
+# FW33 effect calibration checkpoint
+
+This is evidence status, not blanket permission to write every effect. The
+normal released eight-scene route still keeps reserve effects bypassed. FM9
+permissions, permanent storage allowlists and unknown-outcome behavior are
+unchanged. Only the owner's exact FW33 beta/MK2/Windows profile was used.
+
+## Drive1
+
+All87 selector names/ordinals were independently selected in Axe-Edit. A-D basic
+gain/tone/level/mix and exact-zero setters were captured on T808 Mod. The fixed
+171-step native replay verifies independent numeric displays and complete
+unrelated-state preservation. A subsequent separate Axe-Edit comparison confirms
+T808 Mod, gain0, tone5, level0, mix100 on each A-D channel, always bypassed.
+
+A reviewed T808 Mod prototype can represent four voices following Amp A-D and
+explicit per-scene activation. It has exact grammar/value/order checks and a
+bounded final LEVEL knob0..2.5, not dB or proven unity gain. It is deliberately
+disabled by `DRIVE_RELEASED=False`: normal planning and executor preparation
+reject it. Exact engage/bypass capture, normal SEND, independent editor checks
+and user listening remain separate prerequisites. Synthetic tests opt into the
+prototype only with monkeypatching; the GUI has no release override.
+
+## Compressor1
+
+All19 model selectors were captured on A. Modern VCA Compressor basic controls
+were measured on A-D, including auto-makeup OFF, auto-attack/release OFF,
+threshold, ratio, attack/release time, level and mix, with exact zeros where
+applicable. The closed153-step native prefix passes independent display and
+full-state checks. No compressor is engaged or enabled in normal planning by
+that result. Auto-makeup and transient model defaults require explicit staging;
+an attenuation written later cannot protect an earlier model transition.
+
+## Post-EQ
+
+All18 Graphic EQ model choices were captured. Ten-band variable-Q controls and
+zero bands were captured on A/B and partly C before interactive Windows access
+was lost. The first native EQ operation was refused before transmission because
+the current channel was C while the capture started on A. The shared calibration
+now checks every family's initial context before ANY mutation. No EQ write was
+sent in that native pass; no automatic channel correction, retry or rollback
+was attempted. PEQ and other effects are not promoted by these partial captures.
+
+## Recorded developer calibration
+
+The developer-only replay binds an immutable closed268-step manifest to quiet
+preset322, exact firmware/chassis/grid, all inactive modifiers, fresh complete
+state and exact current channel. A failed or unknown result consumes the
+operation. It does not expose a general raw setter, model permission or AI
+action. Neither calibration nor readback measures audible tone or loudness.
+
+Resume requires an accessible, continuously connected Windows desktop for the
+remaining independent Axe-Edit comparisons. No firmware, driver, IR/NAM memory,
+global settings or permanent preset Store was changed in this checkpoint.

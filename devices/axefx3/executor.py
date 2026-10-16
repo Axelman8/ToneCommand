@@ -92,8 +92,9 @@ def resolve(reg, action):
         elif kind == "set_type":
             if reg.firmware==fw33_profile.KEY:
                 from . import album_planning
-                if family!='DISTORT' or eid!=58 or a.get('type_name') not in album_planning.MODELS.values():
-                    raise ValueError('Only two independently measured FW33 Amp1 models')
+                if not ((family=='DISTORT' and eid==58 and a.get('type_name') in album_planning.MODELS.values())
+                        or (family=='FUZZ' and eid==118 and a.get('type_name')=='T808 Mod')):
+                    raise ValueError('Only measured FW33 Amp1 or T808 Mod Drive1 models')
             else: models.target(reg, family, eid, a.get("type_name"))
             result.value = a["type_name"]
         elif kind == "set_cab":
@@ -258,6 +259,9 @@ def execute(dev, actions, required_route, *, expected_preset, external_audio_mut
                 try:
                     def operation():
                         if album and kind=='set_type': return album.model(item.value)
+                        if album and kind=='set_bypass' and eid==118:
+                            got=album.drive_bypass(item.value)
+                            return SetResult(got is item.value,'Drive state independently read back',None,got)
                         if album and kind=='set_cab': return album.cab(*item.value)
                         if album and kind=='set_channel':
                             got=album.channel(eid,item.value)

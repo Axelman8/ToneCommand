@@ -11,7 +11,7 @@ unchanged. MK2 hardware does not prove MK1 or other firmware compatibility.
 | 2 | Full Factory cab catalog and selection | Integrated 2048 names; fixed native replay and actual AI/normal SEND pass within measured FW33/MK2 route. |
 | 3 | Full User banks and separate FullRes | Correct FW33 addressing and whole-bank MK1 protection; normal User1/2 SEND and independent editor pass. FullRes names/restrictions separate, no occupied FullRes audition claimed. |
 | 4 | Four-slot cab mixer and stereo | All four slots and A-D: captured/native mode, selector, level/pan, actual339-action SEND and independent eight-scene editor checks pass. |
-| 5 | Drive, compressor and post-EQ | All87 Drive selector captures and171-step native calibration pass; no normal planner promotion yet. Compressor auto-makeup/attack and post-EQ still need independent measurements. |
+| 5 | Drive, compressor and post-EQ | Drive:87 selector captures,171 native steps and independent A-D editor readback pass. Compressor:19 model captures, A-D basic/auto-off capture and153 native steps pass. GEQ:18 model captures and partial A/B/C control capture only. Reviewed Drive prototype remains release-gated; exact engage/bypass, normal SEND/editor and remaining EQ acceptance pending. |
 | 6 | Additional effects and model selection | First-instance configurable effect coverage needs measured expansion. |
 | 7 | Additional block instances/channels | Native layouts and preservation need measurement per supported family. |
 | 8 | Free route construction | Developer graph evidence exists; normal route planner/executor not generally enabled. Send/Return separately guarded. |
@@ -51,9 +51,11 @@ tests, other-platform installation and remote CI are separate acceptance steps.
 
 Windows foreground/screenshot access became unavailable during the compressor
 measurement. No compressor write was captured; no unproven setter is enabled.
-The owner subsequently restored the desktop and independent measurements resumed.
-An inaccessible interactive session is not a hardware failure or permission to
-bypass Windows session security; unknown setters stay blocked until measured.
+The owner restored the desktop and independent measurements resumed, but it
+became unavailable again midway through GEQ channelC. The capture stopped and
+the owner has been asked to keep the interactive session connected. An
+inaccessible session is not a hardware failure or permission to bypass Windows
+session security; unknown setters stay blocked until measured.
 
 ## History and audio acceptance boundaries
 

@@ -6,6 +6,9 @@ promotes model, routing, modifier, CAB/NAM install or permanent Store writes.
 from copy import deepcopy
 
 KEY = '33.00-beta.20261006'
+# Release gate, not an end-user override. Basic Drive calibration exists;
+# exact engage/bypass and normal SEND/editor acceptance are still pending.
+DRIVE_RELEASED = False
 IDENTITY = (0,1,116,16,8,97,0,16,1,17,0,0,79,99,116,32,32,54,32,
             50,48,50,54,32,49,54,58,50,50,58,53,51,0,0,0,0,0,0,0,0,0,0,0,0,21)
 NAMES = {
@@ -18,16 +21,17 @@ NAMES = {
     'OUTPUT': ('OUTPUT_LEVEL',),
     'CHORUS': ('CHORUS_RATE','CHORUS_DEPTH','CHORUS_MIX','CHORUS_LEVEL'),
     'COMP': ('COMP_THRESH','COMP_RATIO'),
+    'FUZZ': ('FUZZ_DRIVE','FUZZ_TONE','FUZZ_LEVEL','FUZZ_MIX'),
     'NAM': ('NAM_INPUT_GAIN','NAM_BASS','NAM_MID','NAM_TREBLE','NAM_LEVEL'),
     'CABINET': tuple(f'CABINET_{field}{i}' for field in ('LEVEL','PAN','MUTE') for i in range(1,5)),
 }
 ZERO_TYPED = frozenset({'DELAY_LEVEL','REVERB_LEVEL','CHORUS_LEVEL',
-                        'NAM_INPUT_GAIN','NAM_LEVEL'}) | frozenset(NAMES['CABINET'])
+                        'NAM_INPUT_GAIN','NAM_LEVEL'}) | frozenset(NAMES['CABINET']) | frozenset(NAMES['FUZZ'])
 LEVELS = frozenset({'DISTORT_LEVEL','WAH_LEVEL','DELAY_LEVEL','REVERB_LEVEL',
                    'CHORUS_LEVEL','OUTPUT_LEVEL','NAM_LEVEL'})
 # Measured channel-A layouts; runtime also requires four channels and instance 1.
 STRIDES = {'DISTORT':142,'WAH':25,'DELAY':89,'REVERB':71,'CHORUS':32,
-           'COMP':37,'OUTPUT':26,'NAM':18,'CABINET':106}
+           'COMP':37,'OUTPUT':26,'NAM':18,'CABINET':106,'FUZZ':44}
 CONTROL_COUNT = sum(map(len, NAMES.values()))
 # Complete empty-slot route independently constructed/read on muted preset 325.
 # This is not a generic FW33 insertion/splice/parallel-route authorization.
@@ -68,6 +72,8 @@ def definitions(legacy: dict) -> dict:
         'COMP_RATIO':dict(pid=1,label='Ratio',unit='',min=1.,max=20.,scale='log10',
                           set_divisor=1.,set_opcode='09',display_tolerance=.0011),
     }
+    from .tone_controls import DEFINITIONS
+    result['FUZZ']=deepcopy(DEFINITIONS['FUZZ'])
     # NAM Player 1, effect 206: captured editor SETs, independently verified
     # display queries and exact 72-word restoration. This does NOT authorize
     # capture/model selection, block insertion or persistent NAM installation.

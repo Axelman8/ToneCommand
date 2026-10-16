@@ -21,9 +21,10 @@ def platform_supported():
 
 def check_frame(dev, frame):
     fn, payload = frame[5], frame[6:-2]
-    from . import amp_probe,cab_probe,album_build,effect_probe
+    from . import amp_probe,cab_probe,album_build,effect_probe,effects_calibration
     if (amp_probe.allowed(dev, frame) or cab_probe.allowed(dev,frame)
-            or album_build.frame_allowed(dev,frame) or effect_probe.allowed(dev,frame)):
+            or album_build.frame_allowed(dev,frame) or effect_probe.allowed(dev,frame)
+            or effects_calibration.allowed(dev,frame)):
         return
     if fn != 1:
         if fn == 0x0c and payload != [127] and payload not in ([0],[1]):
@@ -56,13 +57,13 @@ def check_frame(dev, frame):
         if family:
             spec=dev.reg.spec(family[0], pid, family[1])
             value=shared.decode_f32_septets(payload[6:11]) * spec.set_divisor
-            if family[0]=='CABINET':
+            if family[0] in ('CABINET','FUZZ'):
                 session=getattr(dev,'_album_session',None)
                 if (not isinstance(session,album_build.Session) or session.item is None
                         or session.item.spec!=spec
                         or frame!=protocol.set_parameter(dev.reg,spec,session.item.value)
                         or not album_build.amp_domain(dev,spec,dev.get_channel(eid))):
-                    raise PermissionError('Cab mixer SET requires the exact active reviewed parameter')
+                    raise PermissionError('Cab/Drive SET requires the exact active reviewed parameter')
             expected=protocol.set_parameter(dev.reg,spec,value)
             if frame != expected:
                 raise PermissionError('FW33 numeric SET differs from the measured encoding')
@@ -84,8 +85,8 @@ def domain_error(dev, spec, channel):
     channels = {0, 1} if spec.family == 'NAM' else {0}
     from . import album_build
     if album_build.amp_domain(dev,spec,channel): channels=set(range(4))
-    if spec.family=='CABINET' and not album_build.amp_domain(dev,spec,channel):
-        return 'FW33 Cab mixer requires the exact active reviewed build operation'
+    if spec.family in ('CABINET','FUZZ') and not album_build.amp_domain(dev,spec,channel):
+        return 'FW33 Cab/Drive requires the exact active reviewed build operation'
     if channel not in channels:
         return 'FW33 numeric channel is outside the measured profile'
     words = dev.bulk_read(spec.effect_id)
@@ -93,6 +94,8 @@ def domain_error(dev, spec, channel):
     if (dev._channels.get(spec.effect_id) != 4 or not isinstance(words, list)
             or len(words) != 4 * profile.STRIDES[spec.family]):
         return 'FW33 full four-channel layout could not be verified'
+    if spec.family=='FUZZ' and words[channel*44]!=8:
+        return 'FW33 Drive numeric voicing requires measured T808 Mod'
     if spec.family == 'NAM':
         try:
             nam_selector.capture(dev, nam_selector.slots(words)[channel])

@@ -45,6 +45,33 @@ def validate_actions(reg,actions,existing):
                 irs.append(dict(bank=selection.get('bank'),slot=selection.get('value',-1)+1,
                     mode=('normal','mute','solo')[mode],level_db=level.get('value'),pan=pan.get('value')))
             base.albums[c].cab=planning.CabVoice.model_validate(dict(irs=irs))
+    with_drive=any(a.get('kind')=='set_param' and a.get('block')=='FUZZ' for a in actions)
+    if with_drive and not fw33_profile.DRIVE_RELEASED:
+        raise ValueError('Drive prototype not released; independent normal SEND/editor acceptance required')
+    if with_drive:
+        first_scene=next((i for i,a in enumerate(actions) if a.get('kind')=='set_scene'),len(actions))
+        starts=[i for i,a in enumerate(actions[:first_scene]) if a.get('kind')=='set_channel' and a.get('block')=='FUZZ']
+        if len(starts)!=5:raise ValueError('Four explicit Drive voicings and final A reset required')
+        for c,start in enumerate(starts[:4]):
+            group=actions[start+1:start+7]
+            if len(group)!=6:raise ValueError('Incomplete Drive voicing')
+            base.albums[c].drive=planning.Drive.model_validate(dict(model=group[0].get('type_name'),
+                gain=group[2].get('value'),tone=group[3].get('value'),mix=group[4].get('value'),level=group[5].get('value')))
+        scene=0
+        for a in actions[first_scene:]:
+            if a.get('kind')=='set_scene':scene=a.get('value')
+            if a.get('kind')=='set_bypass' and a.get('block')=='FUZZ':
+                if type(scene) is not int or scene not in range(1,9) or type(a.get('bypassed')) is not bool:
+                    raise ValueError('Invalid Drive scene state')
+                setattr(base.albums[(scene-1)//2].lead if scene%2 else base.albums[(scene-1)//2].solo,'drive',not a['bypassed'])
+        mapping=planning.layout(base.model_dump())
+        scene=0
+        for a in actions[first_scene:]:
+            if a.get('kind')=='set_scene':scene=a.get('value')
+            if a.get('kind')=='set_channel' and a.get('block') in ('DISTORT','CABINET'):
+                if type(scene) is not int or scene not in range(1,9):raise ValueError('Invalid Drive scene context')
+                mapping[scene-1]['amp_channel' if a['block']=='DISTORT' else 'cab_channel']=a.get('value')
+        base.scene_layout=[planning.SceneLayout.model_validate(item) for item in mapping]
     expected=planning.actions_for(reg,base,existing)
     if len(actions)!=len(expected): raise ValueError('Incomplete or extra album actions')
     role_flags={j for i,a in enumerate(expected) if a['kind']=='rename_scene' for j in (i-2,i-1)}
@@ -75,13 +102,14 @@ def validate_actions(reg,actions,existing):
             if template['param'].startswith('DISTORT_') and template['param']!='DISTORT_LEVEL' and actual['value']<=0:
                 raise ValueError('Exact-zero Amp knobs are not measured')
         if kind=='set_type':
-            if actual['type_name'] not in planning.MODELS.values(): raise ValueError('Unmeasured album model')
+            names=planning.MODELS.values() if template['block']=='DISTORT' else ('T808 Mod',)
+            if actual['type_name'] not in names: raise ValueError('Unmeasured album model')
             allowed={'type_name'}
         if kind=='set_cab':
             if not expanded:
                 if actual['value'] not in (515,799): raise ValueError('Unmeasured album IR1')
                 allowed={'value'}
-        if template.get('block')=='CABINET' and kind=='set_param':allowed=set()
+        if template.get('block') in ('CABINET','FUZZ') and kind=='set_param':allowed=set()
         if kind in ('rename_preset','rename_scene'): allowed={'type_name'}
         if index in role_flags: allowed={'bypassed'}
         if index in scene_channel_indices: allowed={'value'}
@@ -126,14 +154,17 @@ def frame_allowed(dev,frame):
         and session.frame==tuple(frame) and session.item is not None)
     if not active: return False
     item=session.item
+    if item.action['kind']=='set_bypass' and item.effect_id==118:
+        return frame==protocol.envelope(0x0a,[118,0,int(item.value)])
     if item.action['kind']=='set_type':
-        ordinal=next(k for k,v in planning.MODELS.items() if v==item.value)
-        return frame==protocol.param_frame(58,0,ordinal,opcode=9)
+        eid=item.effect_id
+        ordinal=next(k for k,v in planning.MODELS.items() if v==item.value) if eid==58 else 8
+        return eid in (58,118) and frame==protocol.param_frame(eid,0,ordinal,opcode=9)
     if item.action['kind']=='set_cab':
         bank,ordinal,side=item.value
         slot=int(side[2:])-1 if side.startswith('ir') else 0
         return frame in [protocol.param_frame(62,p,v,opcode=9) for p,v in ((slot,bank),(4+slot,ordinal))]
-    if item.action['kind']=='set_channel' and item.effect_id in (58,62):
+    if item.action['kind']=='set_channel' and item.effect_id in (58,62,118):
         return frame==protocol.envelope(1,[22,0,item.effect_id,0,0,0,item.value,0,0,0,0,0,0,0,0])
     if item.action['kind']=='set_scene': return frame==protocol.envelope(0x0c,[item.value-1])
     return False
@@ -143,7 +174,7 @@ def amp_domain(dev,spec,channel):
     session=getattr(dev,'_album_session',None)
     return (isinstance(session,Session) and not session.failed and session.item is not None
         and session.item.action['kind']=='set_param' and session.item.spec==spec
-        and (spec.effect_id,spec.family) in ((58,'DISTORT'),(62,'CABINET')) and channel in range(4)
+        and (spec.effect_id,spec.family) in ((58,'DISTORT'),(62,'CABINET'),(118,'FUZZ')) and channel in range(4)
         and supported(dev.reg) and session.target==getattr(dev,'_edit_target',None))
 
 
@@ -174,7 +205,7 @@ class Session:
         raise ValueError('Independent full-state mismatch; no write retry or rollback')
 
     def channel(self,eid,value):
-        if eid not in (58,62): return self.dev.set_channel(eid,value)
+        if eid not in (58,62,118): return self.dev.set_channel(eid,value)
         before=self.expected
         wanted={**before,'blocks':[replace(b,channel=value) if b.effect_id==eid else b for b in before['blocks']]}
         if before==wanted: return value
@@ -182,22 +213,36 @@ class Session:
         self.settle(lambda now:now==wanted)
         return value
 
+    def drive_bypass(self,value):
+        if not value:
+            level=self.dev.get_param_display(self.dev.reg.find_param('FUZZ','FUZZ_LEVEL'))
+            c=next(b.channel for b in self.expected['blocks'] if b.effect_id==118)
+            if (self.expected['bulk'][118][44*c]!=8 or type(level) not in (int,float)
+                    or not 0<=level<=2.5):
+                raise PermissionError('T808 Mod and explicit bounded final level required before engage')
+        frame=protocol.envelope(0x0a,[118,0,int(value)])
+        self.frame=tuple(frame)
+        try:return self.dev.set_bypass(118,value)
+        finally:self.frame=None
+
     def model(self,name):
         before=self.expected
-        channel=next(b.channel for b in before['blocks'] if b.effect_id==58)
-        base=142*channel
-        ordinal=next(k for k,v in planning.MODELS.items() if v==name)
-        if before['bulk'][58][base]==ordinal: return SetResult(True,'Model retained without reset',name,name)
+        eid=self.item.effect_id;stride=142 if eid==58 else 44
+        channel=next(b.channel for b in before['blocks'] if b.effect_id==eid)
+        base=stride*channel
+        ordinal=next(k for k,v in planning.MODELS.items() if v==name) if eid==58 else 8
+        if before['bulk'][eid][base]==ordinal: return SetResult(True,'Model retained without reset',name,name)
         level=self.dev.get_param_display(self.dev.reg.find_param('DISTORT','DISTORT_LEVEL'))
-        if self.dev.get_bypass(58) is not True or type(level) not in (int,float) or level>-18:
+        if (self.dev.get_bypass(58) is not True or self.dev.get_bypass(eid) is not True
+                or type(level) not in (int,float) or level>-18):
             raise PermissionError('Bypassed and verified quiet Amp required before model write')
-        self.write(protocol.param_frame(58,0,ordinal,opcode=9))
+        self.write(protocol.param_frame(eid,0,ordinal,opcode=9))
         def match(now):
-            if now['bulk'][58][base]!=ordinal: return False
-            words=list(before['bulk'][58]);words[base:base+142]=now['bulk'][58][base:base+142]
-            return now=={**before,'bulk':{**before['bulk'],58:words}}
+            if now['bulk'][eid][base]!=ordinal: return False
+            words=list(before['bulk'][eid]);words[base:base+stride]=now['bulk'][eid][base:base+stride]
+            return now=={**before,'bulk':{**before['bulk'],eid:words}}
         self.settle(match)
-        return SetResult(True,'Measured model and independent full-channel preservation verified',before['bulk'][58][base],name)
+        return SetResult(True,'Measured model and independent full-channel preservation verified',before['bulk'][eid][base],name)
 
     def cab(self,bank,ordinal,side='left'):
         before=self.expected
@@ -242,9 +287,10 @@ class Session:
                     words=list(before['bulk'][eid]);words[pos]=now['bulk'][eid][pos]
                     wanted['bulk']={**before['bulk'],eid:words}
                 elif kind=='set_type':
-                    c=next(b.channel for b in before['blocks'] if b.effect_id==58);base=142*c
-                    words=list(before['bulk'][58]);words[base:base+142]=now['bulk'][58][base:base+142]
-                    wanted['bulk']={**before['bulk'],58:words}
+                    stride=fw33_profile.STRIDES[item.family]
+                    c=next(b.channel for b in before['blocks'] if b.effect_id==eid);base=stride*c
+                    words=list(before['bulk'][eid]);words[base:base+stride]=now['bulk'][eid][base:base+stride]
+                    wanted['bulk']={**before['bulk'],eid:words}
                 elif kind=='set_cab':
                     c=next(b.channel for b in before['blocks'] if b.effect_id==62);base=106*c
                     side=item.value[2];slot=int(side[2:])-1 if side.startswith('ir') else 0

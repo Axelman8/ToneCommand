@@ -4,6 +4,19 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Add a closed268-step Compressor/partial-GEQ developer calibration and a
+  default-disabled reviewed T808 Mod A-D prototype. No user/AI override releases
+  it: compile and executor preflight refuse Drive designs until exact
+  engage/bypass and normal SEND/editor acceptance are complete. Numeric Drive
+  metadata uses its measured0..10 knob, never a fictional dB level; prototype
+  designs bound final level to2.5. Strict grammar, full-state preservation,
+  channel mapping and scene-intent/refinement checks cover the prototype.
+  Independent editor Drive A-D comparison passes. Compressor native153 steps
+  pass; the next EQ operation stops before transmission on a channel mismatch.
+  Preflight now checks every recorded family's initial channel before ANY write.
+  Interrupted desktop access leaves GEQ/PEQ/other effects unpromoted. Route
+  explanations correctly describe the released2048 Factory/four-IR CAB scope.
+
 - Persist successful measured FW33/MK2 eight-scene AMP/CAB designs privately,
   with checksummed metadata and complete scene fingerprints, never executable
   actions or saved SEND/Store consent. Add explicit GUI resume with fresh target

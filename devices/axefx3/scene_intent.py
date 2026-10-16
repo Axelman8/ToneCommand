@@ -60,6 +60,10 @@ def scenes(plan):
                 delay={**d['delay'], 'active': item['delay']},
                 chorus={**d['chorus'], 'active': item['chorus']}),
                 channels=dict(amp=item['amp_channel'],cab=item['cab_channel'])))
+            if any(a.get('drive') is not None for a in d['albums']):
+                voice=amp.get('drive') or dict(model='T808 Mod',gain=0.,tone=5.,level=0.,mix=100.)
+                result[-1]['effects']['drive']={**voice,'active':item.get('drive',False)}
+                result[-1]['channels']['drive']=item['amp_channel']
     elif plan.get('mode') == 'serial':
         result.append(dict(name=d['scene_name'], base=dict(amp=d['amp'], model='retained', cab='retained'),
                            effects=dict(delay=d['delay'], chorus=d['chorus'])))
@@ -99,7 +103,7 @@ def _base(sound):
     for family in ('wah','drive','compressor','geq','peq'):
         value=sound['effects'].get(family)
         if value and (not isinstance(value,dict) or value.get('active')):
-            base[family]=value
+            base[family]={k:v for k,v in value.items() if k!='level'} if isinstance(value,dict) else value
     return base
 
 

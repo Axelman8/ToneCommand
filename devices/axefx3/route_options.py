@@ -21,7 +21,7 @@ def capabilities(reg):
     amp=(firmware=='32.06' and bool(reg.selectable_amp_models()) and bool(reg.cab_catalog.names))
     album=album_build.supported(reg)
     return [dict(mode='amp',label='AMP / CAB: acht scenes met klankdoelen' if album else 'AMP / CAB + pedals',enabled=amp or album,
-        reason=(f'FW33: vaste14-blokkenketen, exact acht scenes met maximaal vier ampvoicings en vier cabkanalen A-D. Expliciete scene-indeling, geen verplichte rhythm/solo-paren. Alle {len(amp_inventory.roster(firmware))} Amp1-modellen en twee Factory2 IR1-cabs. Delay/Chorus delen A, Output -18dB, reserveblokken bypassed; geen nieuwe controllers of post-EQ-voicing.' if album else
+        reason=(f'FW33: vaste14-blokkenketen, exact acht scenes met maximaal vier ampvoicings en vier cabkanalen A-D. Expliciete scene-indeling, geen verplichte rhythm/solo-paren. Alle {len(amp_inventory.roster(firmware))} Amp1-modellen, 2048 Factory-cabs en beschikbare geimporteerde Usernamen, met expliciete vier-IR-mix. Delay/Chorus delen A; Output -18dB en reserveblokken bypassed. Nieuwe Drive/Compressor/post-EQ-voicing wacht op volledige onafhankelijke acceptatie; geen nieuwe controllers.' if album else
                 'Geverifieerde amp/cab-keuze en beschikbare effecten; volledige route wordt bij review gecontroleerd.' if amp else
                 'FW33 amp/cab-modelselectie, routing en extra pedals moeten nog onafhankelijk worden gemeten.' if firmware==fw33_profile.KEY else
                 'Geverifieerde firmware, ampmodellen en een geimporteerde cabnamenlijst zijn nodig.'),

@@ -192,14 +192,14 @@ def parameter_error(spec: object, value: object) -> str | None:
     control = _control(spec)
     if control is None:
         return None
-    # Captured AFX3 Rat Drive uses a knob, not dB. Never apply this exception
+    # Captured AFX3 Drive uses a knob, not dB. Never apply this exception
     # to an FM9 generic spec or other level/modifier/model. It is not unity
     # calibration or a loudness guarantee; firmware/model gates still apply.
     if (control=='level' and _field(spec,'family')=='FUZZ'
             and _field(spec,'name')=='FUZZ_LEVEL' and _field(spec,'unit')=='0-10'
             and _field(spec,'effect_id')==118 and _field(spec,'param_id')==3
             and _field(spec,'set_divisor')==10
-            and _field(spec,'firmware_versions')==('32.06',)):
+            and _field(spec,'firmware_versions') in (('32.06',),('33.00-beta.20261006',))):
         return None if 0<=value<=5 else 'Audio safety: captured Drive level knob is limited to 0..5.'
     expected = "db" if control == "level" else "percent"
     if _unit(spec) != expected:

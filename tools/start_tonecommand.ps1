@@ -14,7 +14,8 @@ if (-not (Test-Path -LiteralPath $tcPython)) { throw "Python environment missing
 $tcFiles = @('server.py','fm9/planner.py','fm9/protocol.py','fm9/device.py',
     'ui/axefx3.js','ui/axefx3.html','ui/index.html','devices/axefx3/data/fw33_amp_models.json',
     'devices/axefx3/data/fw33_cab_models.json','devices/axefx3/data/fw33_cab_probe.json',
-    'devices/axefx3/data/fw33_drive_probe.json','devices/axefx3/data/fw33_effect_models.json') + @(
+    'devices/axefx3/data/fw33_drive_probe.json','devices/axefx3/data/fw33_effect_calibration.json',
+    'devices/axefx3/data/fw33_effect_models.json') + @(
     Get-ChildItem -LiteralPath (Join-Path $tcSource 'devices\axefx3') -File -Filter '*.py' |
         ForEach-Object { 'devices/axefx3/' + $_.Name })
 function Assert-TcWorkspace($State, $Listener) {
