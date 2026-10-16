@@ -139,6 +139,28 @@ function renderAmps(amps){
   el('ampModels').replaceChildren();
   if(amps)for(const amp of amps.models){const item=document.createElement('li');item.textContent=amp.name;el('ampModels').append(item);}
 }
+function renderCabs(){
+  const query=el('cabSearch').value.trim().toLocaleLowerCase();
+  const all=state?.cab_inventory||[],matches=all.filter(c=>`${c.position} ${c.name}`.toLocaleLowerCase().includes(query));
+  el('cabInventoryCount').textContent=`${all.length} niet-lege namen beschikbaar; ${matches.length} treffers${matches.length>100?', eerste 100 getoond. Verfijn je zoekterm.':'.'}`;
+  el('cabNames').replaceChildren();
+  for(const cab of matches.slice(0,100)){const row=document.createElement('li');row.textContent=`${cab.position}: ${cab.name}${cab.fullres?' (alleen IR3/4)':''}`;el('cabNames').append(row);}
+  const mix=state?.cab_mix;el('cabMixer').replaceChildren();
+  el('cabMixerNote').textContent=mix?.supported?`Cab 1 / ${'ABCD'[mix.channel]}: actuele onafhankelijke uitlezing.`:(mix?.reason||'Geen geverifieerde actuele mix gelezen.');
+  for(const slot of mix?.slots||[]){
+    const name=all.find(c=>c.bank===slot.bank&&c.slot===slot.ordinal+1);
+    const row=document.createElement('li');row.textContent=`IR${slot.slot}: ${name?.name||`bank ${slot.bank}, positie ${slot.ordinal+1}`} | ${slot.status} | ${slot.level_db}dB | pan ${slot.pan}`;el('cabMixer').append(row);
+  }
+}
+el('cabSearch').oninput=renderCabs;
+function cabDescription(cab){
+  if(!cab.irs)return `${cab.name} | Factory 2 slot ${cab.slot} / ${cab.channel}`;
+  const solo=cab.irs.some(ir=>ir.mode==='solo');
+  return `${cab.channel}: `+cab.irs.map(ir=>{
+    const membership=ir.mode==='mute'?'MUTED':solo&&ir.mode!=='solo'?'EXCLUDED BY SOLO':ir.mode==='solo'?'SOLO':'IN MIX';
+    return `IR${ir.ir} ${ir.name} [bank ${ir.bank}, slot ${ir.slot}] ${membership}, ${ir.level_db}dB, pan ${ir.pan}`;
+  }).join(' | ');
+}
 ampRefreshButton.onclick=async()=>{
   if(busy||!state?.connected)return;
   busy=true;controls();ampRefreshStatus.textContent='Firmware en lokale modellenlijst controleren...';ampChanges.replaceChildren();ampChanges.hidden=true;
@@ -164,6 +186,7 @@ async function refresh(){
   el('connectDevice').title=state.connected?`Axe-Fx III | ${state.firmware}`:'Verbind met de Fractal';
   el('cabCount').textContent=state.connected?`${state.cab_count} cabnamen beschikbaar. ${state.cab_selection_note||''}`:'';
   renderAmps(state.amp_inventory);ampRefreshStatus.textContent='';ampChanges.replaceChildren();ampChanges.hidden=true;
+  renderCabs();
   el('variant').value=state.profile?.variant||'';
   el('memoryWarning').textContent=state.profile?.warning||'Kies MK1 of MK2 om de juiste geheugenindeling te tonen.';
   if(state.nam_selection_supported){
@@ -463,7 +486,7 @@ function showDesign(plan){
     const layout=design.scene_layout||design.albums.flatMap((a,c)=>[a.lead,a.solo].map(role=>({...role,amp_channel:c,cab_channel:c})));
     for(const [index,role] of layout.entries()){
       const album=design.albums[role.amp_channel],cab=plan.cab_choices[role.cab_channel],row=document.createElement('tr');
-      for(const value of [`${index+1}. ${role.name} / ${'ABCD'[role.amp_channel]}`,`${album.amp_model} | gain ${album.amp.gain} | EQ ${album.amp.bass}/${album.amp.mid}/${album.amp.treble} | ${album.amp.level}dB`,'Uit',role.chorus?`${design.chorus.rate_hz}Hz / ${design.chorus.mix}% (A)`:'Uit',role.delay?`${design.delay.time_ms}ms / ${design.delay.feedback}% / ${design.delay.mix}% (A)`:'Uit','Niet in route',`${cab.name} | Factory 2 slot ${cab.slot} / ${cab.channel} | Output A -18dB`]){const td=document.createElement('td');td.textContent=value;row.append(td);}
+      for(const value of [`${index+1}. ${role.name} / ${'ABCD'[role.amp_channel]}`,`${album.amp_model} | gain ${album.amp.gain} | EQ ${album.amp.bass}/${album.amp.mid}/${album.amp.treble} | ${album.amp.level}dB`,'Uit',role.chorus?`${design.chorus.rate_hz}Hz / ${design.chorus.mix}% (A)`:'Uit',role.delay?`${design.delay.time_ms}ms / ${design.delay.feedback}% / ${design.delay.mix}% (A)`:'Uit','Niet in route',`${cabDescription(cab)} | Output A -18dB`]){const td=document.createElement('td');td.textContent=value;row.append(td);}
       el('sceneRows').append(row);
     }return;
   }

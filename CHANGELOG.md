@@ -4,6 +4,20 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Expand measured FW33/MK2 Cab1 A-D planning to all2048 Factory names and
+  imported nonempty User1/2 names, correcting each User bank to1024 slots.
+  Keep FullRes as its own64-position bank eligible only for IR3/4 and protect
+  the entire MK1 User2 bank reserved for NAM. Name imports install nothing.
+  Add explicit four-IR level/pan/mute/solo designs, conservative mix budgets,
+  staged activation, full-state verification and an exact reviewed-value
+  write gate. Retain legacy IR1 aliases and separate older FW32 behavior.
+  CAB LIBRARY now searches all names and shows actual current mixer status;
+  review distinguishes selected, muted, solo-excluded and in-mix IRs. Muted
+  IRs, pan alone and total mix gain cannot fabricate a base-tone contrast.
+  Native270-frame replay, configured AI/339-action normal SEND and independent
+  eight-scene Axe-Edit checks pass without Store or IR/NAM memory writes.
+  See `docs/AFX3-CAB-INVENTORY.md` for exact scope and exclusions.
+
 - Add REFRESH AMP MODELS to the FW33 AMP LIBRARY. Check live firmware and
   reload the bundled roster, optionally comparing the newest local product10
   Axe-Edit metadata cache. Show added/changed/missing names as unverified;

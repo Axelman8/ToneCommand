@@ -11,7 +11,9 @@ from fm9.paths import project_root
 CONTRACT = 'fx3-workspace-20261012'
 FILES = ('server.py', 'fm9/planner.py', 'fm9/protocol.py', 'fm9/device.py',
          'ui/axefx3.js', 'ui/axefx3.html', 'ui/index.html',
-         'devices/axefx3/data/fw33_amp_models.json') + tuple(
+         'devices/axefx3/data/fw33_amp_models.json',
+         'devices/axefx3/data/fw33_cab_models.json',
+         'devices/axefx3/data/fw33_cab_probe.json') + tuple(
     'devices/axefx3/' + path.name
     for path in sorted(Path(__file__).resolve().parent.glob('*.py')))
 

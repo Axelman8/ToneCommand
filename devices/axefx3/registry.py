@@ -49,7 +49,10 @@ class Registry(BaseRegistry):
         self.cab_models = {}
         self.dynacabs = {}
         from .catalog import Catalog
-        self.cab_catalog = Catalog()
+        self.cab_catalog = Catalog(firmware)
+        if firmware == fw33_profile.KEY:
+            self.cab_bank_names = {'0':'FACTORY 1', '1':'FACTORY 2', '2':'USER 1',
+                                   '3':'USER 2', '6':'USER 3 (FullRes)'}
         from .profile import apply
         apply(self, None)
         if firmware not in SUPPORTED_FIRMWARE:
@@ -146,8 +149,7 @@ class Registry(BaseRegistry):
 
     def import_cab_names(self, text, kind, *, replace=False):
         count = self.cab_catalog.import_text(text, kind, replace=replace)
-        self.cab_rosters = {str(bank): {str(o): name for (b, o), name in self.cab_catalog.names.items()
-                                      if b == bank} for bank in (0, 1, 2)}
+        self.cab_rosters = self.cab_catalog.rosters()
         return count
 
     def load_amp_facts(self, document):

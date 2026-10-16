@@ -76,7 +76,11 @@ const path=require('node:path');
           const models=JSON.parse(fs.readFileSync(path.join(__dirname,'../devices/axefx3/data/fw33_amp_models.json'),'utf8')).models;
           result.amp_inventory={count:336,models:Object.entries(models).map(([ordinal,name])=>({ordinal:Number(ordinal),name}))};
           result.workspace={revision:'abc1234',source_root:'C:/test/current-checkout',pid:1234};
-          result.cab_selection_note='Usercabselectie is niet onafhankelijk geverifieerd.';}
+          result.cab_selection_note='Usercabselectie via actuele metadata; geen IR-installatie.';
+          const banks=JSON.parse(fs.readFileSync(path.join(__dirname,'../devices/axefx3/data/fw33_cab_models.json'),'utf8')).banks;
+          result.cab_inventory=Object.entries(banks).flatMap(([bank,names])=>Object.entries(names).map(([ordinal,name])=>({bank:Number(bank),slot:Number(ordinal)+1,name,position:`FACTORY ${Number(bank)+1} slot ${Number(ordinal)+1}`})));
+          result.cab_inventory.push({bank:3,slot:1024,name:'<img src=x onerror=alert(1)> User cab',position:'USER 2 slot 1024'});
+          result.cab_mix={supported:true,channel:0,slots:[{slot:1,bank:3,ordinal:1023,status:'IN MIX',level_db:-6.1,pan:-70},{slot:2,bank:1,ordinal:515,status:'MUTED',level_db:-6.1,pan:70}]};}
         if(multiSceneReady){result.multiscene_planning_supported=!fw33;result.request_scene_limit=8;}
         if(routeOptionsReady)result.route_options_supported=true;
         if(navigationReady){result.navigation_supported=true;result.scene_names=Array.from({length:8},(_,i)=>[i+1,i?'Solo':'Rhythm']);}
@@ -137,6 +141,7 @@ const path=require('node:path');
           result.scenes=result.design.albums.flatMap(a=>[a.lead.name,a.solo.name]);
           result.design.scene_layout=result.scenes.map((name,i)=>({name,amp_channel:i%4,cab_channel:[0,3,2,1,0,1,2,3][i],delay:i%2===1,chorus:i===7}));
           result.cab_choices=Array.from({length:4},(_,c)=>({channel:'ABCD'[c],slot:c?800:516,name:c?'4x12 Recto57A':'4x12 Brit70s GB57A'}));
+          result.cab_choices[0]={channel:'A',irs:[{ir:1,bank:3,slot:1024,name:'<img src=x> User cab',mode:'normal',level_db:-6.1,pan:-70},{ir:2,bank:1,slot:516,name:'Selected but muted cab',mode:'mute',level_db:-6.1,pan:70}]};
         }
         if(req.postDataJSON().source_kind==='rig'){
           result.source={title:'<img src=x onerror=alert(1)> Explained rig',spec:{reader:{backend:'codex'}}};
@@ -463,6 +468,19 @@ const path=require('node:path');
     assert.equal(await page.locator('#ampModels li').count(),336);
     assert.equal(await page.locator('#ampModels li').first().textContent(),'59 Bassguy Bright');
     assert.equal(await page.locator('#ampModels li').last().textContent(),'Brit JVM Crunch Red');
+    await page.locator('#cabPanel > summary').click();
+    assert.match(await page.textContent('#cabInventoryCount'),/2049 niet-lege/);
+    assert.equal(await page.locator('#cabNames li').count(),100);
+    const cabPlansBefore=plans.length,cabSendsBefore=sends.length;
+    await page.fill('#cabSearch','USER 2');
+    assert.equal(await page.locator('#cabNames li').count(),1);
+    assert.match(await page.textContent('#cabNames'),/slot 1024/);
+    assert.equal(await page.locator('#cabNames img').count(),0);
+    await page.locator('#cabPanel details summary').click();
+    assert.match(await page.textContent('#cabMixer'),/MUTED.*-6.1dB.*pan 70/);
+    assert.equal(await page.locator('#cabMixer img').count(),0);
+    assert.equal(plans.length,cabPlansBefore);assert.equal(sends.length,cabSendsBefore);
+    await page.locator('#cabPanel > summary').click();
     await page.locator('#ampPanel summary').click();
     assert(await page.locator('#ampModels').isVisible());
     const draftBeforeRefresh=await page.inputValue('#prompt');
@@ -493,6 +511,8 @@ const path=require('node:path');
     assert.match(await page.textContent('#sceneRows'),/8\. Album 4 Solo \/ D/);
     assert.match(await page.textContent('#sceneRows'),/Factory 2 slot 800 \/ D/);
     assert.match(await page.textContent('#sceneRows'),/Output A -18dB/);
+    assert.match(await page.locator('#sceneRows tr').first().textContent(),/IR1.*User cab.*IN MIX.*IR2.*MUTED/);
+    assert.equal(await page.locator('#sceneRows img').count(),0);
     assert.match(await page.locator('#sceneRows tr').nth(1).textContent(),/2\. Album 1 Solo \/ B/);
     assert.match(await page.locator('#sceneRows tr').nth(1).textContent(),/Factory 2 slot 800 \/ D/);
     await page.click('#backPlan');

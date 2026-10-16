@@ -19,14 +19,15 @@ NAMES = {
     'CHORUS': ('CHORUS_RATE','CHORUS_DEPTH','CHORUS_MIX','CHORUS_LEVEL'),
     'COMP': ('COMP_THRESH','COMP_RATIO'),
     'NAM': ('NAM_INPUT_GAIN','NAM_BASS','NAM_MID','NAM_TREBLE','NAM_LEVEL'),
+    'CABINET': tuple(f'CABINET_{field}{i}' for field in ('LEVEL','PAN','MUTE') for i in range(1,5)),
 }
 ZERO_TYPED = frozenset({'DELAY_LEVEL','REVERB_LEVEL','CHORUS_LEVEL',
-                        'NAM_INPUT_GAIN','NAM_LEVEL'})
+                        'NAM_INPUT_GAIN','NAM_LEVEL'}) | frozenset(NAMES['CABINET'])
 LEVELS = frozenset({'DISTORT_LEVEL','WAH_LEVEL','DELAY_LEVEL','REVERB_LEVEL',
                    'CHORUS_LEVEL','OUTPUT_LEVEL','NAM_LEVEL'})
 # Measured channel-A layouts; runtime also requires four channels and instance 1.
 STRIDES = {'DISTORT':142,'WAH':25,'DELAY':89,'REVERB':71,'CHORUS':32,
-           'COMP':37,'OUTPUT':26,'NAM':18}
+           'COMP':37,'OUTPUT':26,'NAM':18,'CABINET':106}
 CONTROL_COUNT = sum(map(len, NAMES.values()))
 # Complete empty-slot route independently constructed/read on muted preset 325.
 # This is not a generic FW33 insertion/splice/parallel-route authorization.

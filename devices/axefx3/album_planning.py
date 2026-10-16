@@ -1,20 +1,21 @@
 """Bounded FW33 album pairs, four measured voices and eight real scenes."""
 import json
+import math
 import re
 from typing import Annotated, Literal
-from pydantic import Field, StrictBool, StrictInt
+from pydantic import Field, StrictBool, StrictInt, model_validator
 from . import planning, serial_build, route_guard, executor, scene_intent, amp_inventory, fw33_profile
+from . import cab_inventory
 
 MODELS = amp_inventory.roster(fw33_profile.KEY)
 AmpName = Literal[tuple(MODELS.values())]
 CABS = {'Greenback': (1, 515, '4x12 Brit70s GB57A'),
         'Recto': (1, 799, '4x12 Recto57A')}
 KNOBS = ('gain','bass','mid','treble','master','depth','presence','level')
-USER_CAB_NOTICE = ('Usercabselectie op dit FW33-profiel is nog niet onafhankelijk geverifieerd. '
-    'Importeren leest alleen namen; het bewijst geen toegestane selectorwrite. '
-    'Kies voor deze acht-scene AMP/CAB-build de gemeten Factory2-cabs '
-    '(Greenback slot516 of Recto slot800), of wacht op de User-bankmeting. '
-    'TC vervangt je gevraagde User-cab niet stilzwijgend door een Factory-cab. Niets verzonden.')
+USER_CAB_NOTICE = ('Usercabselectie gebruikt de geimporteerde namenlijst: User1/2 elk 1024 slots op MK2. '
+    'Importeer eerst je actuele Usercabnamen; lege slots worden niet voorgesteld. '
+    'FullRes is apart, alleen IR3/4. MK1 met NAM-firmware heeft geen User2-cabbank. '
+    'Een naamimport installeert niets en bewijst geen hoorbare klankmatch.')
 Positive = Annotated[float, Field(gt=0, le=10, allow_inf_nan=False, strict=True)]
 
 
@@ -41,9 +42,42 @@ class Role(planning.Shape):
     chorus: StrictBool
 
 
+class CabIR(planning.Shape):
+    bank: Literal[0,1,2,3,6]
+    slot: Annotated[StrictInt,Field(ge=1,le=1024)]
+    mode: Literal['normal','mute','solo']
+    level_db: Annotated[float,Field(ge=-40,le=0,allow_inf_nan=False,strict=True)]
+    pan: Annotated[float,Field(ge=-100,le=100,allow_inf_nan=False,strict=True)]
+
+
+class CabVoice(planning.Shape):
+    irs: Annotated[list[CabIR],Field(min_length=4,max_length=4)]
+
+    @model_validator(mode='after')
+    def safe_mix(self):
+        sounding=[s for s in self.irs if s.mode!='mute']
+        if not sounding or math.fsum(10**(s.level_db/20) for s in sounding)>1.00001:
+            raise ValueError('Cab mix needs an active IR and conservative combined linear gain <=1')
+        for i,s in enumerate(self.irs,1):
+            if s.bank==6 and (i<3 or s.slot>64):
+                raise ValueError('FullRes is restricted to IR3/4 and 64 positions')
+        return self
+
+
+def cab_voice(cab):
+    if isinstance(cab,CabVoice):return cab
+    bank,ordinal,_=CABS[cab]
+    return CabVoice(irs=[CabIR(bank=bank if i==0 else 0,slot=ordinal+1 if i==0 else 1,
+        mode='normal' if i==0 else 'mute',level_db=0.,pan=0.) for i in range(4)])
+
+
+def expanded_cabs(design):
+    return any(isinstance(a.cab,CabVoice) for a in design.albums)
+
+
 class Album(planning.Shape):
     amp_model: AmpName
-    cab: Literal['Greenback', 'Recto']
+    cab: Literal['Greenback', 'Recto'] | CabVoice
     amp: Amp
     lead: Role
     solo: Role
@@ -79,7 +113,7 @@ A-D, not a rule that four album pairs must share a sound. Return scene_layout
 with all eight scene names, amp_channel/cab_channel 0..3 and effect flags.
 Its assignments override the historical lead/solo fields, which remain schema
 compatibility data only. Choose up to four amp configurations and four Legacy
-IR1 configurations from the measured reference. Scene1 uses Amp/Cab A; other
+cab mixer configurations from the measured reference. Scene1 uses Amp/Cab A; other
 scenes freely reuse A-D only when that stored voice is intentionally shared.
 No E-H channels exist. Preserve requested order and roles, including backing.
 For four album pairs sharing a base tone is a musical choice, not compulsory.
@@ -90,8 +124,16 @@ Their active fields are global defaults only; the scene_layout flags decide the
 actual scene states. Output A stays -18dB, Amp levels <=-12dB. Nonzero amp
 knobs only; exact-zero knobs were not measured. No wah/controller, drive,
 reverb, NAM, IR installation or arbitrary grid layout. Reserve blocks stay
-bypassed on the fixed captured14-block route. Only IR1 is in mix; IR2-4 stay
-muted and unchanged. IR1 is not a stereo left/right panning choice.
+bypassed on the fixed captured14-block route. Choose a cab object with exactly
+four IR slots, bank/slot, mode(normal/mute/solo), level_db and pan(-100L..100R).
+Factory bank0/1 and imported User1=bank2/User2=bank3 each have1024 slots;
+User3 FullRes bank6 has64 slots and is eligible only for IR3/4. Never select
+empty or absent User metadata. The sum of linear gains of ALL non-muted IRs
+must be <=1, including normal IRs temporarily excluded by a solo. For two
+equal IRs use <=-6.1dB each; for four <=-12.1dB each. A single IR may be0dB.
+Prefer a focused single IR unless blending or stereo serves the request.
+Mute unused slots explicitly. Slot numbers themselves do not imply panning.
+The old Greenback/Recto string choices are compatibility aliases for IR1-only.
 Models and factory IRs are approximations, not proof of the original rig or
 exact album match. No listening or measured loudness claim. Review, mute
 acknowledgement, SEND and Store are separate and never authorized by the AI.
@@ -102,8 +144,9 @@ Return only the supplied schema. Explain limitations briefly in user language.
 def reference(reg):
     return json.dumps(dict(firmware=reg.firmware, scenes=8, amp_channels='ABCD',
         models=list(MODELS.values()),
-        cabs={k:dict(bank=b,slot=o+1,name=n) for k,(b,o,n) in CABS.items()},
-        controls={f:reg.definitions[f] for f in ('DISTORT','OUTPUT','DELAY','CHORUS')},
+        cabs=[[c['bank'],c['slot'],c['name']] for c in cab_inventory.choices(reg,include_fullres=True)],
+        cab_format='Each entry is [wire bank, one-based slot, name]. FullRes bank6 only IR3/4. Names do not prove audible match.',
+        controls={f:reg.definitions[f] for f in ('DISTORT','OUTPUT','DELAY','CHORUS','CABINET')},
         route=route_guard.labels(serial_build.ROUTE,reg), output_db=-18,
         shared_effect_channels='A only', reserve_effects_bypassed=True))
 
@@ -129,8 +172,21 @@ def actions_for(reg, design, existing):
         for key in KNOBS[:-1]:
             param(58,'DISTORT_'+('DRIVE' if key=='gain' else key.upper()),getattr(album.amp,key))
         emit('set_channel',62,value=c)
-        bank,ordinal,_=CABS[album.cab]
-        emit('set_cab',62,bank=bank,value=ordinal,cab_side='left')
+        if expanded_cabs(design):
+            voice=cab_voice(album.cab)
+            # Explicitly mute all IRs before selection, levels and panning.
+            # Amp stays bypassed and external mute remains mandatory.
+            for i in range(1,5):param(62,f'CABINET_MUTE{i}',1)
+            for i,ir in enumerate(voice.irs,1):
+                cab_inventory.selection(reg,ir.bank,ir.slot-1,i)
+                emit('set_cab',62,bank=ir.bank,value=ir.slot-1,cab_side=f'ir{i}')
+                param(62,f'CABINET_LEVEL{i}',ir.level_db)
+                param(62,f'CABINET_PAN{i}',ir.pan)
+            for i,ir in enumerate(voice.irs,1):
+                param(62,f'CABINET_MUTE{i}',{'normal':0,'mute':1,'solo':2}[ir.mode])
+        else:
+            bank,ordinal,_=CABS[album.cab]
+            emit('set_cab',62,bank=bank,value=ordinal,cab_side='left')
     for eid in (58,62,70,78,42): emit('set_channel',eid,value=0)
     for eid,family,values in (
         (70,'DELAY',dict(TIME=design.delay.time_ms,FEED=design.delay.feedback,MIX=design.delay.mix,LEVEL=0)),
@@ -178,13 +234,18 @@ def compile_design(reg,raw,current_route,scene_count):
     return scene_intent.attach(dict(mode='album',name=executor.preset_name(design.name),summary=design.summary,
         design=design.model_dump(),scenes=names,actions=actions,
         required_route=route_guard.labels(serial_build.ROUTE,reg),controller=None,
-        cab_choices=[dict(channel='ABCD'[c],bank=CABS[a.cab][0],slot=CABS[a.cab][1]+1,
-            name=CABS[a.cab][2],side='IR1 only') for c,a in enumerate(design.albums)],
+        cab_choices=[(dict(channel='ABCD'[c],side='IR mixer',
+            name=' + '.join(cab_inventory.selection(reg,ir.bank,ir.slot-1,i) for i,ir in enumerate(cab_voice(a.cab).irs,1) if ir.mode!='mute'),
+            irs=[dict(**ir.model_dump(),ir=i,name=cab_inventory.selection(reg,ir.bank,ir.slot-1,i))
+                 for i,ir in enumerate(cab_voice(a.cab).irs,1)]) if expanded_cabs(design)
+            else dict(channel='ABCD'[c],bank=CABS[a.cab][0],slot=CABS[a.cab][1]+1,
+                      name=CABS[a.cab][2],side='IR1 only')) for c,a in enumerate(design.albums)],
         channel_mapping=[dict(scene=i+1,amp='ABCD'[item['amp_channel']],cab='ABCD'[item['cab_channel']],
             delay='A',chorus='A',output='A') for i,item in enumerate(assignments)],
         warnings=['Maximaal vier ampvoicings en vier cabkanalen A-D; zie de expliciete scene-indeling. Delay/Chorus delen A.',
-            f'{len(MODELS)} FW33-ampmodellen en twee Factory-cabs. Nieuwe Drive/post-EQ-voicing vereist aanvullende meting, niet alleen inschakelen.',
+            f'{len(MODELS)} FW33-ampmodellen, 2048 Factory-cabs en geimporteerde niet-lege Usercabs. Nieuwe Drive/post-EQ-voicing vereist aanvullende meting.',
             'Gemeten vaste14-blokkenketen. Reserve-effecten blijven bypassed; geen nieuwe controllers.',
-            'Alleen IR1 in de mix; IR2-4 blijven gemute. Geen stereopanning of IR-installatie.',
+            'Expliciete vier-IR-mix met level/pan/mute/solo.' if expanded_cabs(design) else 'Compatibiliteitsontwerp: alleen IR1 in de mix; IR2-4 blijven gemute.',
+            'Cabselectie installeert geen IRs. Mixerstatus bewijst geen hoorbare output of veilige fysieke luidheid.',
             'Output -18dB; voorlopige scenevolumes. Externe mute is verplicht, geen limiter.',
             'Interpretatie, geen exacte reproductie. SEND slaat niets permanent op.']))

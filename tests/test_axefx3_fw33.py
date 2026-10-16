@@ -62,9 +62,9 @@ def test_exact_identity_required_and_fm9_untouched():
     assert protocol.envelope(8,[])[4]==16
 
 
-def test_exact_36_controls_no_legacy_model_cab_or_extra_instance():
+def test_exact_48_controls_no_legacy_model_setters_or_extra_instance():
     reg=Registry(profile.KEY)
-    assert len(reg.params)==36 and not reg.selectable_amp_models()
+    assert len(reg.params)==48 and not reg.selectable_amp_models()
     assert reg.resolve_block('NAM')==('NAM',206)
     assert reg.family_of_effect_id(78)==('CHORUS',1)
     with pytest.raises(ValueError):reg.resolve_block('NAM',2)
@@ -83,7 +83,9 @@ def test_all_measured_numeric_specs_encode_in_their_set_units(family):
         frame=protocol.set_parameter(reg,spec,value)
         assert frame[4:8]==[16,1,int(spec.set_opcode,16),0]
         assert abs(p.decode_f32_septets(frame[12:17])-value/spec.set_divisor)<.002
-        fw33.check_frame(Mock(reg=reg),frame)
+        if family=='CABINET':
+            with pytest.raises(PermissionError):fw33.check_frame(Mock(reg=reg),frame)
+        else:fw33.check_frame(Mock(reg=reg),frame)
         with pytest.raises(ValueError):protocol.set_parameter(reg,replace(spec,effect_id=207),value)
 
 

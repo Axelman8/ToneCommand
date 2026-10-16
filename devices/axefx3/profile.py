@@ -24,10 +24,6 @@ def apply(reg, variant):
         raise ValueError('Choose Axe-Fx III MK1 or MK2.')
     reg.hardware_variant = variant
     policy = memory_policy(reg.firmware, variant)
-    reg.cab_catalog.user2_enabled = policy['user2_cabs']
-    if not policy['user2_cabs']:
-        reg.cab_catalog.names = {k: v for k, v in reg.cab_catalog.names.items()
-                                 if not (k[0] == 2 and k[1] >= 512)}
-    reg.cab_rosters = {str(b): {str(o): n for (bank, o), n in reg.cab_catalog.names.items()
-                              if bank == b} for b in (0, 1, 2)}
+    reg.cab_catalog.restrict_user2(policy['user2_cabs'])
+    reg.cab_rosters = reg.cab_catalog.rosters()
     return policy

@@ -30,6 +30,9 @@ def steps():
 
 
 def allowed(dev,frame):
+    from . import cab_inventory_probe
+    if cab_inventory_probe.allowed(dev,frame):
+        return True
     probe=getattr(dev,'_cab_probe',None)
     return (isinstance(probe,Probe) and probe.dev is dev and probe.failed
         and probe.index<len(probe.sequence) and dev.reg.firmware==fw33_profile.KEY

@@ -55,6 +55,13 @@ def check_frame(dev, frame):
         if family:
             spec=dev.reg.spec(family[0], pid, family[1])
             value=shared.decode_f32_septets(payload[6:11]) * spec.set_divisor
+            if family[0]=='CABINET':
+                session=getattr(dev,'_album_session',None)
+                if (not isinstance(session,album_build.Session) or session.item is None
+                        or session.item.spec!=spec
+                        or frame!=protocol.set_parameter(dev.reg,spec,session.item.value)
+                        or not album_build.amp_domain(dev,spec,dev.get_channel(eid))):
+                    raise PermissionError('Cab mixer SET requires the exact active reviewed parameter')
             expected=protocol.set_parameter(dev.reg,spec,value)
             if frame != expected:
                 raise PermissionError('FW33 numeric SET differs from the measured encoding')
@@ -76,6 +83,8 @@ def domain_error(dev, spec, channel):
     channels = {0, 1} if spec.family == 'NAM' else {0}
     from . import album_build
     if album_build.amp_domain(dev,spec,channel): channels=set(range(4))
+    if spec.family=='CABINET' and not album_build.amp_domain(dev,spec,channel):
+        return 'FW33 Cab mixer requires the exact active reviewed build operation'
     if channel not in channels:
         return 'FW33 numeric channel is outside the measured profile'
     words = dev.bulk_read(spec.effect_id)

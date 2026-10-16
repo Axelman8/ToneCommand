@@ -26,7 +26,26 @@ def seed():
 
 def validate_actions(reg,actions,existing):
     """Exact deterministic grammar, not an untrusted mode flag from the AI."""
-    expected=planning.actions_for(reg,seed(),existing)
+    base=seed()
+    expanded=any(a.get('kind')=='set_param' and a.get('block')=='CABINET' for a in actions)
+    if expanded:
+        # Reconstruct only the explicit CAB subgrammar, then regenerate it.
+        # No AI mode flag, arbitrary fields, writes or order are trusted.
+        first_scene=next((i for i,a in enumerate(actions) if a.get('kind')=='set_scene'),len(actions))
+        starts=[i for i,a in enumerate(actions[:first_scene]) if a.get('kind')=='set_channel' and a.get('block')=='CABINET']
+        if len(starts)!=5:raise ValueError('Four explicit Cab voicings and final channel-A reset required')
+        for c,start in enumerate(starts[:4]):
+            irs=[]
+            for slot in range(4):
+                group=actions[start+5+3*slot:start+8+3*slot]
+                if len(group)!=3:raise ValueError('Incomplete Cab voicing')
+                selection,level,pan=group
+                mode=actions[start+17+slot].get('value')
+                if type(mode) is not int or mode not in range(3):raise ValueError('Invalid Cab mode')
+                irs.append(dict(bank=selection.get('bank'),slot=selection.get('value',-1)+1,
+                    mode=('normal','mute','solo')[mode],level_db=level.get('value'),pan=pan.get('value')))
+            base.albums[c].cab=planning.CabVoice.model_validate(dict(irs=irs))
+    expected=planning.actions_for(reg,base,existing)
     if len(actions)!=len(expected): raise ValueError('Incomplete or extra album actions')
     role_flags={j for i,a in enumerate(expected) if a['kind']=='rename_scene' for j in (i-2,i-1)}
     # Same measured A-D selectors; only musical assignment is generalized.
@@ -59,8 +78,10 @@ def validate_actions(reg,actions,existing):
             if actual['type_name'] not in planning.MODELS.values(): raise ValueError('Unmeasured album model')
             allowed={'type_name'}
         if kind=='set_cab':
-            if actual['value'] not in (515,799): raise ValueError('Unmeasured album IR1')
-            allowed={'value'}
+            if not expanded:
+                if actual['value'] not in (515,799): raise ValueError('Unmeasured album IR1')
+                allowed={'value'}
+        if template.get('block')=='CABINET' and kind=='set_param':allowed=set()
         if kind in ('rename_preset','rename_scene'): allowed={'type_name'}
         if index in role_flags: allowed={'bypassed'}
         if index in scene_channel_indices: allowed={'value'}
@@ -68,11 +89,14 @@ def validate_actions(reg,actions,existing):
             raise ValueError('Album action order, channel, reserve or safety staging differs')
 
 
-def cab_layout(words):
+def cab_layout(words,*,expanded=False):
     if not isinstance(words,list) or len(words)!=424: raise ValueError('Complete Legacy Cab layout required')
     for c in range(4):
         v=words[c*106:(c+1)*106]
-        if v[31]!=0 or v[24:28]!=[0,1,1,1] or v[8:12]!=[65534]*4 or v[12:16]!=[32767]*4:
+        if expanded:
+            if v[31]!=0 or any(x not in (0,1,2) for x in v[24:28]) or v[28]>52427:
+                raise ValueError('Readable Legacy mixer with no positive block gain required')
+        elif v[31]!=0 or v[24:28]!=[0,1,1,1] or v[8:12]!=[65534]*4 or v[12:16]!=[32767]*4:
             raise ValueError('Measured IR1-only Legacy mixer required; no automatic unmute or pan')
 
 
@@ -88,7 +112,7 @@ def prepare(dev,resolved,expected,actual):
         if any(b.channel!=0 or b.channels_supported!=4 for b in now['blocks'] if b.effect_id in expected):
             raise ValueError('Existing album foundation must begin on channel A')
         if len(now['bulk'].get(58,[]))!=568: raise ValueError('Complete four-channel Amp layout required')
-        cab_layout(now['bulk'].get(62))
+        cab_layout(now['bulk'].get(62),expanded=any(i.family=='CABINET' and i.spec for i in resolved))
         for item in resolved:
             if item.spec is not None and item.spec.tempo_param_id is not None:
                 serial_build.require_tempo(dev,item.spec)
@@ -106,8 +130,9 @@ def frame_allowed(dev,frame):
         ordinal=next(k for k,v in planning.MODELS.items() if v==item.value)
         return frame==protocol.param_frame(58,0,ordinal,opcode=9)
     if item.action['kind']=='set_cab':
-        bank,ordinal,_=item.value
-        return frame in [protocol.param_frame(62,p,v,opcode=9) for p,v in ((0,bank),(4,ordinal))]
+        bank,ordinal,side=item.value
+        slot=int(side[2:])-1 if side.startswith('ir') else 0
+        return frame in [protocol.param_frame(62,p,v,opcode=9) for p,v in ((slot,bank),(4+slot,ordinal))]
     if item.action['kind']=='set_channel' and item.effect_id in (58,62):
         return frame==protocol.envelope(1,[22,0,item.effect_id,0,0,0,item.value,0,0,0,0,0,0,0,0])
     if item.action['kind']=='set_scene': return frame==protocol.envelope(0x0c,[item.value-1])
@@ -118,7 +143,7 @@ def amp_domain(dev,spec,channel):
     session=getattr(dev,'_album_session',None)
     return (isinstance(session,Session) and not session.failed and session.item is not None
         and session.item.action['kind']=='set_param' and session.item.spec==spec
-        and spec.effect_id==58 and spec.family=='DISTORT' and channel in range(4)
+        and (spec.effect_id,spec.family) in ((58,'DISTORT'),(62,'CABINET')) and channel in range(4)
         and supported(dev.reg) and session.target==getattr(dev,'_edit_target',None))
 
 
@@ -131,7 +156,8 @@ class Session:
         self.index,self.failed,self.frame,self.item=0,False,None,None
         self.scene_states={}
         self.expected=tone_review.snapshot(dev,include_nam=False)
-        cab_layout(self.expected['bulk'].get(62))
+        self.expanded=any(i.family=='CABINET' and i.spec for i in resolved)
+        cab_layout(self.expected['bulk'].get(62),expanded=self.expanded)
         dev._album_session=self
 
     def write(self,frame):
@@ -173,19 +199,20 @@ class Session:
         self.settle(match)
         return SetResult(True,'Measured model and independent full-channel preservation verified',before['bulk'][58][base],name)
 
-    def cab(self,bank,ordinal):
+    def cab(self,bank,ordinal,side='left'):
         before=self.expected
         channel=next(b.channel for b in before['blocks'] if b.effect_id==62)
         base=106*channel
-        cab_layout(before['bulk'][62])
+        cab_layout(before['bulk'][62],expanded=self.expanded)
+        slot=int(side[2:])-1 if side.startswith('ir') else 0
         current=before
-        for pid,value in ((0,bank),(4,ordinal)):
+        for pid,value in ((slot,bank),(4+slot,ordinal)):
             if current['bulk'][62][base+pid]==value: continue
             words=list(current['bulk'][62]);words[base+pid]=value
             wanted={**current,'bulk':{**current['bulk'],62:words}}
             self.write(protocol.param_frame(62,pid,value,opcode=9))
             current=self.settle(lambda now:now==wanted)
-        return SetResult(True,'IR1 selected, other IRs and full mixer preserved',None,(bank,ordinal,'IR1'))
+        return SetResult(True,f'IR{slot+1} selected, other IRs and full mixer preserved',None,(bank,ordinal,f'IR{slot+1}'))
 
     def run(self,item,operation):
         if self.failed or self.index>=len(self.resolved) or item is not self.resolved[self.index]:
@@ -210,7 +237,8 @@ class Session:
                     # quantization word, never copy an arbitrary stale value.
                     target=round(shared.display_to_normalized(item.value,item.spec.dmin,
                         item.spec.dmax,item.spec.scale)*65534)
-                    if abs(now['bulk'][eid][pos]-target)>1: return False
+                    if item.family=='CABINET' and item.spec.kind=='enum':target=int(item.value)
+                    if abs(now['bulk'][eid][pos]-target)>(0 if item.family=='CABINET' and item.spec.kind=='enum' else 1): return False
                     words=list(before['bulk'][eid]);words[pos]=now['bulk'][eid][pos]
                     wanted['bulk']={**before['bulk'],eid:words}
                 elif kind=='set_type':
@@ -219,7 +247,8 @@ class Session:
                     wanted['bulk']={**before['bulk'],58:words}
                 elif kind=='set_cab':
                     c=next(b.channel for b in before['blocks'] if b.effect_id==62);base=106*c
-                    words=list(before['bulk'][62]);words[base],words[base+4]=item.value[:2]
+                    side=item.value[2];slot=int(side[2:])-1 if side.startswith('ir') else 0
+                    words=list(before['bulk'][62]);words[base+slot],words[base+4+slot]=item.value[:2]
                     wanted['bulk']={**before['bulk'],62:words}
                 elif kind in ('set_channel','set_bypass'):
                     field='channel' if kind=='set_channel' else 'bypassed'

@@ -4,6 +4,7 @@ No MIDI or capability promotion. Compare actual compiled settings, not names,
 AI prose or arbitrary numeric distance masquerading as a listening test.
 """
 import json
+import math
 from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
@@ -82,6 +83,19 @@ def _base(sound):
     for family in ('amp','nam'):
         if family in base:
             base[family].pop('level', None)
+    cab=base.get('cab')
+    if isinstance(cab,dict) and 'irs' in cab:
+        # Muted or solo-excluded IRs and pan alone cannot certify another
+        # base tone. Normalize coherent duplicate IR weights and total gain:
+        # merely moving a fader or a slot must not manufacture tonal contrast.
+        solo=any(ir['mode']=='solo' for ir in cab['irs'])
+        weights={}
+        for ir in cab['irs']:
+            if ir['mode']=='mute' or (solo and ir['mode']!='solo'):continue
+            key=(ir['bank'],ir['slot'])
+            weights[key]=weights.get(key,0.)+10**(ir['level_db']/20)
+        total=math.fsum(weights.values())
+        base['cab']=[[b,s,round(v/total,8)] for (b,s),v in sorted(weights.items())] if total else []
     for family in ('wah','drive','compressor','geq','peq'):
         value=sound['effects'].get(family)
         if value and (not isinstance(value,dict) or value.get('active')):

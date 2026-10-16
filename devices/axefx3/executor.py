@@ -99,15 +99,21 @@ def resolve(reg, action):
         elif kind == "set_cab":
             if family != "CABINET":
                 raise ValueError("Cab selection requires a Cab block")
-            bank, ordinal = integer(a.get("bank", 0), 0, 2), integer(a.get("value"), 0, 1023)
-            if bank == 2 and ordinal >= 512 and not reg.cab_catalog.user2_enabled:
+            modern=reg.firmware==fw33_profile.KEY
+            bank, ordinal = integer(a.get("bank", 0), 0, 6 if modern else 2), integer(a.get("value"), 0, 1023)
+            if not modern and bank == 2 and ordinal >= 512 and not reg.cab_catalog.user2_enabled:
                 raise ValueError('User2 is NAM storage, not an available cab bank on this profile.')
             side = str(a.get("cab_side") or "left").lower()
-            if side not in ("left", "right", "both"):
+            if side not in (("left","right","both","ir1","ir2","ir3","ir4") if modern else ("left","right","both")):
                 raise ValueError("Cab side must be LEFT, RIGHT or BOTH")
-            if reg.firmware==fw33_profile.KEY and (eid!=62 or bank!=1 or ordinal not in (515,799) or side!='left'):
-                raise ValueError('Only measured Factory2 IR1 choices on FW33 Cab1')
-            cab_selection.frame(eid, 0, bank)
+            if modern:
+                from . import cab_inventory
+                if eid!=62:raise ValueError('Only measured FW33 Cab1 is supported')
+                if side.startswith('ir'):
+                    cab_inventory.selection(reg,bank,ordinal,int(side[2:]))
+                elif bank!=1 or ordinal not in (515,799) or side!='left':
+                    raise ValueError('Expanded Cab selection requires explicit IR1-4 actions')
+            else:cab_selection.frame(eid, 0, bank)
             result.value = (bank, ordinal, side)
         elif kind == "set_channel":
             result.value = integer(a.get("value"), 0, 3)
@@ -252,7 +258,7 @@ def execute(dev, actions, required_route, *, expected_preset, external_audio_mut
                 try:
                     def operation():
                         if album and kind=='set_type': return album.model(item.value)
-                        if album and kind=='set_cab': return album.cab(*item.value[:2])
+                        if album and kind=='set_cab': return album.cab(*item.value)
                         if album and kind=='set_channel':
                             got=album.channel(eid,item.value)
                             return SetResult(got==item.value,'Independent channel readback',None,got)

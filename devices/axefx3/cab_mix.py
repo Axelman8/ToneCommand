@@ -12,7 +12,7 @@ import re
 import time
 
 from . import protocol as p
-from . import evidence
+from . import evidence,fw33_profile
 
 
 FIRMWARE = "32.06"
@@ -125,7 +125,9 @@ def _inspect(dev, effect_id, *, words=None, channel=None):
                "reason": "Cab mixer requires Axe-Fx III FW 32.06, a readable Legacy channel and independent display values."}
     if (getattr(dev, "model", None) != p.MODEL
             or effect_id not in range(62, 66)
-            or dev.firmware_label() != FIRMWARE):
+            or dev.firmware_label() not in (FIRMWARE,fw33_profile.KEY)):
+        return unknown
+    if dev.firmware_label()==fw33_profile.KEY and (effect_id!=62 or getattr(dev.reg,'hardware_variant',None)!='mk2'):
         return unknown
     current = dev.get_channel(effect_id)
     if type(current) is not int or current not in range(4) or (channel is not None and channel != current):

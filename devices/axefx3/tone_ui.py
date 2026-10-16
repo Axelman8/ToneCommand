@@ -13,6 +13,7 @@ from fm9.paths import resource_path
 from . import planning, route_guard, tone_review, profile, tone_search, reference_audio, nam_planning, fw33_profile, rig_source, route_options, navigation, serial_build, serial_planning
 from .controller_ui import Confirmation
 from . import album_build,album_planning,runtime,scene_intent,amp_inventory,amp_refresh
+from . import cab_inventory,cab_mix
 
 AnnotatedSceneNumber = Annotated[StrictInt, Field(ge=1,le=8)]
 
@@ -136,6 +137,8 @@ def register(app, host):
                             album_build_supported=album_build.supported(dev.reg),
                             amp_refresh_supported=True,
                             amp_inventory=amp_inventory.report(dev.reg) if album_build.supported(dev.reg) else None,
+                            cab_inventory=cab_inventory.choices(dev.reg,include_fullres=True) if album_build.supported(dev.reg) else [],
+                            cab_mix=cab_mix.inspect(dev,62) if any(b.effect_id==62 for b in dev.status_dump() or []) else None,
                             scene_intent_supported=True, refinement_supported=True,
                             cab_selection_note=album_planning.USER_CAB_NOTICE if album_build.supported(dev.reg) else '',
                             multiscene_planning_supported=dev.reg.firmware == '32.06',
@@ -272,7 +275,8 @@ def register(app, host):
                 if album_mode and (not album_build.supported(dev.reg) or body.scenes!=8
                         or body.wah_source or body.nam_slot is not None or body.source_kind!='tone'):
                     raise ValueError('Measured FW33 AMP/CAB album route: eight scenes, four voices, no NAM/controller or rig translation')
-                if album_mode and album_planning.user_cab_requested(body.prompt):
+                if (album_mode and album_planning.user_cab_requested(body.prompt)
+                        and not any(c['bank'] in (2,3) for c in album_planning.cab_inventory.choices(dev.reg))):
                     raise ValueError(album_planning.USER_CAB_NOTICE)
                 if serial_mode and (not serial_build.supported(dev.reg) or body.scenes != 1
                         or body.wah_source or body.nam_slot is not None or body.source_kind != 'tone'):
