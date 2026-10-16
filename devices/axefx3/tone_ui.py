@@ -138,6 +138,9 @@ def register(app, host):
             try:
                 dev = selected()
                 policy = profile.memory_policy(dev.reg.firmware, getattr(dev.reg, 'hardware_variant', None))
+                from . import fw33
+                runtime_error=fw33.runtime_write_error(dev)
+                if runtime_error:policy={**policy,'write_supported':False}
                 nam_profile_missing = dev.reg.firmware == fw33_profile.KEY and policy['variant'] != 'mk2'
                 if not policy['write_supported'] or nam_profile_missing:
                     preset = dev.current_preset()
@@ -145,7 +148,7 @@ def register(app, host):
                                 amp_refresh_supported=True,
                                 preset=preset[0] if preset else None, name=preset[1] if preset else '',
                                 scene=dev.current_scene(), cab_count=len(dev.reg.cab_catalog.names),
-                                route_problem='Choose MK2 for the measured FW33 NAM profile; MK1 NAM is not verified.' if nam_profile_missing else 'Firmware not verified for writes. Search/import are available; preset planning and sending are blocked.')
+                                route_problem=runtime_error or ('Choose MK2 for the measured FW33 NAM profile; MK1 NAM is not verified.' if nam_profile_missing else 'Firmware not verified for writes. Search/import are available; preset planning and sending are blocked.'))
                 return dict(connected=True, workspace=workspace, profile=policy,
                             navigation_supported=navigation.supported(dev),
                             route_options_supported=True,

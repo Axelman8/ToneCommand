@@ -36,6 +36,9 @@ import mido
 BACKENDS = ("auto", "mido", "supriya")
 ENV = "TONECOMMAND_MIDI_BACKEND"
 FM3_PORT_ENV = "TONECOMMAND_FM3_PORT"
+#: #255: an interface may list its output under another name than its input
+#: ("MidiPort 1" in, "MidiPort 2" out); this fixes the output by itself
+FM3_PORT_OUT_ENV = "TONECOMMAND_FM3_PORT_OUT"
 #: a CABINET bulk read is about 2,100 frames of up to 3 KB; the input
 #: queue must hold them all while the reader drains
 SUPRIYA_BUFFER = (4096, 8)
@@ -50,54 +53,81 @@ def fm3_binding_path() -> Path:
     return Path(__file__).resolve().parent.parent / "fm3_port.json"
 
 
+def _binding(port_in, port_out, source) -> dict:
+    """{port_in, port_out, port, source}; port is the one name when both
+    directions share it (the #221 shape callers already read), else None."""
+    return {"port_in": port_in, "port_out": port_out,
+            "port": port_in if port_in == port_out else None, "source": source}
+
+
 def load_fm3_binding(env: dict | None = None, path: Path | None = None) -> dict:
-    """#221: {port, source}; an environment binding always wins, even empty.
+    """#221, #255: {port_in, port_out, port, source}. An environment binding
+    always wins, even empty: TONECOMMAND_FM3_PORT fixes both directions and
+    TONECOMMAND_FM3_PORT_OUT, when set, the output alone. Set without
+    TONECOMMAND_FM3_PORT, the output comes from the environment and the input
+    from the saved file; with no saved input, port_in is None and connecting
+    fails rather than guessing. Either variable makes the binding source 'env'.
 
     A missing file means no binding. A damaged file fails closed rather than
-    silently selecting some other port. Callers can show source='env' as fixed.
+    silently selecting some other port. The #221 file {port} still loads as
+    both directions. Callers can show source='env' as fixed.
     """
     env = os.environ if env is None else env
     if FM3_PORT_ENV in env:
-        return {"port": env[FM3_PORT_ENV], "source": "env"}
+        return _binding(env[FM3_PORT_ENV], env.get(FM3_PORT_OUT_ENV, env[FM3_PORT_ENV]), "env")
+    if FM3_PORT_OUT_ENV in env:
+        saved = load_fm3_binding({}, path)
+        return _binding(saved["port_in"], env[FM3_PORT_OUT_ENV], "env")
     path = fm3_binding_path() if path is None else Path(path)
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        return {"port": None, "source": "none"}
+        return _binding(None, None, "none")
     except (OSError, ValueError) as e:
         raise TransportError("FM3 port binding could not be read; choose the "
                              "USB MIDI interface port on the Devices page.") from e
-    if not isinstance(value, dict) or not isinstance(value.get("port"), str) or not value["port"]:
-        raise TransportError("FM3 port binding is invalid; choose the USB MIDI "
-                             "interface port on the Devices page.")
-    return {"port": value["port"], "source": "file"}
+    ok = lambda v: isinstance(v, str) and bool(v)
+    if isinstance(value, dict) and ok(value.get("port_in")) and ok(value.get("port_out")):
+        return _binding(value["port_in"], value["port_out"], "file")
+    if isinstance(value, dict) and ok(value.get("port")):
+        return _binding(value["port"], value["port"], "file")
+    raise TransportError("FM3 port binding is invalid; choose the USB MIDI "
+                         "interface port on the Devices page.")
 
 
-def save_fm3_binding(port: str, env: dict | None = None, path: Path | None = None) -> dict:
-    """#221: validate both directions and atomically persist an exact name.
+def save_fm3_binding(port_in: str, port_out: str | None = None, env: dict | None = None,
+                     path: Path | None = None) -> dict:
+    """#221, #255: validate each direction against its own list and
+    atomically persist the exact names. port_out defaults to port_in.
 
     The server must hold its device-switch lock around saving and reconnecting.
     No MIDI port is opened here, and an environment binding cannot be changed.
     """
     env = os.environ if env is None else env
-    if FM3_PORT_ENV in env:
-        raise TransportError(f"FM3 port is fixed by {FM3_PORT_ENV}; Save is unavailable.")
-    if not isinstance(port, str) or not port or port not in port_names(env) or port not in output_names(env):
-        raise TransportError("Choose an FM3 USB MIDI interface port present in both "
-                             "the MIDI input and output lists on the Devices page.")
+    for name in (FM3_PORT_ENV, FM3_PORT_OUT_ENV):
+        if name in env:
+            raise TransportError(f"FM3 port is fixed by {name}; Save is unavailable.")
+    port_out = port_in if port_out is None else port_out
+    if not isinstance(port_in, str) or not port_in or port_in not in port_names(env):
+        raise TransportError("Choose the MIDI input your FM3's MIDI OUT is connected to, "
+                             "from the inputs listed on the Devices page.")
+    if not isinstance(port_out, str) or not port_out or port_out not in output_names(env):
+        raise TransportError("Choose the MIDI output connected to your FM3's MIDI IN, "
+                             "from the outputs listed on the Devices page.")
     path = fm3_binding_path() if path is None else Path(path)
     tmp = None
     try:
         with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent,
                                          prefix=".fm3_port-", suffix=".tmp", delete=False) as f:
             tmp = Path(f.name)
-            json.dump({"port": port}, f)
+            json.dump({"port": port_in} if port_in == port_out
+                      else {"port_in": port_in, "port_out": port_out}, f)
             f.write("\n")
         os.replace(tmp, path)
     finally:
         if tmp is not None:
             tmp.unlink(missing_ok=True)
-    return {"port": port, "source": "file"}
+    return _binding(port_in, port_out, "file")
 
 
 FM3_INTERFACE_GUIDANCE = (
@@ -206,7 +236,7 @@ def output_names(env: dict | None = None, supriya_module: Any = None) -> list[st
 
 
 def open_ports(hint: str, env: dict | None = None, supriya_module: Any = None,
-               *, exact_name: str | None = None) -> tuple[Any, Any]:
+               *, exact_name: str | None = None, exact_out: str | None = None) -> tuple[Any, Any]:
     """(inp, outp) for the first input and output whose names contain
     `hint` (case-insensitive), through the resolved backend. Raises
     TransportError when the ports are not there, one line. An FM3 binding
@@ -216,12 +246,16 @@ def open_ports(hint: str, env: dict | None = None, supriya_module: Any = None,
     if hint == "fm3":
         binding = load_fm3_binding(env)
         if binding["source"] != "none":
-            exact_name = binding["port"]
+            # a binding never falls back to discovery: an unset direction
+            # matches nothing
+            exact_name, exact_out = binding["port_in"] or "", binding["port_out"] or ""
+    if exact_out is None:
+        exact_out = exact_name
     if b == "mido":
         every_in = list(mido.get_input_names())
         ins = [n for n in every_in if (n == exact_name if exact_name is not None else hint in n.lower())]
         outs = [n for n in mido.get_output_names()
-                if (n == exact_name if exact_name is not None else hint in n.lower())]
+                if (n == exact_out if exact_out is not None else hint in n.lower())]
         if not ins or not outs:
             raise TransportError(_not_found(hint, inputs=every_in))
         inp = mido.open_input(ins[0])
@@ -232,7 +266,7 @@ def open_ports(hint: str, env: dict | None = None, supriya_module: Any = None,
             raise
     sm = supriya_module or __import__("supriya_midi")
     if hint == "fm3":
-        return _open_fm3_supriya(sm, exact_name)
+        return _open_fm3_supriya(sm, exact_name, exact_out)
     inp = SupriyaIn.open(sm, hint)
     try:
         return inp, SupriyaOut.open(sm, hint)
@@ -241,7 +275,8 @@ def open_ports(hint: str, env: dict | None = None, supriya_module: Any = None,
         raise
 
 
-def _open_fm3_supriya(sm: Any, exact_name: str | None) -> tuple[Any, Any]:
+def _open_fm3_supriya(sm: Any, exact_name: str | None,
+                      exact_out: str | None = None) -> tuple[Any, Any]:
     """Check both directions before opening either; never fall back."""
     inp, outp = sm.MidiIn(), None
     opened = False
@@ -249,7 +284,7 @@ def _open_fm3_supriya(sm: Any, exact_name: str | None) -> tuple[Any, Any]:
         outp = sm.MidiOut()
         ins, outs = list(inp.get_ports()), list(outp.get_ports())
         i = _pick(ins, "fm3", inputs=True, exact_name=exact_name)
-        o = _pick(outs, "fm3", exact_name=exact_name)
+        o = _pick(outs, "fm3", exact_name=exact_name if exact_out is None else exact_out)
         inp.set_buffer_size(*SUPRIYA_BUFFER)
         inp.open_port(i, "ToneCommand in")
         inp.ignore_types(sysex=False, timing=True, active_sense=True)
@@ -310,6 +345,20 @@ def _system() -> str:
     return platform.system()
 
 
+#: software MIDI buses, never a hardware interface an FM3 could hang off
+VIRTUAL_PORTS = ("iac driver", "network session", "loopmidi", "midi monitor")
+
+
+def readable_port(name) -> bool:
+    """#255: a port name a person can read. A Windows MIDI service endpoint
+    reported '-\u00e2\u0080\u00ban\x17\u00c3\u00bf\x7f 0': control characters
+    a driver handed over, not a name anyone could pick from a list."""
+    import unicodedata
+    text = str(name)
+    return bool(text.strip()) and not any(
+        (unicodedata.category(ch) == "Cc" and ch not in " ") or ch == "\ufeff" for ch in text)
+
+
 def _not_found(hint: str, inputs: list[str] | None = None,
                system: str | None = None) -> str:
     """#212: name the device that was looked for. Before, an FM3 owner was
@@ -331,8 +380,17 @@ def _not_found(hint: str, inputs: list[str] | None = None,
         msg = f"{head}; is it connected and powered on?"
     system = _system() if system is None else system
     if system == "Windows":
-        msg += (" On Windows a Fractal FM3 or FM9 also needs Fractal's USB "
-                "driver, the one FM3-Edit and FM9-Edit use, from fractalaudio.com.")
+        # #255: the FM9 only. An FM3 has no MIDI over USB (#221), so that
+        # driver never makes one visible here; telling an FM3 owner to install
+        # it sent him in circles.
+        msg += (" On Windows an FM9 also needs Fractal's USB driver, the one "
+                "FM9-Edit uses, from fractalaudio.com.")
+    others = [n for n in (inputs or []) if readable_port(n) and "fm9" not in str(n).lower()
+              and not str(n).lower().startswith(VIRTUAL_PORTS)]
+    if others:
+        msg += (" If your unit is an FM3, or you reach it through a MIDI interface, choose "
+                "FM3 under Devices and pick that interface's port: "
+                + ", ".join(str(n) for n in others) + ".")
     return msg
 
 

@@ -19,6 +19,20 @@ def platform_supported():
     return sys.platform == 'win32'
 
 
+def runtime_write_error(dev):
+    """FM9 transport/platform acceptance is not FX3 hardware evidence."""
+    if dev.reg.firmware!=profile.KEY or getattr(dev,'_injected_ports',True) is not False:
+        return None  # Explicit scripted ports remain available to isolated tests.
+    if not platform_supported() or sys.version_info[:2]!=(3,12):
+        return 'Native FW33 writes are measured on Windows/Python3.12 only; read-only connection remains available.'
+    try:backend=midi_transport.backend()
+    except midi_transport.TransportError:
+        return 'FW33 MIDI backend could not be verified; no write is allowed.'
+    if backend!='mido':
+        return 'Native FX3 FW33 writes require the measured mido backend; FM9 supriya acceptance does not release FX3 writes.'
+    return None
+
+
 def check_frame(dev, frame):
     fn, payload = frame[5], frame[6:-2]
     from . import amp_probe,cab_probe,album_build,effect_probe,effects_calibration

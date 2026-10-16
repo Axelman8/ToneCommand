@@ -25,12 +25,34 @@ MAX_SCENES = 8
 ROLE_BLOCK = {"wah": "wah", "drive": "drive", "compressor": "comp",
               "modulation": "chorus", "delay": "delay", "reverb": "reverb",
               "pitch": "pitch", "volume": "volume", "preamp": "amp",
-              "amp": "amp", "cab": "cab", "rack_fx": "delay"}
+              "amp": "amp", "cab": "cab"}
+
+#: #243: a rack effects unit becomes a block only when its label names an
+#: effect type. "Eventide effects" or an FX1 says nothing about which effects
+#: they are, and building them as a delay (the old default) was a guess.
+RACK_STEMS = (("delay", "delay"), ("echo", "delay"),
+              ("reverb", "reverb"), ("verb", "reverb"), ("hall", "reverb"),
+              ("plate", "reverb"), ("spring", "reverb"), ("room", "reverb"),
+              ("chorus", "chorus"), ("phase", "phaser"), ("flang", "flanger"),
+              ("trem", "tremolo"), ("rotary", "rotary"), ("leslie", "rotary"),
+              ("pitch", "pitch"), ("harmon", "pitch"), ("octave", "pitch"),
+              ("whammy", "pitch"), ("comp", "comp"), ("wah", "wah"))
 NO_BLOCK = {"instrument", "switcher", "controller", "interface"}
+
+
+def _rack_unnamed(node: dict) -> str:
+    return f"the source names the {node.get('label')} but not which effects it provides"
 
 
 def _block_for(node: dict) -> str | None:
     role = node.get("role")
+    if role == "rack_fx":
+        import re
+        label = node.get("label", "").lower()
+        # a stem counts only where a word starts: "harmonizer" is pitch, but
+        # the "hall" inside "Marshall" is not a reverb (#243 review)
+        return next((block for stem, block in RACK_STEMS
+                     if re.search(rf"(?<![a-z]){re.escape(stem)}", label)), None)
     if role == "modulation":
         label = node.get("label", "").lower()
         # stems, so an "MXR Phase 90" or a "Uni-Vibe-ish leslie" still lands
@@ -101,7 +123,8 @@ def compile(graph: dict, mode: str = "closest", scenes: int | None = None) -> di
             else:
                 block = _block_for(n)
             if block is None:
-                node_status.setdefault(nid, ["not_reproduced", f"no FM9 block stands in for the {n['label']}"])
+                node_status.setdefault(nid, ["not_reproduced", _rack_unnamed(n) if n["role"] == "rack_fx"
+                                             else f"no FM9 block stands in for the {n['label']}"])
                 continue
             if mode == "simplified" and block in counts:
                 node_status.setdefault(nid, ["not_reproduced", f"simplified: one {block} block kept"])
@@ -305,6 +328,21 @@ def _in_order(seq: list[int]) -> set[int]:
     return keep
 
 
+def _cabled_from_input(cells: list[dict]) -> set[tuple]:
+    """Cells reached from an Input block by following cables forward, shunts
+    and bypassed blocks included: a scene's structure when no signal gets
+    through it (#240). A cell at column c+1 is reached when its feeds name a
+    row reached at column c."""
+    at = {(c["row"], c["col"]): c for c in cells}
+    reached = {(c["row"], c["col"]) for c in cells if c.get("family") == "INPUT"}
+    for col in range(1 + max((c["col"] for c in cells), default=0)):
+        for (r, cc), c in at.items():
+            if cc == col and (r, cc) not in reached \
+                    and any((x, col - 1) in reached for x in c.get("feeds") or []):
+                reached.add((r, cc))
+    return reached
+
+
 def compare(compiled: dict, grid: dict, scene: int = 1) -> dict:
     """What differs between a compiled rig scene and the loaded scene's grid.
 
@@ -318,7 +356,13 @@ def compare(compiled: dict, grid: dict, scene: int = 1) -> dict:
     sc = next((s for s in scenes if s["n"] == scene), scenes[0] if scenes else None)
     rig = list(sc["chain"]) if sc else []
     cells = grid.get("cells") or []
-    live = sorted((c for c in cells if c.get("live") and c.get("effect_id") is not None
+    # #240: on a dead scene no cell is live, and matching against nothing
+    # called every piece of gear missing. The preset's structure is still
+    # there: compare against what is cabled from Input instead, bypass
+    # ignored, and say first that no signal gets through.
+    dead = grid.get("alive") is False
+    on = _cabled_from_input(cells) if dead else {(c["row"], c["col"]) for c in cells if c.get("live")}
+    live = sorted((c for c in cells if (c["row"], c["col"]) in on and c.get("effect_id") is not None
                    and c.get("family") and c["family"] not in _ENDS),
                   key=lambda c: (c["col"], c["row"]))
 
@@ -338,14 +382,16 @@ def compare(compiled: dict, grid: dict, scene: int = 1) -> dict:
         else:
             missing.append({"what": step["label"], "block": step["block"],
                             "why": f"the rig has the {step['label']} ({step['block']}); "
-                                   f"the loaded scene has no {step['block']} block on its signal path for it"})
+                                   f"the loaded scene has no {step['block']} block "
+                                   f"{'cabled' if dead else 'on its signal path'} for it"})
     # An extra block bypassed in this scene passes the signal untouched: it
     # is listed, so every block is accounted for, but it is not a difference.
+    where = "is cabled into the loaded scene" if dead else "is on the loaded scene's path"
     extra = [{"what": c["label"], "bypassed": True,
-              "why": f"{c['label']} is on the loaded scene's path but bypassed, so it does not change the sound"}
+              "why": f"{c['label']} {where} but bypassed, so it does not change the sound"}
              if c.get("bypassed") else
              {"what": c["label"], "bypassed": False,
-              "why": f"{c['label']} is on the loaded scene's path; the rig has nothing there"}
+              "why": f"{c['label']} {where}; the rig has nothing there"}
              for i, c in enumerate(live) if i not in used]
     keep = _in_order([i for _, _, i in matches])
     out_of_order = []
@@ -358,10 +404,12 @@ def compare(compiled: dict, grid: dict, scene: int = 1) -> dict:
                                  "why": f"the {step['label']} is {c['label']}, which {where}; "
                                         + (f"the rig has it after the {before}" if before else "the rig has it first")})
     routing = []
+    if dead:
+        routing.append({"what": "path", "why": f"no signal reaches the output: {grid.get('why') or 'the path is broken'}"})
     # Forks and merges come from the cables (feeds), shunts included. A
     # serial path that steps from one row to another is still one path, so
     # rows alone never count as a split.
-    path = {(c["row"], c["col"]): c for c in cells if c.get("live")}
+    path = {(c["row"], c["col"]): c for c in cells if (c["row"], c["col"]) in on}
     for (r, col), c in sorted(path.items(), key=lambda x: (x[0][1], x[0][0])):
         fed = [x for x in c.get("feeds") or [] if (x, col - 1) in path]
         if len(fed) > 1:
@@ -376,8 +424,6 @@ def compare(compiled: dict, grid: dict, scene: int = 1) -> dict:
     for step, c, _ in matches:
         if c.get("bypassed"):
             routing.append({"what": c["label"], "why": f"{c['label']} (the {step['label']}) is bypassed in this scene"})
-    if grid.get("alive") is False:
-        routing.append({"what": "path", "why": f"no signal reaches the output: {grid.get('why') or 'the path is broken'}"})
     for state in ("changed", "not_reproduced"):
         for nid, (st, why) in (compiled.get("status", {}).get("nodes") or {}).items():
             if st == state and "#16" in why:
@@ -464,6 +510,12 @@ def compile_for_params(graph: dict, params: list[dict], device: str,
                 node_status.setdefault(nid, ["not_reproduced", f"the {device} has no cab block"])
                 lost.append(n["label"])
             continue
+        if role == "rack_fx" and _block_for(n) is None:
+            node_status.setdefault(nid, ["not_reproduced", _rack_unnamed(n)])
+            lost.append(n["label"])
+            continue
+        if role == "rack_fx":
+            role = _block_for(n)               # the effect type its label names
         param = next((k for k, v in PARAM_ROLES.items() if k in names and role in v["roles"]), None)
         block = _block_for({**n, "role": role}) or role
         if param is None:

@@ -22,7 +22,7 @@ unchanged. MK2 hardware does not prove MK1 or other firmware compatibility.
 | 13 | Multi-capture/multiscene NAM | Native install and narrow builds exist. Broader selection/build support pending. |
 | 14 | Audio segments, isolation and comparison | Explicit start/length windows up to60 seconds, strict bounds, range-cache invalidation and browser synthetic-clip tests pass. Guitar isolation and recorded-unit comparison remain pending. |
 | 15 | Save As, backup and recovery | Narrow Store proofs exist; general recovery must never retry an unknown write automatically. |
-| 16 | Firmware/chassis/platform coverage | Only exact measured FW33/MK2/Windows write profile accepted; other hardware needs its own evidence. |
+| 16 | Firmware/chassis/platform coverage | Exact FW33/MK2 native write path now explicitly pins Windows/Python3.12/mido; other runtimes remain read-only. MK1/other firmware/backends need their own acceptance, not inherited FM9 proof. |
 | 17 | Publication acceptance | CAB checkpoint passes fresh checkout/venv/install and HTTP/resource smoke on this Windows machine. Candidate restart/browser checks pass. Other-machine/platform and remote CI/PR acceptance remain pending; no publication performed. |
 
 ## Execution boundaries

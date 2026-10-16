@@ -58,8 +58,12 @@ class AxeFxIII:
             raise
 
     def capabilities(self):
+        verified=self.reg.firmware in SUPPORTED_FIRMWARE
+        if self.reg.firmware=='33.00-beta.20261006':
+            from . import fw33
+            verified=verified and fw33.runtime_write_error(self) is None
         return Capabilities(read_path=ReadPath.DEVICE, reads_slot_names=True,
-                            verifies_writes=self.reg.firmware in SUPPORTED_FIRMWARE,
+                            verifies_writes=verified,
                             has_scenes=True, can_rename=True)
 
     def close(self):
@@ -442,6 +446,10 @@ class AxeFxIII:
             raise PermissionError("Axe-Fx III writes require a confirmed edit session")
         if self.firmware_label() != self.reg.firmware or self.reg.firmware not in SUPPORTED_FIRMWARE:
             raise PermissionError("Firmware changed or is not supported; nothing written")
+        if self.reg.firmware=='33.00-beta.20261006':
+            from . import fw33
+            error=fw33.runtime_write_error(self)
+            if error:raise PermissionError(error)
         current = self.current_preset()
         if current is None or current[0] != self._edit_target:
             raise PermissionError("Preset changed or is unreadable; nothing written")

@@ -14,6 +14,7 @@ from fm9.sim import SimFM9Core
 @pytest.fixture(autouse=True)
 def isolated_binding(monkeypatch, tmp_path):
     monkeypatch.delenv(T.FM3_PORT_ENV, raising=False)
+    monkeypatch.delenv(T.FM3_PORT_OUT_ENV, raising=False)
     path = tmp_path / "fm3_port.json"
     monkeypatch.setattr(T, "fm3_binding_path", lambda: path)
     return path
@@ -147,16 +148,20 @@ def test_fm3_failure_matrix(monkeypatch, isolated_binding, backend, system, fail
         assert inp.opened is None and out.opened is None and not out.sent
 
 
+def both(port, source):
+    return {"port_in": port, "port_out": port, "port": port, "source": source}
+
+
 @pytest.mark.parametrize("backend", ["mido", "supriya"])
 def test_binding_round_trip_and_exact_simulated_connection(monkeypatch, isolated_binding, backend):
     names = ["MIDI Interface 2", "midi interface", "MIDI Interface", "FM3 MIDI"]
     inp, out = bus(monkeypatch, backend, names, names)
-    assert T.load_fm3_binding() == {"port": None, "source": "none"}
+    assert T.load_fm3_binding() == both(None, "none")
     assert T.port_names() == names and T.output_names() == names
     assert inp.opened is None and out.opened is None
-    assert T.save_fm3_binding("MIDI Interface") == {"port": "MIDI Interface", "source": "file"}
+    assert T.save_fm3_binding("MIDI Interface") == both("MIDI Interface", "file")
     assert json.loads(isolated_binding.read_text(encoding="utf-8")) == {"port": "MIDI Interface"}
-    assert T.load_fm3_binding() == {"port": "MIDI Interface", "source": "file"}
+    assert T.load_fm3_binding() == both("MIDI Interface", "file")
     dev = FM3()
     try:
         assert inp.opened == out.opened == "MIDI Interface"
@@ -188,7 +193,7 @@ def test_environment_wins_and_refuses_save(monkeypatch, isolated_binding, backen
     T.save_fm3_binding("A")
     before = isolated_binding.read_bytes()
     monkeypatch.setenv(T.FM3_PORT_ENV, env_port)
-    assert T.load_fm3_binding() == {"port": env_port, "source": "env"}
+    assert T.load_fm3_binding() == both(env_port, "env")
     with pytest.raises(T.TransportError, match=T.FM3_PORT_ENV):
         T.save_fm3_binding("A")
     assert isolated_binding.read_bytes() == before
@@ -209,7 +214,7 @@ def test_save_refuses_names_not_in_both_lists(monkeypatch, isolated_binding, bac
     bus(monkeypatch, backend, ["Input Only", "MIDI Interface"], ["Output Only", "MIDI Interface"])
     T.save_fm3_binding("MIDI Interface")
     before = isolated_binding.read_bytes()
-    with pytest.raises(T.TransportError, match="both"):
+    with pytest.raises(T.TransportError, match="Choose the MIDI (input|output)"):
         T.save_fm3_binding(port)
     assert isolated_binding.read_bytes() == before
 
@@ -254,8 +259,12 @@ def test_fm9_missing_messages_byte_identical(monkeypatch, backend, system, names
     else:
         expected += "; is it connected and powered on?"
     if system == "Windows":
-        expected += (" On Windows a Fractal FM3 or FM9 also needs Fractal's USB "
-                     "driver, the one FM3-Edit and FM9-Edit use, from fractalaudio.com.")
+        # #255: the FM9 only; an FM3 has no MIDI over USB (#221)
+        expected += (" On Windows an FM9 also needs Fractal's USB driver, the one "
+                     "FM9-Edit uses, from fractalaudio.com.")
+    if names:
+        expected += (" If your unit is an FM3, or you reach it through a MIDI interface, choose "
+                     "FM3 under Devices and pick that interface's port: " + ", ".join(names) + ".")
     with pytest.raises(FM9NotFound) as got:
         FM9()
     assert str(got.value) == expected
@@ -272,3 +281,51 @@ def test_fm9_silent_message_byte_identical(monkeypatch, system):
         "FM9 port opened but the device did not answer a preset-name "
         "query. Either it is still booting, FM9-Edit is running, or a "
         "zombie process is holding the MIDI port (ps aux | grep python).")
+
+
+# -- #255: a split pair, on both backends ----------------------------------------------
+
+PAIR_INS = ["MidiPort 1", "IAC Driver Bus 1"]
+PAIR_OUTS = ["MidiPort 2", "IAC Driver Bus 1"]
+
+
+@pytest.mark.parametrize("backend", ["mido", "supriya"])
+def test_split_pair_opens_each_direction_exactly(monkeypatch, isolated_binding, backend):
+    inp, out = bus(monkeypatch, backend, PAIR_INS, PAIR_OUTS)
+    T.save_fm3_binding("MidiPort 1", "MidiPort 2")
+    dev = FM3()
+    try:
+        assert (inp.opened, out.opened) == ("MidiPort 1", "MidiPort 2")
+        assert dev.current_preset()
+    finally:
+        dev.close()
+
+
+@pytest.mark.parametrize("backend", ["mido", "supriya"])
+def test_split_pair_with_output_env_uses_the_saved_input(monkeypatch, isolated_binding, backend):
+    inp, out = bus(monkeypatch, backend, PAIR_INS, PAIR_OUTS)
+    T.save_fm3_binding("MidiPort 1", "MidiPort 2")
+    monkeypatch.setenv(T.FM3_PORT_OUT_ENV, "IAC Driver Bus 1")
+    dev = FM3()
+    try:
+        assert (inp.opened, out.opened) == ("MidiPort 1", "IAC Driver Bus 1")
+    finally:
+        dev.close()
+
+
+@pytest.mark.parametrize("backend", ["mido", "supriya"])
+@pytest.mark.parametrize("case", ["env_out_no_file", "env_out_missing", "file_out_missing"])
+def test_split_pair_missing_direction_opens_nothing(monkeypatch, isolated_binding, backend, case):
+    outs = PAIR_OUTS if case != "file_out_missing" else ["IAC Driver Bus 1"]
+    inp, out = bus(monkeypatch, backend, PAIR_INS, outs)
+    if case == "env_out_no_file":
+        monkeypatch.setenv(T.FM3_PORT_OUT_ENV, "MidiPort 2")
+    elif case == "env_out_missing":
+        T.save_fm3_binding("MidiPort 1", "MidiPort 2")
+        monkeypatch.setenv(T.FM3_PORT_OUT_ENV, "Gone")
+    else:
+        isolated_binding.write_text(json.dumps({"port_in": "MidiPort 1", "port_out": "MidiPort 2"}),
+                                    encoding="utf-8")
+    with pytest.raises(FM9NotFound):
+        FM3()
+    assert inp.opened is None and out.opened is None and not out.sent

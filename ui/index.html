@@ -490,6 +490,7 @@
   .plan-card .delta { color: var(--amber); white-space: nowrap; }
   .plan-card.done { border-left-color: var(--green); }
   .plan-card.fail { border-left-color: var(--red); }
+  .plan-card.unverified { border-left-color: var(--amber, #e0a030); }
   .plan-card.vfail { border-left-color: var(--red); background: rgba(255,84,112,0.06); }
   .plan-card.vwarn { border-left-color: var(--amber); }
   .vmsg { font-size: var(--fs-hint); margin-top: 5px; }
@@ -1264,7 +1265,7 @@
 }
 .airow input { flex: 1 1 140px; min-width: 120px; }
 /* #221: the FM3 port picker matches the app's other pickers. */
-#fm3port {
+#fm3port, #fm3portout {
   background: #0d0f0d; border: 1px solid #1f2a1f; color: var(--fg);
   font: inherit; padding: 6px 8px; border-radius: 3px; width: 100%;
 }
@@ -3894,8 +3895,13 @@
         <p class="hint">Read-only support: view presets, scenes and blocks, and
           switch presets and scenes. Sound editing is unavailable.
           Not yet verified on a real FM3.</p>
-        <label for="fm3port">FM3 MIDI interface port</label>
+        <label for="fm3port">MIDI input (from the FM3's MIDI OUT)</label>
         <select id="fm3port" aria-describedby="fm3portreason" disabled
+                style="display:block;width:100%;margin:10px 0">
+          <option value="">Loading MIDI ports...</option>
+        </select>
+        <label for="fm3portout">MIDI output (to the FM3's MIDI IN)</label>
+        <select id="fm3portout" aria-describedby="fm3portreason" disabled
                 style="display:block;width:100%;margin:10px 0">
           <option value="">Loading MIDI ports...</option>
         </select>
@@ -7792,7 +7798,7 @@ function askAboutBuild(spec, note) {
     </div>` : ''}
     <div class="q">
       <label>Name it</label>
-      <input type="text" id="qname" maxlength="32" value="${esc(srcAnswers.name)}">
+      <input type="text" id="qname" maxlength="25" value="${esc(srcAnswers.name)}">
     </div>
     <p>Building on top of <b>${esc(loaded || 'the loaded preset')}</b>. Anything
        the build does not change stays exactly as it is there, and a save would
@@ -7855,6 +7861,17 @@ function fidelityHtml(f) {
     + `${chosen.stated_used ? `; ${esc(chosen.stated_used)} taken straight from the source` : ''}.</p>
     <p id="fidreadback" hidden></p>
   </div>`;
+}
+
+// #249: a send's results in three sets. ok is verified by the unit; a result
+// that says sent but not ok went out and cannot be read back (a tempo); the
+// rest failed. Only the failed set may be named as a failure.
+function sendTally(acted) {
+  const verifiedResults = acted.filter(r => r.ok);
+  const unverifiedResults = acted.filter(r => !r.ok && r.sent);
+  const failedResults = acted.filter(r => !r.ok && !r.sent);
+  return {verified: verifiedResults.length, unverified: unverifiedResults.length,
+          failed: failedResults.length, unverifiedResults, failedResults};
 }
 
 // After sending: each kept piece of gear is verified when every action on its
@@ -8080,7 +8097,8 @@ function suggestName(spec) {
     out.push(w);
   }
   while (out.length && stop.test(out[out.length - 1])) out.pop();  // no trailing "into"
-  return out.join(' ').slice(0, 32);
+  // 25 fits after the FM9AI- tag in the 31 characters the unit stores (#246)
+  return out.join(' ').slice(0, 25).trim();
 }
 
 async function runBuild(spec, note) {
@@ -8230,7 +8248,12 @@ function describe(a) {
   if (a.kind === 'set_channel') return `${a.block} ${a.instance}: channel ${'ABCD'[a.value]}`;
   if (a.kind === 'set_tempo') return `Tempo: ${a.value} BPM`;
   if (a.kind === 'set_type') return `${a.block} ${a.instance}: model → ${a.type_name}`;
+  // #251: an anchored addition and a move say what they do; the move used to
+  // fall through to the parameter wording, "drive 1 / null: set to null"
+  if (a.kind === 'add_block' && (a.position === 'before' || a.position === 'after') && a.ref)
+    return `ADD ${a.block} ${a.instance} (${a.position} ${a.ref})`;
   if (a.kind === 'add_block') return `ADD ${a.block} ${a.instance}${a.position ? ' (' + a.position + '-amp)' : ''}`;
+  if (a.kind === 'reorder') return `Move ${a.block} ${a.instance} ${a.position || 'before'} ${a.ref}`;
   if (a.kind === 'bind_pedal') return `Pedal 2 → ${a.block} ${a.instance} ${a.param}${a.value ? ' (floor ' + a.value + '%)' : ''}`;
   // Without its own branch this fell through to the set_param wording and
   // rendered as "Mix: null", because an unbind carries no value. Reachable
@@ -10834,7 +10857,7 @@ async function apply() {
     out.results.forEach(res => {
       const isAction = res.action && res.action.kind
         && res.action.kind !== 'snapshot' && res.action.kind !== 'build_chain';
-      if (isAction && cards[card]) cards[card].classList.add(res.ok ? 'done' : 'fail');
+      if (isAction && cards[card]) cards[card].classList.add(res.ok ? 'done' : (res.sent ? 'unverified' : 'fail'));
       if (isAction) card++;
       const extra = res.before !== undefined && res.before !== null
         ? ` (${res.before} → ${res.after})` : '';
@@ -10848,13 +10871,19 @@ async function apply() {
       r => r.action && r.action.kind && r.action.kind !== 'snapshot'
         && r.action.kind !== 'build_chain');
     const fidLine = currentPlan.fidelity ? fidelityReadBack(currentPlan.fidelity, acted, currentPlan.actions) : '';   // #228
-    const good = acted.filter(r => r.ok).length;
-    const bad = acted.length - good;
+    // #249: three outcomes, not two. A change the unit cannot read back (a
+    // tempo) was sent and is unverified; it is neither verified nor failed.
+    const tally = sendTally(acted);
+    const good = tally.verified, bad = tally.failed, unverified = tally.unverified;
     // NAME the failures. The old banner pointed at one card folded inside
     // a hundred, twice in one evening, and the player had to go hunting
     // for a sentence the app was already holding.
-    const failures = acted.filter(r => !r.ok).slice(0, 3).map(r =>
+    const failures = tally.failedResults.slice(0, 3).map(r =>
       `${describe(r.action)} could not be applied`);
+    const unverifiedLine = unverified
+      ? ` ${unverified} more ${unverified === 1 ? 'was' : 'were'} sent but cannot be read back to verify: `
+        + tally.unverifiedResults.map(r => describe(r.action)).join('; ') + '.'
+      : '';
     const failLine = bad
       ? ` Did not apply: ${failures.join('; ')}`
         + (bad > failures.length ? `; and ${bad - failures.length} more.` : '.')
@@ -10892,9 +10921,9 @@ async function apply() {
                          + `STORE PRESET, and UNDO puts the previous sound back.`);
     chatNote(bad
       ? `Sent ${good} of ${acted.length} change${acted.length === 1 ? '' : 's'} `
-        + `to the ${devName()}.${failLine}`
+        + `to the ${devName()}.${failLine}${unverifiedLine}`
         + (devNamed() ? tail : bufferNote)
-      : `Sent ${good} change${good === 1 ? '' : 's'} to the ${devName()}. Play it.`
+      : `Sent ${good} change${good === 1 ? '' : 's'} to the ${devName()}.${unverifiedLine} Play it.`
         + tail);
     if (fidLine) chatNote(fidLine);
     // Auto health after a build (issue #51): clone/dead/silent scenes the
@@ -10930,16 +10959,23 @@ async function apply() {
     // Said in the strip that cannot be scrolled away from, not only in the
     // plan panel: the transmit's own indicator used to simply vanish at the
     // finish, and a vanishing indicator reads as nothing having happened.
-    workAnnounce(bad
-      ? `SENT ${good} OF ${acted.length}. Failed: ${failures[0] || 'see the plan panel'}`
+    // #249: the strip says the sent-unverified count in every outcome, not
+    // only in the phase line.
+    const unverifiedNote = unverified
+      ? ` ${unverified} more sent, not verifiable: ${tally.unverifiedResults.map(r => describe(r.action)).join('; ')}.`
+      : '';
+    workAnnounce((bad
+      ? `SENT ${good} OF ${acted.length}. Failed: ${failures[0] || 'see the plan panel'}.`
       : (stored.length
           ? `DONE: ${good} change${good === 1 ? '' : 's'} sent and stored to slot ${storedWhere}. The preset is ready; play it.`
           : devNamed()
             ? `DONE: ${good} change${good === 1 ? '' : 's'} on the ${devName()}. Play it. No undo here.`
-            : `DONE: ${good} change${good === 1 ? '' : 's'} on the FM9. Play it; UNDO puts it back.`),
+            : `DONE: ${good} change${good === 1 ? '' : 's'} on the FM9. Play it; UNDO puts it back.`))
+      + unverifiedNote,
       bad ? 'part' : 'ok');
-    sendPhase(bad ? `PARTIAL · ${good} OF ${acted.length} VERIFIED`
-                  : `COMPLETE · ${good} OF ${acted.length} VERIFIED`);
+    sendPhase((bad ? `PARTIAL · ${good} OF ${acted.length} VERIFIED`
+                   : `COMPLETE · ${good} OF ${acted.length} VERIFIED`)
+              + (unverified ? ` · ${unverified} SENT UNVERIFIED` : ''));
     $('sendnav').innerHTML = (stored.length
         ? 'CHANGES SENT · STORED TO SLOT ' + esc(storedWhere)
         : 'CHANGES SENT · PRESET NOT STORED')
@@ -12284,8 +12320,22 @@ let fm3PortFixed = false;
 let fm3PortLoad = 0;
 function updateFM3PortControls() {
   $('fm3port').disabled = fm3PortBusy || fm3PortFixed;
-  $('fm3portsave').disabled = fm3PortBusy || fm3PortFixed || !$('fm3port').value
-    || $('fm3port').selectedOptions[0].disabled;
+  $('fm3portout').disabled = fm3PortBusy || fm3PortFixed;
+  const chosen = id => $(id).value && !$(id).selectedOptions[0].disabled;
+  $('fm3portsave').disabled = fm3PortBusy || fm3PortFixed || !chosen('fm3port') || !chosen('fm3portout');
+}
+// #255: an interface can list its input and output under different names, so
+// the FM3 card picks each from its own list
+function fillFM3Picker(id, names, saved, prompt) {
+  const picker = $(id);
+  picker.replaceChildren(new Option(prompt, ''));
+  for (const port of names) picker.add(new Option(port, port));
+  if (saved && !names.includes(saved)) {
+    const missing = new Option(saved + ' (not available)', saved);
+    missing.disabled = true;
+    picker.add(missing);
+  }
+  picker.value = saved || '';
 }
 async function loadFM3Port() {
   if (fm3PortBusy) return;
@@ -12299,21 +12349,16 @@ async function loadFM3Port() {
     const d = await r.json();
     if (load !== fm3PortLoad) return;
     fm3PortFixed = d.fixed || d.source === 'env';
-    const picker = $('fm3port');
-    picker.replaceChildren(new Option('Choose a MIDI interface port', ''));
-    for (const port of d.ports) picker.add(new Option(port, port));
-    if (d.port && !d.ports.includes(d.port)) {
-      const missing = new Option(d.port + ' (not available)', d.port);
-      missing.disabled = true;
-      picker.add(missing);
-    }
-    picker.value = d.port || '';
+    const inputs = d.inputs || d.ports, outputs = d.outputs || d.ports;
+    fillFM3Picker('fm3port', inputs, d.port_in || d.port, 'Choose the MIDI input');
+    fillFM3Picker('fm3portout', outputs, d.port_out || d.port, 'Choose the MIDI output');
     $('fm3portreason').textContent = fm3PortFixed
       ? 'This port is fixed by TONECOMMAND_FM3_PORT in the environment. It cannot be changed here.'
       : 'Choose the interface connected to your FM3, then Save.';
-    $('fm3portstatus').textContent = d.port && !d.ports.includes(d.port)
+    const savedIn = d.port_in || d.port, savedOut = d.port_out || d.port;
+    $('fm3portstatus').textContent = (savedIn && !inputs.includes(savedIn)) || (savedOut && !outputs.includes(savedOut))
       ? 'The saved FM3 port is not available. Check that your MIDI interface is connected.'
-      : d.ports.length ? '' : 'No MIDI ports found. Connect your USB MIDI interface, then reopen Devices.';
+      : inputs.length && outputs.length ? '' : 'No MIDI ports found. Connect your USB MIDI interface, then reopen Devices.';
   } catch (_) {
     fm3PortFixed = true;
     $('fm3portreason').textContent = '';
@@ -12323,7 +12368,13 @@ async function loadFM3Port() {
     updateFM3PortControls();
   }
 }
-$('fm3port').onchange = updateFM3PortControls;
+$('fm3port').onchange = () => {
+  // the usual case: the same interface in both directions
+  const name = $('fm3port').value;
+  if (name && [...$('fm3portout').options].some(o => o.value === name && !o.disabled)) $('fm3portout').value = name;
+  updateFM3PortControls();
+};
+$('fm3portout').onchange = updateFM3PortControls;
 $('fm3portsave').onclick = async () => {
   if (fm3PortBusy || fm3PortFixed || $('fm3portsave').disabled) return;
   fm3PortBusy = true;
@@ -12332,7 +12383,7 @@ $('fm3portsave').onclick = async () => {
   try {
     const r = await fetch('/api/fm3/port', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({port: $('fm3port').value}),
+      body: JSON.stringify({port_in: $('fm3port').value, port_out: $('fm3portout').value}),
     });
     const d = await r.json();
     if (!r.ok || !d.ok) {

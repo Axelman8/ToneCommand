@@ -30,7 +30,7 @@ require_supported_install()
 
 from fm9.adapter import (CAPABILITY_PROTOCOLS, UNDECLARED, Capabilities,
                          DeviceAdapter)
-from fm9.device import FM9, FM9NotFound, get_cab_slots, get_store_slots
+from fm9.device import FM9, FM9NotFound, ReadOnly, get_cab_slots, get_store_slots
 from fm9.registry import Registry
 from fm9 import (acquire, ai_settings, artist_pack, axechange, bundlefile, cabfile,
                  describe, designs, diagnostics, editbuffer, gallery, gallery_install,
@@ -336,12 +336,17 @@ def api_fm3_port():
     """#221: current binding and visible names, without opening any port."""
     from fm9 import midi_transport
     binding = midi_transport.load_fm3_binding()
-    return {"port": binding["port"],
+    readable = midi_transport.readable_port
+    inputs = [n for n in dict.fromkeys(midi_transport.port_names()) if readable(n)]
+    outputs = [n for n in dict.fromkeys(midi_transport.output_names()) if readable(n)]
+    return {"port": binding["port"], "port_in": binding["port_in"], "port_out": binding["port_out"],
             "source": None if binding["source"] == "none" else binding["source"],
             "fixed": binding["source"] == "env",
-            # only names a save can accept: present as both an input and an output
-            "ports": [name for name in dict.fromkeys(midi_transport.port_names())
-                      if name in set(midi_transport.output_names())]}
+            # #255: each direction from its own list; an interface may name
+            # them differently ("MidiPort 1" in, "MidiPort 2" out)
+            "inputs": inputs, "outputs": outputs,
+            # the #221 field: names present as both an input and an output
+            "ports": [name for name in inputs if name in set(outputs)]}
 
 
 @app.post("/api/fm3/port")
@@ -351,9 +356,17 @@ def api_fm3_port_save(body: dict):
     from fm9 import midi_transport
     with _lock:
         try:
-            binding = midi_transport.save_fm3_binding(body.get("port"))
+            if "port_in" in body or "port_out" in body:
+                # #255: a split pair names both directions; a missing one is
+                # refused, never filled in from the other
+                port_out = body.get("port_out")
+                binding = midi_transport.save_fm3_binding(body.get("port_in"),
+                                                          "" if port_out is None else port_out)
+            else:
+                binding = midi_transport.save_fm3_binding(body.get("port"))
         except midi_transport.TransportError as e:
-            status = 409 if midi_transport.FM3_PORT_ENV in os.environ else 400
+            fixed = (midi_transport.FM3_PORT_ENV, midi_transport.FM3_PORT_OUT_ENV)
+            status = 409 if any(name in os.environ for name in fixed) else 400
             return JSONResponse({"ok": False, "error": str(e)}, status_code=status)
         ctx = device_context()
         reconnected = False
@@ -1821,6 +1834,19 @@ def snapshot(fm9: DeviceAdapter) -> dict:
         raise FM9NotFound("the FM9 stopped answering; is it still plugged in?")
     scene = fm9.scene_name()
     blocks = fm9.status_dump() or []
+    # #253: a block counts only when a grid cell holds it. The status dump can
+    # list a block whose cell was cleared (the starter template clears cells,
+    # not blocks); the planner then planned to move a block that was not
+    # there. When the grid cannot be read, the status list stands as before.
+    read_grid = getattr(fm9, "read_grid", None)
+    try:
+        cells = read_grid() if callable(read_grid) else None
+    except ReadOnly:
+        # the FM3 is read-only and its grid read is not in what it may send
+        cells = None
+    if cells:
+        held = _on_grid(cells, blocks)
+        blocks = [b for b in blocks if b.effect_id in held]
     out_blocks = []
     values = {}
     # What each value IS, so the UI can offer a control instead of a readout.
@@ -2560,6 +2586,36 @@ def api_rig_compare(body: RigCompareBody):
     return out
 
 
+#: #246: the FM9 stores 31 characters of a preset name; "FM9AI-" takes six
+PRESET_NAME_STORED = 31
+PRESET_TAG = "FM9AI-"
+BUILD_NAME_ROOM = PRESET_NAME_STORED - len(PRESET_TAG)
+
+
+def stored_preset_name(name: str) -> str:
+    """The name the unit will hold for a rename to `name`: tagged, cut to
+    what it stores, trailing spaces gone (it reads names back stripped)."""
+    name = (name or "").strip()
+    if not name.upper().startswith("FM9AI"):
+        name = PRESET_TAG + name
+    return name[:PRESET_NAME_STORED].rstrip()
+
+
+def _fit_build_name(name) -> str:
+    """A build name cut so the tag and the name fit what the unit stores."""
+    return (name or "").strip()[:BUILD_NAME_ROOM].rstrip()
+
+
+def _fit_planned_renames(actions: list) -> None:
+    """A rename the planner wrote itself is cut the same way, so the plan the
+    player reviews carries the name the unit will actually hold."""
+    for a in actions:
+        if a.get("kind") == "rename_preset" and a.get("type_name"):
+            raw = str(a["type_name"]).strip()
+            a["type_name"] = raw[:PRESET_NAME_STORED].rstrip() if raw.upper().startswith("FM9AI") \
+                else _fit_build_name(raw)
+
+
 def _describe_build_for_device(body: BuildBody, spec: dict, dev, on_status=None, cancel=None):
     """#230: a source built on a device that declares named parameters. A rig
     is compiled against what the device publishes (rigcompile.compile_for_params)
@@ -2613,8 +2669,8 @@ def _describe_build_for_device(body: BuildBody, spec: dict, dev, on_status=None,
 def api_describe_build(body: BuildBody):
     """Pass two, in one request. Kept for callers that cannot hold a stream."""
     result = _describe_build_for(body)
-    if isinstance(result, dict) and result.get("blockers"):
-        return JSONResponse(result, status_code=409)          # #228: faithful cannot be
+    if isinstance(result, dict) and (result.get("blockers") or result.get("fit_failures")):
+        return JSONResponse(result, status_code=409)          # #228 faithful, #247 does not fit
     if isinstance(result, dict) and "error" in result and len(result) == 1:
         return JSONResponse(result, status_code=502)
     return result
@@ -2761,8 +2817,11 @@ def _describe_build_for(body: BuildBody, on_count=None, cancel=None,
     #
     # Prepended, so the buffer carries the right name from the first action on,
     # and validated below with everything else rather than around it.
+    # A rename the planner wrote is cut to what the unit stores whether or
+    # not the player named the build (#246 review).
+    _fit_planned_renames(result.get("actions", []))
     if (body.name or "").strip():
-        want = (body.name or "").strip()[:26]   # run_action prefixes "FM9AI-"
+        want = _fit_build_name(body.name)       # run_action prefixes "FM9AI-"
         if not any(a.get("kind") == "rename_preset"
                    for a in result.get("actions", [])):
             result["actions"].insert(0, {"kind": "rename_preset",
@@ -2776,6 +2835,24 @@ def _describe_build_for(body: BuildBody, on_count=None, cancel=None,
         "quotes": spec.get("quotes") or [],
         "source": spec.get("source") or {},
     }
+    # #248: a rig's added blocks go where the rig puts them, anchored to the
+    # compiled chain, and are added before anything configures them.
+    # Present means on the grid: a block can sit in the status dump while no
+    # cell holds it (the starter template clears cells, not blocks).
+    grid_cells = grid_status = None
+    if compiled is not None and not offline:
+        with _lock:
+            try:
+                _dev = get_fm9()
+                grid_cells, grid_status = _dev.read_grid() or [], _dev.status_dump() or []
+            except CapabilityDeclined:
+                raise
+            except FM9NotFound:
+                grid_cells = grid_status = None
+    if compiled is not None:
+        present = _on_grid(grid_cells, grid_status) if grid_cells is not None else \
+            {b.get("effect_id") for b in (snap or {}).get("blocks", [])}
+        result["actions"] = _anchor_rig_adds(compiled, result.get("actions", []), present)
     # The identical validation every other plan gets. Not a lighter version.
     for a in result.get("actions", []):
         errs, warns = validate_action(Action(**a))
@@ -2791,6 +2868,16 @@ def _describe_build_for(body: BuildBody, on_count=None, cancel=None,
                     a["block"], int(a.get("instance") or 1))[1]
             except Exception:
                 pass
+    # #247: rehearse the plan's structural changes on a copy of the loaded
+    # preset's grid before anyone reviews it; a plan that cannot land is
+    # refused here, with the placement code's own reasons.
+    if compiled is not None and grid_cells:
+        failures = _rehearse_fit(result.get("actions", []), grid_cells, grid_status)
+        if failures:
+            return {"error": ("This preset's routing cannot take that rig: "
+                              + "; ".join(f"{f['action']}: {f['detail']}" for f in failures)
+                              + ". Load a preset whose signal runs on one row, then build again."),
+                    "fit_failures": failures}
     # #228: the rig, read back against the validated plan.
     if compiled is not None:
         from fm9 import rigcompile
@@ -2820,7 +2907,8 @@ def _name_the_build(result: dict, name: str | None,
     """
     actions = result.get("actions") or []
     add = []
-    want = (name or "").strip()[:26]        # run_action prefixes "FM9AI-"
+    want = _fit_build_name(name)            # run_action prefixes "FM9AI-"
+    _fit_planned_renames(actions)
     if want and not any(a.get("kind") == "rename_preset" for a in actions):
         add.append({"kind": "rename_preset", "block": "PRESET", "instance": 1,
                     "type_name": want,
@@ -3492,8 +3580,17 @@ def validate_action(a: Action) -> tuple[list[str], list[str]]:
         errors.append(str(e))
         return errors, warnings
     if a.kind == "add_block":
-        if a.position not in (None, "pre", "post", "any"):
-            errors.append(f"position must be pre/post/any, got {a.position!r}")
+        if a.position not in (None, "pre", "post", "any", "before", "after"):
+            errors.append(f"position must be pre/post/any, or before/after a ref block, got {a.position!r}")
+        elif a.position in ("before", "after"):
+            # #248: an anchor names the block the new one goes next to
+            if not a.ref or not str(a.ref).strip():
+                errors.append(f"add_block {a.position} needs a ref block to sit next to")
+            else:
+                try:
+                    _anchor_of(a)
+                except (KeyError, ValueError) as e:
+                    errors.append(f"add_block anchor: {e}")
     elif a.kind == "reorder":
         if a.position not in (None, "before", "after"):
             errors.append(f"reorder position must be before/after, got {a.position!r}")
@@ -3501,7 +3598,12 @@ def validate_action(a: Action) -> tuple[list[str], list[str]]:
             errors.append("reorder requires a ref block to move relative to")
         else:
             try:
-                reg.resolve_block(a.ref, 1)
+                _ref_fam, ref_eid = reg.resolve_block(a.ref, 1)
+                if ref_eid == _eid:
+                    # "move drive 1 before drive" names the same block twice:
+                    # invalid, so it is shown in review and never sent (#247)
+                    errors.append(f"reorder moves {a.block} {a.instance} relative to itself "
+                                  f"(ref {a.ref!r} is the same block)")
             except (KeyError, ValueError) as e:
                 errors.append(f"reorder ref block: {e}")
     elif a.kind in ("bind_pedal", "unbind_pedal"):
@@ -3696,12 +3798,148 @@ def _splice_plan_for(fm9: DeviceAdapter, a: Action) -> dict | None:
     return intent
 
 
+def _merged_chain(compiled: dict) -> list[tuple[str, int]]:
+    """#248: one order for the shared grid: scene 1's chain, then each later
+    scene's steps not yet in it, each after its nearest earlier step there."""
+    order: list[tuple[str, int]] = []
+    for sc in compiled.get("scenes") or []:
+        steps = [(s["block"], int(s["instance"])) for s in sc["chain"]]
+        for i, step in enumerate(steps):
+            if step in order:
+                continue
+            prev = next((steps[j] for j in range(i - 1, -1, -1) if steps[j] in order), None)
+            nxt = next((steps[j] for j in range(i + 1, len(steps)) if steps[j] in order), None)
+            # after its scene's earlier neighbour; failing that, just before
+            # its later one, which is where its signal goes next
+            order.insert(order.index(prev) + 1 if prev else (order.index(nxt) if nxt else len(order)), step)
+    return order
+
+
+def _anchor_rig_adds(compiled: dict, actions: list, present: set) -> list:
+    """#248: every add_block for a compiled step is anchored next to its
+    neighbour in the merged chain and moved to the front of the plan, in
+    chain order, so nothing configures a block before it exists and the
+    planner's coarse pre/post/any no longer decides where it lands."""
+    order = _merged_chain(compiled)
+
+    def key(a):
+        try:
+            fam, _eid = reg.resolve_block(a.get("block") or "", int(a.get("instance") or 1))
+        except (KeyError, ValueError, TypeError):
+            return None
+        for blk, inst in order:
+            try:
+                if reg.resolve_block(blk, inst)[0] == fam and inst == int(a.get("instance") or 1):
+                    return (blk, inst)
+            except (KeyError, ValueError):
+                continue
+        return None
+
+    adds = [(key(a), a) for a in actions if a.get("kind") == "add_block"]
+    anchored = sorted([(k, a) for k, a in adds if k is not None], key=lambda ka: order.index(ka[0]))
+    if not anchored:
+        return actions
+    rest = [a for a in actions if not (a.get("kind") == "add_block" and key(a) is not None)]
+
+    def on_grid(step):
+        try:
+            return reg.resolve_block(*step)[1] in present
+        except (KeyError, ValueError):
+            return False
+
+    added: set = set()
+    out = []
+    for step, a in anchored:
+        i = order.index(step)
+        before = next((order[j] for j in range(i - 1, -1, -1) if on_grid(order[j]) or order[j] in added), None)
+        after = next((order[j] for j in range(i + 1, len(order)) if on_grid(order[j])), None)
+        if before is not None:
+            a = {**a, "position": "after", "ref": f"{before[0]} {before[1]}"}
+        elif after is not None:
+            a = {**a, "position": "before", "ref": f"{after[0]} {after[1]}"}
+        a["why"] = ((a.get("why") or "") + f" (placed {a.get('position')} {a.get('ref')}, where the rig has it)").strip()
+        out.append(a)
+        added.add(step)
+    return out + rest
+
+
+def _on_grid(cells, status) -> set:
+    """Effect ids that a grid cell actually holds, aliases resolved."""
+    present = {b.effect_id for b in status or []}
+    resolved = resolve_aliases(cells or [], present)
+    return {eid for eid in resolved.values() if eid}
+
+
+def _rehearse_fit(actions: list, cells, status) -> list[dict]:
+    """#247: run the plan's add_block and reorder actions, in order, on a
+    simulator seeded with the loaded preset's grid and block status (read
+    once from the unit by the caller). Returns what would fail and why."""
+    from fm9.sim import sim_from_reading
+    structural = [a for a in actions if a.get("kind") in ("add_block", "reorder")
+                  and not a.get("validation_errors")]
+    if not structural or not cells:
+        return []
+    twin = sim_from_reading(reg, cells, status)
+    failures = []
+    for a in structural:
+        try:
+            res = run_action(twin, Action(**{k: v for k, v in a.items() if k in Action.model_fields}))
+        except CapabilityDeclined:
+            raise
+        except Exception as exc:
+            res = {"ok": False, "detail": str(exc)}
+        if not res.get("ok"):
+            what = (f"add {a.get('block')} {a.get('instance') or 1}" if a.get("kind") == "add_block"
+                    else f"move {a.get('block')} {a.get('instance') or 1} {a.get('position') or 'before'} {a.get('ref')}")
+            failures.append({"action": what, "detail": res.get("detail") or "would not land"})
+    return failures
+
+
+def _anchor_of(a: Action) -> tuple[str, int]:
+    """(family, effect id) of an add_block anchor. ref is a block name with
+    an optional instance: "drive 2", "amp" (instance 1)."""
+    import re as _re
+    m = _re.match(r"^\s*(.*?)\s+(\d+)\s*$", str(a.ref or ""))
+    name, inst = (m.group(1), int(m.group(2))) if m else (str(a.ref or "").strip(), 1)
+    return reg.resolve_block(name, inst)
+
+
+def _add_block_anchored(fm9: DeviceAdapter, a: Action, eid: int, cells) -> dict:
+    """#248: put the new block next to its anchor, on the anchor's row: onto
+    the neighbouring cell when it is a free pass-through, else by splicing at
+    that column, so the splice code's own refusals and path check still
+    apply. An anchor that is not on the grid writes nothing."""
+    _fam, ref_eid = _anchor_of(a)
+    present = {b.effect_id for b in fm9.status_dump() or []}
+    resolved = resolve_aliases(cells, present)
+    anchor = next((c for c in cells if c.effect_id is not None
+                   and resolved.get((c.row, c.col)) == ref_eid), None)
+    if anchor is None:
+        return {"ok": False, "detail": f"the anchor {a.ref} is not on the grid, so {a.block} "
+                                       f"{a.instance} has nowhere to go next to it; nothing written"}
+    col = anchor.col + 1 if a.position == "after" else anchor.col - 1
+    cell = next((c for c in cells if (c.row, c.col) == (anchor.row, col)), None)
+    if cell is not None and cell.is_shunt:
+        return _place_on_shunt(fm9, a, eid, anchor.row, col, where=f"{a.position} {a.ref} ")
+    at_col = anchor.col + 2 if a.position == "after" else anchor.col + 1      # 1-based
+    plan = fm9.plan_splice(anchor.row + 1, at_col)
+    if not plan.get("ok"):
+        return {"ok": False, "detail": plan.get("detail") or "no room to splice next to the anchor",
+                "reason": plan.get("reason", "no_placement")}
+    res = fm9.splice_block(anchor.row + 1, at_col, eid)
+    res["spliced"] = True
+    res["detail"] = f"{a.block} spliced in {a.position} {a.ref} at row {anchor.row + 1} col {at_col}; " \
+                    + res.get("detail", "")
+    return res
+
+
 def _add_block(fm9: DeviceAdapter, a: Action) -> dict:
     """Insert a block onto a free shunt cell. Refuses when no sane placement
     exists rather than guessing (no cable drawing in the planner path)."""
     fam, eid = reg.resolve_block(a.block or "", a.instance)
     blocks = fm9.status_dump() or []
-    if any(b.effect_id == eid for b in blocks):
+    # #253: present means a grid cell holds it, not merely the status dump
+    if eid in _on_grid(fm9.read_grid() or [], blocks):
         # The goal state, not the verb: "add amp 1" asks for amp 1 to be
         # present, and it is. Halting a build over this turned an
         # auto-provisioned starting chain (which already carries amp and
@@ -3712,6 +3950,11 @@ def _add_block(fm9: DeviceAdapter, a: Action) -> dict:
     cells = fm9.read_grid()
     if cells is None:
         return {"ok": False, "detail": _no_placement_detail(a, a.position or "any", None)}
+    if a.position in ("before", "after"):
+        try:
+            return _add_block_anchored(fm9, a, eid, cells)
+        except (KeyError, ValueError) as exc:
+            return {"ok": False, "detail": f"the anchor {a.ref!r} is not a block: {exc}; nothing written"}
     amp_cols = [c.col for c in cells if c.effect_id in (58, 59, 60, 61)]
     amp_col = min(amp_cols) if amp_cols else None
     shunts = [(c.row, c.col) for c in cells if c.is_shunt]
@@ -3738,6 +3981,15 @@ def _add_block(fm9: DeviceAdapter, a: Action) -> dict:
                          f"{intent['at_col']}; " + res.get("detail", ""))
         return res
     row, col = sorted(shunts, key=lambda rc: rc[1])[0]
+    return _place_on_shunt(fm9, a, eid, row, col)
+
+
+def _place_on_shunt(fm9: DeviceAdapter, a: Action, eid: int, row: int, col: int,
+                    where: str = "") -> dict:
+    """Put a block onto the free pass-through at 0-based (row, col), then prove
+    it landed with its cables in AND out, redrawing a lost outgoing cable.
+    One path for a coarse placement and an anchored one (#248 review): the
+    unit can drop the outgoing cable when a shunt is replaced."""
     fm9.place_block((row + 1, col + 1), eid)
     after = fm9.read_grid() or []
     placed = [c for c in after
@@ -3769,8 +4021,8 @@ def _add_block(fm9: DeviceAdapter, a: Action) -> dict:
                                   f"outgoing cable was lost and could not be "
                                   f"redrawn; downstream is disconnected"}
     return {"ok": ok,
-            "detail": f"placed at row {row + 1} col {col + 1}, cables verified "
-                      f"in and out" if ok else "placement failed grid verification"}
+            "detail": f"placed {where}at row {row + 1} col {col + 1}, cables verified "
+                      f"in and out" if ok else f"placement {where}failed grid verification"}
 
 
 def _resolve_param(fam: str, name: str, instance: int):
@@ -3961,20 +4213,17 @@ def _select_cab(fm9: DeviceAdapter, bank: int, ordinal: int, instance: int = 1):
 
 def run_action(fm9: DeviceAdapter, a: Action) -> dict:
     if a.kind == "rename_preset":
-        name = a.type_name.strip()
-        if not name.upper().startswith("FM9AI"):
-            name = ("FM9AI-" + name)[:32]
+        # #246: send exactly what the unit will store, and check that. The
+        # FM9's preset-name field holds 31 usable characters ("Triptyc" read
+        # back "Tripty" at the limit) and a name reads back with trailing
+        # spaces stripped, so a 32-character build name came back 30 long and
+        # a landed rename was reported failed (2026-10-09).
+        name = stored_preset_name(a.type_name)
         fm9.rename_preset(name)
         got = fm9.current_preset()
         stored = got[1] if got else ""
-        # The FM9 preset-name field holds one fewer usable char than the 32 we
-        # budget for, so a title at the limit reads back one short ("Triptyc"
-        # -> "Tripty"). That is the device storing what it can, not a failed
-        # rename, and it must not sink a whole build. Accept an exact match or
-        # the device's own truncation of the name we asked for.
-        ok = bool(stored) and (
-            stored == name or (name.startswith(stored) and len(stored) >= 31))
-        return {"ok": ok, "detail": f"preset renamed to {stored!r}"}
+        return {"ok": bool(stored) and stored == name,
+                "detail": f"preset renamed to {stored!r}"}
     if a.kind == "rename_scene":
         fm9.rename_scene(int(a.value), a.type_name.strip()[:32])
         got = fm9.scene_name(int(a.value))
@@ -4004,7 +4253,10 @@ def run_action(fm9: DeviceAdapter, a: Action) -> dict:
                 "detail": f"scene {got}" + (f" \"{name[1]}\"" if name else "")}
     if a.kind == "set_tempo":
         fm9.set_tempo(int(a.value))
-        return {"ok": False, "detail": f"tempo {int(a.value)} bpm sent (unverified; no read-back)"}
+        # #249: never ok without a read-back, but sent: the page counts it
+        # as sent unverified, not as a failure.
+        return {"ok": False, "sent": True, "verified": False,
+                "detail": f"tempo {int(a.value)} bpm sent (unverified; no read-back)"}
     if a.kind == "set_device_param":
         # #198: a named parameter and a WIRE value, for a device whose
         # parameters are not addressed by block and which publishes no taper.

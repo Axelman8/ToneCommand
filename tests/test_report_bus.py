@@ -124,8 +124,9 @@ def test_the_transport_names_the_device_it_looked_for(monkeypatch):
 # --- #216: the not-found message says what the bus shows ---------------------------
 
 NO_INPUT = "this computer sees no MIDI input at all"
-DRIVER = ("On Windows a Fractal FM3 or FM9 also needs Fractal's USB driver, "
-          "the one FM3-Edit and FM9-Edit use, from fractalaudio.com.")
+# #255: the FM9 only; an FM3 has no MIDI over USB (#221)
+DRIVER = ("On Windows an FM9 also needs Fractal's USB driver, "
+          "the one FM9-Edit uses, from fractalaudio.com.")
 
 
 def _mido_bus(monkeypatch, ins, outs, system):
@@ -209,7 +210,9 @@ def test_fm3_empty_bus_names_the_interface_route_never_a_driver(monkeypatch, sys
 def test_other_ports_on_windows_keep_the_driver_but_not_the_empty_bus_clause(monkeypatch):
     _mido_bus(monkeypatch, ["USB Keyboard"], ["Microsoft GS Wavetable Synth 0"], "Windows")
     why = _why("fm9")
-    assert why == "FM9 MIDI ports not found; is it connected and powered on? " + DRIVER
+    assert why == ("FM9 MIDI ports not found; is it connected and powered on? " + DRIVER
+                   + " If your unit is an FM3, or you reach it through a MIDI interface, choose FM3 "
+                     "under Devices and pick that interface's port: USB Keyboard.")
     assert NO_INPUT not in why
 
 

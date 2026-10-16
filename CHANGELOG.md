@@ -4,6 +4,16 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Reconcile upstream1.5.15 shared rig placement/honesty, split FM3 port binding,
+  diagnostics, simulator and Python packaging changes. Preserve input cleanup
+  after output-open failure on both MIDI backends, FX3 integration seams and
+  required publication/browser checks alongside upstream Python3.14 CI.
+  The FM9 never-brick `_send` implementation is unchanged. Shared FM9 acceptance
+  never promotes FX3: native FW33 writes remain pinned to measured Windows,
+  Python3.12 and mido, with read-only connection/profile diagnostics elsewhere.
+  This is a local source integration, not remote CI, publication or acceptance
+  of a new effect, platform, controller, routing or firmware write.
+
 - Add a closed268-step Compressor/partial-GEQ developer calibration and a
   default-disabled reviewed T808 Mod A-D prototype. No user/AI override releases
   it: compile and executor preflight refuse Drive designs until exact
@@ -449,6 +459,70 @@ Notable changes to ToneCommand. Dates are UTC.
 - The library symlink security test explicitly skips WinError 1314 when a
   Windows account cannot create symlinks. All other OS errors still fail;
   the production path containment rule is unchanged.
+## 1.5.15 (2026-10-11)
+
+### Fixed
+- **An FM3 on a MIDI interface can be chosen when the interface names its
+  input and output differently (#255).** The FM3 card now has a picker for
+  each direction (from the FM3's MIDI OUT, to its MIDI IN), so an adapter
+  that lists "MidiPort 1" in and "MidiPort 2" out can be saved. A binding
+  saved earlier still works.
+- **The FM9 not-found message no longer sends FM3 owners to Fractal's USB
+  driver (#255).** The driver advice now says it is for an FM9, and when a
+  MIDI interface is present the message suggests choosing FM3 under Devices
+  and names the interface's ports. A port name the driver garbles is marked
+  unreadable in the problem report.
+- **A failed block move reads as a move (#251).** The plan and its result
+  say "Move Drive 2 after Amp 1" and "ADD Wah 1 (before Drive 1)" instead
+  of "set to null".
+- **A block that has no grid cell no longer counts as present (#253).** The
+  FM9 can list a block in its status with nothing on the grid; the preset
+  view leaves it out and adding it places it instead of saying it is there.
+- **Blocks a rig build adds land where the rig has them (#248).** A new
+  block can now be placed before or after a named block, and a build from a
+  rig places each added block next to its neighbour in the rig, in the rig's
+  order, before anything configures it. On the FM9 a second drive had
+  landed after the amp.
+- **A rig build that cannot fit the loaded preset says so before review
+  (#247).** The plan's added and moved blocks are rehearsed on a copy of the
+  loaded preset's grid, using the same placement code. If any would not
+  land, the build stops with each reason and a suggestion to load a preset
+  whose signal runs on one row, instead of a send that stops part-way (4 of
+  48 on a three-row preset).
+- **A rack effects unit is no longer built as a delay (#243).** An FX1,
+  "Eventide effects" or "a chain of rack effects" says nothing about which
+  effects they are, so a rig build now lists them as not reproduced, with
+  that reason, instead of guessing a delay. When the source names the effect
+  ("TC Electronic delay", "Lexicon reverb", "H3000 harmonizer"), it becomes
+  that block.
+- **A long build name no longer reads as a failed change (#246).** The FM9
+  keeps 31 characters of a preset name, so a build name is cut to 25 to fit
+  after the FM9AI- tag, the plan shows the name the unit will hold, and the
+  rename is checked against exactly that.
+- **A tempo change shows as sent, not failed (#249).** The FM9 cannot read a
+  tempo back, so the change is sent and marked unverified; the send no
+  longer names it as the failure.
+
+- **Compare with the loaded preset on a scene with no signal (#240).** It
+  used to call every piece of gear missing. It now matches the gear against
+  the blocks cabled from Input and says first that no signal reaches the
+  output.
+
+### Changed
+- **Any Python 3.11 or newer installs, with no compiler (#172).** From
+  Python 3.13 the MIDI binding is supriya-midi, which has prebuilt wheels to
+  3.14. It passed the same hardware pass as python-rtmidi on an FM9
+  (`tools/transport_pass.py`): the status dump, a block's full parameter
+  read, the routing globals, a preset loaded into the edit buffer and read
+  back, and a user cab installed and read back by name all matched. CI now
+  installs on Python 3.14 on Linux, Windows and macOS with prebuilt wheels
+  only. On Windows, 3.12 stays the choice proven on a connected unit.
+
+### Found
+- The FM9's status reply can report Input 1 as bypassed on one read and
+  engaged on the next, for the same stored preset (#241). Until that is
+  understood, a scene the app calls silent for that reason may not be.
+
 ## 1.5.14 (2026-10-09)
 
 **Fixes that need no device.** Update & restart is no longer blocked by

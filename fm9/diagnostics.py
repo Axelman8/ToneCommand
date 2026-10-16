@@ -214,7 +214,13 @@ def _midi():
 
 
 def _names(names) -> str:
-    return ", ".join(repr(str(n)) for n in names) if names else "none"
+    """Port names for the report; one a driver mangled into control
+    characters is kept raw for diagnosis and marked, so nobody reads it as a
+    device name (#255)."""
+    from fm9.midi_transport import readable_port
+    return ", ".join(repr(str(n)) if readable_port(n)
+                     else f"{str(n)!r} (unreadable name: the driver reports control characters)"
+                     for n in names) if names else "none"
 
 
 def _detected_line() -> str:

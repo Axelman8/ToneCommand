@@ -42,7 +42,7 @@ preserves separate scene/channel intent, and stops at the first failed
 readback. Cab imports/selections and narrow grid/modifier operations remain
 behind this boundary; broad topology/modifier capabilities stay disabled.
 See `docs/AFX3-INTEGRATION.md` for the remaining
-server/UI and hardware gates. `server.py` has 8,229 lines in this stage.
+server/UI and hardware gates. `server.py` has 8,481 lines in this stage.
 FX3 `navigation` is an explicit human-only selection service, separate from
 planner actions and automatic reload. State-bound single-use confirmations
 protect scene/preset transitions; native readback verifies selection, not sound.
@@ -138,7 +138,7 @@ locally, and the only way to catch a layout regression is a screenshot.
 **Fix:** split into `ui/index.html`, `ui/app.css`, and JavaScript modules by
 concern. Served as static files. No behaviour change, mechanical, testable.
 
-### 2. `server.py` is 8,229 lines; routes include the bounded FX3 workspace
+### 2. `server.py` is 8,481 lines; routes include the bounded FX3 workspace
 
 Every concern in one module: device polling, planning, applying, settings,
 recipes, sharing, snapshots, profiles, slot admin. Eight pieces of

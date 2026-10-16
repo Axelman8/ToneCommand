@@ -22,6 +22,20 @@ certify untested firmware, controllers, NAM formats or upstream features.
 
 ### Current local acceptance boundary, 2026-10-16
 
+The shared source has been reconciled with upstream1.5.15 at
+`9ed8751c566f7b2ccb11b387c39f98ab7996edad`. Preserve upstream placement/rehearsal,
+honesty, split FM3 binding and Python packaging changes while keeping this
+adapter's failed-open port cleanup and separate FX3 CI/browser gate. The FM9
+never-brick `_send` AST is unchanged. The upstream checker now compares future
+changes from that integration foundation rather than reporting integrated work
+as missing. This does not claim remote CI or physical FM9/FX3 audition.
+
+Upstream's shared Python3.14/supriya acceptance applies to its measured FM9
+path, not automatically to FX3. Native FW33 writes are pinned to the measured
+Windows/Python3.12/mido combination. Other runtimes may inspect read-only state;
+they receive an explicit unsupported-write-profile message. Scripted test ports
+do not establish native acceptance. Do not relax this gate from metadata alone.
+
 The earlier dated sections below record historical limits. The current released
 measured CAB scope is2048 Factory names, complete imported User1/2 addressing,
 four-IR mixing and separately restricted FullRes metadata. The entire MK1 User2

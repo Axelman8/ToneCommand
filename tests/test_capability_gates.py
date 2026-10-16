@@ -101,7 +101,8 @@ def test_set_tempo_reports_unverified_send_once():
 
     assert sent == [135]
     assert got == {
-        "ok": False,
+        "ok": False,                 # still never ok without a read-back
+        "sent": True, "verified": False,      # #249: sent, so not a failure
         "detail": "tempo 135 bpm sent (unverified; no read-back)",
     }
 
@@ -745,8 +746,8 @@ def test_audit_counts_are_reported_honestly():
     blocks = _except_exception_blocks(ast.parse(SERVER.read_text(encoding="utf-8")))
     reraised = sum(1 for _h, before, _b in blocks.values()
                    if _handles_decline_first(before))
-    assert len(blocks) == 91          # #230: the IR-2 rig build's planner call
-    assert reraised == 36
+    assert len(blocks) == 92          # #247: the fit rehearsal's run_action on a twin
+    assert reraised == 37
     assert len(blocks) - reraised == 55
 
 
