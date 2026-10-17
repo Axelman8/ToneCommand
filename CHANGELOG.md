@@ -4,6 +4,14 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Align the FX3 request entry with the upstream single primary action: GENERATE
+  PLAN starts route exploration when needed, then explicitly requests the user's
+  AMP/CAB or NAM choice without building or writing automatically. Collapse
+  optional design settings, explain disabled actions inline, retain the request
+  and Enter-as-newline behavior, and correct the obsolete NAM-slot001-only hint.
+  Keep all existing firmware, review, mute, SEND and Store gates unchanged.
+  Park external MK1 acceptance as a separate task before any MK1 NAM release.
+
 - Release exact zero for seven core Amp knobs and four measured Delay/Chorus
   scalars, plus verified automatic Tempo NONE within reviewed AMP/CAB timing.
   Closed72-literal native calibration, actual selected-AI333-action normal

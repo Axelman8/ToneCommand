@@ -20,7 +20,7 @@ el('controllerChoice').after(intentPanel);
 const refineButton=document.createElement('button');refineButton.id='refineSound';refineButton.textContent='BIJSTUREN NA LUISTERTEST';refineButton.hidden=true;
 el('returnRequest').after(refineButton);
 const adjustPanel=document.createElement('fieldset');adjustPanel.id='adjustScenes';adjustPanel.hidden=true;
-el('requestPanel').querySelector('.formbar').after(adjustPanel);
+el('requestOptions').after(adjustPanel);
 const comparisonPanel=document.createElement('details');comparisonPanel.id='audioComparePanel';comparisonPanel.hidden=true;
 comparisonPanel.innerHTML='<summary>OPNAME VERGELIJKEN</summary><p>Vergelijk een zelf opgenomen gitaarfragment met het klankvoorbeeld uit SONG / AUDIO of je verzoek. Gebruik dezelfde passage en vergelijkbare aanslag. Dit is geen automatische klankscore.</p><label>Eigen opname <input id="recordingFile" type="file" accept="audio/*"></label><label>Start (seconden) <input id="recordingStart" type="number" min="0" max="86400" step="0.25" value="0"></label><label>Lengte (maximaal 60 seconden) <input id="recordingLength" type="number" min="0.25" max="60" step="0.25" value="20"></label><button id="compareAudio">VERGELIJK FRAGMENTEN</button><p id="comparisonStatus" role="status">Alleen lokale analyse; geen opname, afspelen, AI-aanroep of verzending naar de Fractal.</p><div id="comparisonResults"></div>';
 el('rightrail').prepend(comparisonPanel);
@@ -40,7 +40,7 @@ function enterRefinement(){
   note('Beschrijf wat je hoort en wat moet veranderen. Selecteer scenes. Voor FW33 AMP/CAB eerst scene 1 selecteren; opnieuw bevestigen voor SEND.');
 }
 refineButton.onclick=()=>{if(!busy)enterRefinement();};
-function clearRouteExploration(){routeExploration=null;el('buildRoute').value=adjusting&&refineContext?refineContext.mode:'';el('routeOptions').replaceChildren();el('routeReason').textContent=adjusting?'Bestaande bouwroute behouden bij deze luisteraanpassing.':'Vul je verzoek in en klik EXPLORE ROUTES. NAM wordt niet automatisch gekozen.';}
+function clearRouteExploration(){routeExploration=null;el('buildRoute').value=adjusting&&refineContext?refineContext.mode:'';el('routeOptions').replaceChildren();el('routeReason').textContent=adjusting?'Bestaande bouwroute behouden bij deze luisteraanpassing.':'Vul je verzoek in en klik GENERATE PLAN. TC onderzoekt eerst de routes; NAM wordt niet automatisch gekozen.';}
 const note=text=>{el('status').textContent=text;};
 const stageNames=['request','plan','review','confirm','send'];
 const stagePanes=['pane-request','planPanel','review','confirmPanel','result'];
@@ -106,13 +106,29 @@ function controls(){
   el('connectDevice').disabled=busy||!!state?.connected;
   el('wahMode').disabled=busy||!el('wah').value;
   const fw33=state?.firmware==='33.00-beta.20261006';
-  const maxScenes=album?Math.max(...albumCounts):serial?1:fw33?(state.route?.length?2:1):state?.multiscene_planning_supported?8:4;
-  for(const option of el('scenes').options)option.disabled=album?!albumCounts.includes(Number(option.value)):Number(option.value)>maxScenes;
-  if(album&&!albumCounts.includes(Number(el('scenes').value)))el('scenes').value=String(albumCounts[0]);
+  const awaitingRoute=chooseRoute&&!el('buildRoute').value&&!adjusting;
+  const ampAvailable=awaitingRoute&&!!state?.album_build_supported;
+  const maxScenes=album||ampAvailable?Math.max(...albumCounts):serial?1:fw33?(state.route?.length?2:1):state?.multiscene_planning_supported?8:4;
+  for(const option of el('scenes').options)option.disabled=album||ampAvailable?!albumCounts.includes(Number(option.value)):Number(option.value)>maxScenes;
+  if((album||ampAvailable)&&!albumCounts.includes(Number(el('scenes').value)))el('scenes').value=String(albumCounts[0]);
   if(Number(el('scenes').value)>maxScenes)el('scenes').value=String(maxScenes);
+  el('requestOptionsSummary').textContent=`ONTWERPOPTIES: ${el('scenes').value} SCENE(S), BRON EN CONTROLLERS`;
   el('generate').disabled=busy||el('deviceChoice').value!=='axefx3'||!state?.connected||!!state.route_problem||(!fw33&&!state.cab_count);
   if((serial||album)&&state?.scene!==1)el('generate').disabled=true;
-  if(chooseRoute&&!adjusting&&!routeExploration?.routes.some(r=>r.mode===el('buildRoute').value&&r.enabled))el('generate').disabled=true;
+  const chosenRoute=routeExploration?.routes.find(r=>r.mode===el('buildRoute').value);
+  if(chooseRoute&&!adjusting&&chosenRoute&&!chosenRoute.enabled)el('generate').disabled=true;
+  el('generate').textContent=adjusting?'VOORSTEL VOOR AANPASSING':chooseRoute&&routeExploration&&!chosenRoute?'CHOOSE ROUTE':'GENERATE PLAN';
+  el('requestNext').textContent=busy?'TC is bezig. Je verzoek blijft behouden; wacht op de uitkomst.':
+    !state?.connected?'Verbind eerst de Fractal; er wordt niets automatisch verzonden.':
+    el('deviceChoice').value!=='axefx3'?'Klik VERBIND om naar de geselecteerde apparaatinterface te gaan.':
+    state.route_problem?state.route_problem:
+    !fw33&&!state.cab_count?'Importeer eerst een beschikbare cabnamenlijst via CAB LIBRARY.':
+    (serial||album)&&state.scene!==1?'Selecteer eerst scene 1 via de scenebalk. Niet-opgeslagen presetwijzigingen worden daardoor niet opgeslagen.':
+    adjusting?'Selecteer de scenes en beschrijf je luisterfeedback. De knop maakt alleen een nieuw voorstel.':
+    chooseRoute&&!routeExploration?'Begin met je verzoek en GENERATE PLAN. TC onderzoekt de routes en vraagt daarna om jouw keuze.':
+    chooseRoute&&!chosenRoute?'TC wacht op je bouwroute. Klik CHOOSE ROUTE of open BOUWROUTE KIEZEN.':
+    chosenRoute&&!chosenRoute.enabled?chosenRoute.reason:
+    `Volgende stap: GENERATE PLAN maakt een voorstel voor ${el('scenes').value} scene(s). REVIEW en CONFIRM volgen voor SEND.`;
   if(adjusting){el('scenes').disabled=true;el('wah').disabled=true;el('wahMode').disabled=true;sourceKind.disabled=true;captureSlot.disabled=true;}
   refineButton.hidden=!refineContext;refineButton.disabled=busy;
   for(const input of adjustPanel.querySelectorAll('input'))input.disabled=busy;
@@ -127,7 +143,7 @@ function controls(){
   el('storeCommit').disabled=busy||!storePreview||!el('storeMute').checked||!el('storeFlash').checked;
   el('send').disabled=busy||currentStage!==3||el('deviceChoice').value!=='axefx3'||!proposal||!el('confirmed').checked||!el('muted').checked;
   stage(currentStage);
-  el('controllerHint').textContent=album?`FW33: ${albumCountText} scenes beschikbaar, met klankdoelen en maximaal vier ampvoicings/vier cabkanalen A-D. Geen verplichte sceneparen. Delay/Chorus delen A, Output -18dB. Start op scene 1; alleen vrijgegeven effectprofielen, geen nieuwe controllers.`:serial?'Gemeten AMP/CAB-testketen: uitsluitend scene1/A. Modellen blijven behouden, reserveblokken blijven bypassed. Geen nieuwe controllers.':fw33?'FW33 NAM: eerst 1 scene vanuit leeg; daarna maximaal 2 met NAM A/B. Nieuwe controllerkoppelingen zijn voor dit profiel nog niet geverifieerd.':!el('wah').value?'Geen nieuwe controllerkoppeling. Bestaande Auto Engage blijft behouden en kan de scene-bypass beinvloeden.':
+  el('controllerHint').textContent=awaitingRoute?'Kies na het routeadvies AMP/CAB of NAM. Het beschikbare sceneaantal en de bediening hangen af van die route en het geverifieerde apparaatprofiel.':album?`FW33: ${albumCountText} scenes beschikbaar, met klankdoelen en maximaal vier ampvoicings/vier cabkanalen A-D. Geen verplichte sceneparen. Delay/Chorus delen A, Output -18dB. Start op scene 1; alleen vrijgegeven effectprofielen, geen nieuwe controllers.`:serial?'Gemeten AMP/CAB-testketen: uitsluitend scene1/A. Modellen blijven behouden, reserveblokken blijven bypassed. Geen nieuwe controllers.':fw33?'FW33 NAM: eerst 1 scene vanuit leeg; daarna maximaal 2 met NAM A/B. Nieuwe controllerkoppelingen zijn voor dit profiel nog niet geverifieerd.':!el('wah').value?'Geen nieuwe controllerkoppeling. Bestaande Auto Engage blijft behouden en kan de scene-bypass beinvloeden.':
     el('wahMode').value==='Fast Pos'?'Fast Pos: pedaalbeweging kan de Wah ook inschakelen in een scene met Wah uit. Kies Off voor aan/uit via de scenes.':
     el('wahMode').value==='Off'?'Off: het pedaal stuurt de Wah-filterstand, maar schakelt de Wah niet automatisch aan of uit.':
     'Bestaande Auto Engage-modus blijft behouden. Bij een nieuwe koppeling gebruikt het apparaat zijn standaard; controleer het gedrag.';
@@ -310,8 +326,11 @@ el('prompt').addEventListener('input',()=>{clearRouteExploration();controls();})
 el('audioFile').addEventListener('input',()=>{clearRouteExploration();controls();});
 el('buildRoute').onchange=()=>{invalidate();const choice=routeExploration?.routes.find(r=>r.mode===el('buildRoute').value);
   el('routeReason').textContent=choice?choice.reason:'Kies zelf NAM of AMP/CAB.';controls();};
-el('exploreRoutes').onclick=()=>run(async()=>{
+async function exploreRequestRoutes(){
+  if(!el('prompt').value.trim())throw new Error('Beschrijf eerst de gewenste sound of voeg een link toe.');
   clearRouteExploration();invalidate();await api('discard',{});
+  note('TC onderzoekt je verzoek en de beschikbare bouwroutes. Er wordt niets naar de Fractal gestuurd...');
+  if(sourceKind.value==='rig'&&el('audioFile').files.length)throw new Error('Rig-uitleg gebruikt tekst of een YouTube-link. Verwijder het klankbestand of kies klankvoorbeeld.');
   audioReference=sourceKind.value==='rig'?null:await analyseRequestAudio();
   const result=await api('options',{prompt:el('prompt').value,expected_preset:state.preset,audio_reference:audioReference,source_kind:sourceKind.value});
   routeExploration=result;el('routeOptionsPanel').open=true;
@@ -325,8 +344,10 @@ el('exploreRoutes').onclick=()=>run(async()=>{
   el('namQuery').value=result.comparison.nam_query;
   if(result.nam_candidates?.length){await showAccountTones(result.nam_candidates);el('namPanel').open=true;}
   if(result.nam_search_warning){const warning=document.createElement('p');warning.textContent=result.nam_search_warning;el('routeOptions').append(warning);}
+  el('routeOptionsPanel').scrollIntoView({block:'nearest'});
   note('Routes onderzocht. Kies NAM of AMP/CAB; niets geselecteerd, geinstalleerd of verzonden.');
-});
+}
+el('exploreRoutes').onclick=()=>run(exploreRequestRoutes);
 el('confirmed').onchange=el('muted').onchange=controls;
 function navigate(index){
   if(busy||(index>0&&index<4&&!proposal)||(index===4&&!el('resultText').textContent))return;
@@ -370,6 +391,7 @@ el('newDesign').onclick=()=>run(async()=>{
   refineContext=null;adjusting=false;adjustPanel.hidden=true;el('generate').textContent='GENERATE PLAN';
   clearRouteExploration();
   el('conversationPanel').hidden=true;el('requestPanel').open=true;el('requestPreview').hidden=true;
+  el('requestOptions').open=false;el('routeOptionsPanel').open=false;
   el('emptyConversation').hidden=false;el('resultText').textContent='';stage(0);
   el('result').hidden=true;el('audioStatus').textContent='Een link in het verzoek wordt automatisch gebruikt.';
   // Focus after the busy guard releases the input.
@@ -715,11 +737,18 @@ function showDesign(plan){
   }
 }
 el('generate').onclick=()=>run(async()=>{
+  if(!el('prompt').value.trim())throw new Error('Beschrijf eerst de gewenste sound of voeg een link toe.');
+  if(state.route_options_supported&&!adjusting){
+    if(!routeExploration){await exploreRequestRoutes();return;}
+    if(!routeExploration.routes.some(r=>r.mode===el('buildRoute').value&&r.enabled)){
+      el('routeOptionsPanel').open=true;setTimeout(()=>el('buildRoute').focus(),0);
+      note('Kies een uitvoerbare bouwroute. Er is nog geen voorstel gemaakt of iets verzonden.');return;
+    }
+  }
   invalidate();el('result').hidden=true;
   note('AI werkt het voorstel uit. Er wordt nog niets naar de Fractal gestuurd...');
   stage(1);
   if(el('namWithRequest').checked&&!el('namQuery').value.trim())throw new Error('Vul een Tone3000-zoekterm in, of schakel zoeken bij dit voorstel uit.');
-  if(state.route_options_supported&&!adjusting&&!routeExploration?.routes.some(r=>r.mode===el('buildRoute').value&&r.enabled))throw new Error('Verken eerst de routes en kies een uitvoerbare bouwroute.');
   const adjustTargets=[...adjustPanel.querySelectorAll('input:checked')].map(input=>Number(input.value));
   if(adjusting&&(!adjustTargets.length||!el('prompt').value.trim()))throw new Error('Kies scenes en beschrijf je luisterfeedback.');
   if(sourceKind.value==='rig'&&el('audioFile').files.length)throw new Error('Rig-uitleg gebruikt tekst of een YouTube-link. Verwijder het klankbestand of kies klankvoorbeeld.');

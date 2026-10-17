@@ -35,6 +35,12 @@ preset reload. A snapshot or test pass never proves safe physical loudness.
 
 ## User bank memory policy
 
+The separate MK1 NAM verification task is parked until an external MK1 tester
+is available. See [the MK1 test assignment](AFX3-MK1-NAM-TEST.md). It does not
+block the owner's [MK2 UX user test](AFX3-UX-USER-TEST.md). Publication-plan
+steps 4, 5 and 6 follow that user test; those numbers are not the inventory
+item numbers in the table above.
+
 The official FW33 beta release notes specify the entire User Cab Bank2 is
 replaced by NAM memory on MK1, not partly shared. MK2 has separate NAM storage
 and retains User2. Unknown NAM-era hardware fails closed. Name imports never
