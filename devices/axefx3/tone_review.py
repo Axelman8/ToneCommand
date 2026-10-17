@@ -102,15 +102,16 @@ class Reviews:
             if initial['preset'][0]!=expected_preset:
                 raise ValueError('Select the saved target preset first; no automatic preset reload')
             proof=record['proof']
-            if digest(initial)!=proof['scene_fingerprints'][str(initial['scene'])]:
+            if digest(initial)!=proof['scene_fingerprints'].get(str(initial['scene'])):
                 raise ValueError('Device settings or imported cab names differ from saved design; nothing resumed')
             from . import album_planning,navigation
             route=route_guard.serial_route(initial['grid'],initial['blocks'],dev.reg)
-            plan=album_planning.compile_design(dev.reg,record['plan']['design'],route,8)
+            count=record['plan']['design'].get('scene_count',8)
+            plan=album_planning.compile_design(dev.reg,record['plan']['design'],route,count)
             self.clear();self.last_sent=None
             # Scene selection is explicitly consented, but a mismatch never
             # triggers a rollback, old SEND, model write or preset reload.
-            for number in range(1,9):
+            for number in range(1,count+1):
                 if dev.current_scene()!=number:
                     navigation.switch_scene(dev,number,dev.current_preset(),external_audio_muted=True)
                 now=snapshot(dev,include_nam=False)
@@ -127,7 +128,7 @@ class Reviews:
             return dict(ok=True,refine_token=token,preset=expected_preset,name=plan['name'],
                 scenes=plan['scenes'],mode='amp',scene=1,stored=False,parameters_written=False,
                 scenes_selected=True,history_id=record_id,
-                warning='Alle acht scenes opnieuw gecontroleerd. Scene1 staat klaar voor bijsturen. Geen oude SEND/Store-toestemming hergebruikt; gedeelde IR-audio en hoorbare klank zijn niet gemeten.')
+                warning=f'Alle {count} ontworpen scenes opnieuw gecontroleerd. Scene1 staat klaar voor bijsturen. Geen oude SEND/Store-toestemming hergebruikt; gedeelde IR-audio en hoorbare klank zijn niet gemeten.')
 
     def clear(self):
         self.pending = None

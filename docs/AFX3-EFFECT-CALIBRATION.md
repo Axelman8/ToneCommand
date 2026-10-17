@@ -1,7 +1,7 @@
 # FW33 effect calibration checkpoint
 
 This is evidence status, not blanket permission to write every effect. The
-normal released eight-scene route still keeps reserve effects bypassed. FM9
+normal route keeps unvoiced reserve effects bypassed. FM9
 permissions, permanent storage allowlists and unknown-outcome behavior are
 unchanged. Only the owner's exact FW33 beta/MK2/Windows profile was used.
 
@@ -13,14 +13,16 @@ gain/tone/level/mix and exact-zero setters were captured on T808 Mod. The fixed
 unrelated-state preservation. A subsequent separate Axe-Edit comparison confirms
 T808 Mod, gain0, tone5, level0, mix100 on each A-D channel, always bypassed.
 
-A reviewed T808 Mod prototype can represent four voices following Amp A-D and
+A reviewed T808 Mod build can represent four voices following Amp A-D and
 explicit per-scene activation. It has exact grammar/value/order checks and a
-bounded final LEVEL knob0..2.5, not dB or proven unity gain. It is deliberately
-disabled by `DRIVE_RELEASED=False`: normal planning and executor preparation
-reject it. Exact engage/bypass is now captured on A-D using typed parameter7,
-not an assumed generic0x0a command. Normal SEND, independent editor checks
-and user listening remain separate prerequisites. Synthetic tests opt into the
-prototype only with monkeypatching; the GUI has no release override.
+bounded final LEVEL knob0..2.5, not dB or proven unity gain. Exact engage/bypass
+is captured on A-D using typed parameter7, not an assumed generic0x0a command.
+The actual configured AI's eight-scene design completes384 normal SEND actions
+with full-state checks; a separate Axe-Edit pass confirms all eight stored scene
+channel/bypass maps and four numeric voices. This narrowly releases T808 Mod
+within the reviewed route, not generic Drive models, arbitrary pedal insertion,
+physical loudness, audible tone matching or controller behavior. The release
+gate still has no GUI/environment override.
 
 ## Compressor1
 
@@ -63,6 +65,7 @@ transitions. It ended on322/scene1 with Amp, Drive, Compressor and GEQ bypassed,
 all on A, Output-18dB. The MIDI connection closed normally; TC did not Store.
 The owner will save the test fixture manually, which is not a TC Store proof.
 
-The owner requested ending today's session. The post-native independent editor
-comparison and normal AI/review/SEND acceptance remain pending; no new release
-flag was enabled. A complete developer replay is not normal planner acceptance.
+After the owner resumed testing, the separate editor comparison passes all12
+Drive/Compressor/GEQ channel states. Drive then passes actual AI/normal SEND and
+its own independent eight-scene editor comparison. Compressor/GEQ still require
+their normal planner/executor integration and acceptance; PEQ remains unmeasured.

@@ -50,12 +50,14 @@ def validate(data):
     try:datetime.fromisoformat(data['created'])
     except ValueError:raise ValueError('Invalid local design date') from None
     proof=data['proof'];scenes=proof['scene_fingerprints']
-    if not isinstance(scenes,dict) or set(scenes)!=set(map(str,range(1,9))):
-        raise ValueError('Complete eight-scene evidence required')
+    count=data['plan']['design'].get('scene_count',8)
+    if (type(count) is not int or count not in range(1,9) or not isinstance(scenes,dict)
+            or set(scenes)!=set(map(str,range(1,count+1)))):
+        raise ValueError('Complete evidence for every designed scene required')
     for value in [data['stamp'],proof['final_fingerprint'],*scenes.values()]:
         if not isinstance(value,str) or not re.fullmatch('[0-9a-f]{64}',value):
             raise ValueError('Invalid stored device fingerprint')
-    if data['stamp']!=proof['final_fingerprint'] or scenes['8']!=data['stamp']:
+    if data['stamp']!=proof['final_fingerprint'] or scenes[str(count)]!=data['stamp']:
         raise ValueError('Final scene evidence differs from saved state')
     return data
 

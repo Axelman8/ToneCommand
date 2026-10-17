@@ -27,6 +27,11 @@ def seed():
 def validate_actions(reg,actions,existing):
     """Exact deterministic grammar, not an untrusted mode flag from the AI."""
     base=seed()
+    names=[a.get('value') for a in actions if a.get('kind')=='rename_scene']
+    count=len(names)
+    if count not in fw33_profile.ALBUM_SCENE_COUNTS or names!=list(range(1,count+1)) or any(type(n) is not int for n in names):
+        raise ValueError('Exactly the released scene count and ordered scene names required')
+    base.scene_count=count
     expanded=any(a.get('kind')=='set_param' and a.get('block')=='CABINET' for a in actions)
     if expanded:
         # Reconstruct only the explicit CAB subgrammar, then regenerate it.
@@ -82,7 +87,7 @@ def validate_actions(reg,actions,existing):
     scene=0
     for i,a in enumerate(expected):
         if a['kind']=='set_scene':scene=a['value']
-        if (first_scene<i<len(expected)-8 and a['kind']=='set_channel'
+        if (first_scene<i<len(expected)-count and a['kind']=='set_channel'
                 and a['block'] in ('DISTORT','CABINET')):
             if type(actions[i].get('value')) is not int or actions[i]['value'] not in range(4):
                 raise ValueError('Scene channel must be a measured A-D channel')
@@ -186,6 +191,7 @@ class Session:
         self.dev,self.target,self.resolved=dev,dev._edit_target,resolved
         self.index,self.failed,self.frame,self.item=0,False,None,None
         self.scene_states={}
+        self.scene_count=sum(i.action['kind']=='rename_scene' for i in resolved)
         self.expected=tone_review.snapshot(dev,include_nam=False)
         self.expanded=any(i.family=='CABINET' and i.spec for i in resolved)
         cab_layout(self.expected['bulk'].get(62),expanded=self.expanded)
@@ -309,8 +315,8 @@ class Session:
                     if any(b.effect_id not in old or replace(b,channel=old[b.effect_id].channel,bypassed=old[b.effect_id].bypassed)!=old[b.effect_id] for b in now['blocks']): return False
                     if len(old)!=len(now['blocks']): return False
                     wanted['blocks']=now['blocks']
-                    if self.index>=len(self.resolved)-8:
-                        if len(self.scene_states)!=8: return False
+                    if self.index>=len(self.resolved)-self.scene_count:
+                        if len(self.scene_states)!=self.scene_count: return False
                         wanted['blocks']=self.scene_states[item.value]
                 elif kind=='rename_preset': wanted['preset']=(before['preset'][0],item.value)
                 elif kind=='rename_scene':
@@ -329,10 +335,10 @@ class Session:
         finally: self.item=None;self.frame=None
 
     def proof(self):
-        if self.failed or self.index!=len(self.resolved) or len(self.scene_states)!=8:
+        if self.failed or self.index!=len(self.resolved) or len(self.scene_states)!=self.scene_count:
             raise PermissionError('Incomplete album cannot certify a Store proof')
         return dict(final_fingerprint=digest(self.expected),scene_fingerprints={str(n):
-            digest({**self.expected,'scene':n,'blocks':self.scene_states[n]}) for n in range(1,9)})
+            digest({**self.expected,'scene':n,'blocks':self.scene_states[n]}) for n in range(1,self.scene_count+1)})
 
 
 @contextmanager

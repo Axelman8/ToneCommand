@@ -121,13 +121,23 @@ class Design(planning.Shape, scene_intent.IntentDesign):
     albums: Annotated[list[Album], Field(min_length=4, max_length=4)]
     delay: Delay
     chorus: Chorus
-    scene_layout: Annotated[list[SceneLayout], Field(min_length=8, max_length=8)] | None = None
+    scene_count: Annotated[StrictInt,Field(ge=1,le=8)]=8
+    scene_layout: Annotated[list[SceneLayout], Field(min_length=1, max_length=8)] | None = None
+
+    @model_validator(mode='after')
+    def exact_scene_layout(self):
+        if self.scene_layout is not None and len(self.scene_layout)!=self.scene_count:
+            raise ValueError('Explicit scene layout must match the requested scene count')
+        if self.scene_count!=8 and self.scene_layout is None:
+            raise ValueError('Short designs require an explicit scene layout, not inferred album pairs')
+        return self
 
 
-SYSTEM = '''Design eight Axe-Fx III scenes, not necessarily four album pairs.
+SYSTEM = '''Design exactly the requested number of Axe-Fx III scenes, one to
+eight, not necessarily four album pairs. Set scene_count to the requested count.
 The historical schema key albums holds FOUR available Amp/Cab voice slots
 A-D, not a rule that four album pairs must share a sound. Return scene_layout
-with all eight scene names, amp_channel/cab_channel 0..3 and effect flags.
+with exactly that many scene names, amp_channel/cab_channel 0..3 and effect flags.
 Its assignments override the historical lead/solo fields, which remain schema
 compatibility data only. Choose up to four amp configurations and four Legacy
 cab mixer configurations from the measured reference. Scene1 uses Amp/Cab A; other
@@ -166,7 +176,7 @@ Return only the supplied schema. Explain limitations briefly in user language.
 
 
 def reference(reg):
-    return json.dumps(dict(firmware=reg.firmware, scenes=8, amp_channels='ABCD',
+    return json.dumps(dict(firmware=reg.firmware, scene_counts=sorted(fw33_profile.ALBUM_SCENE_COUNTS), amp_channels='ABCD',
         drive_executable=fw33_profile.DRIVE_RELEASED,
         drive_notice='When false, omit Drive voicing and keep every scene drive flag false. A requested Drive remains an explicit unsupported requirement, not a silent substitution.',
         models=list(MODELS.values()),
@@ -246,7 +256,7 @@ def actions_for(reg, design, existing):
         emit('rename_scene',value=number,type_name=item['name'])
     emit('rename_preset',type_name=design.name)
     # Explicit final survey: select only, do NOT rewrite mappings while checking.
-    for number in range(1,9): emit('set_scene',value=number)
+    for number in range(1,design.scene_count+1): emit('set_scene',value=number)
     return actions
 
 
@@ -254,11 +264,16 @@ def layout(design):
     if design.get('scene_layout') is not None:
         return design['scene_layout']
     return [dict(**role,amp_channel=c,cab_channel=c)
-            for c,album in enumerate(design['albums']) for role in (album['lead'],album['solo'])]
+            for c,album in enumerate(design['albums']) for role in (album['lead'],album['solo'])][:design.get('scene_count',8)]
 
 
 def compile_design(reg,raw,current_route,scene_count):
-    design=Design.model_validate(raw)
+    if type(scene_count) is not int or scene_count not in fw33_profile.ALBUM_SCENE_COUNTS:
+        raise ValueError('This scene count awaits independent normal SEND/editor acceptance')
+    if not isinstance(raw,dict):raise ValueError('A structured scene design is required')
+    design=Design.model_validate({**raw,'scene_count':raw.get('scene_count',scene_count)})
+    if design.scene_count!=scene_count:
+        raise ValueError('AI scene count differs from the explicitly requested scene count')
     assignments=layout(design.model_dump())
     if has_drive(design) and not fw33_profile.DRIVE_RELEASED:
         raise ValueError('Drive prototype awaits exact engage/bypass and normal SEND/editor acceptance; nothing sent')
@@ -266,8 +281,8 @@ def compile_design(reg,raw,current_route,scene_count):
         raise ValueError('Active Drive scenes require explicit T808 Mod voicing')
     if assignments[0]['amp_channel'] != 0 or assignments[0]['cab_channel'] != 0:
         raise ValueError('Scene1 must retain Amp/Cab A as the measured review starting point')
-    if not serial_build.supported(reg) or scene_count!=8:
-        raise ValueError('Measured album AMP/CAB mode requires exact FW33/MK2 and eight scenes')
+    if not serial_build.supported(reg):
+        raise ValueError('Measured album AMP/CAB mode requires exact FW33/MK2')
     if current_route and tuple(current_route)!=serial_build.ROUTE:
         raise ValueError('Album build cannot replace or splice another route')
     actions=actions_for(reg,design,bool(current_route))

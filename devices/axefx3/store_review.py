@@ -23,10 +23,12 @@ class Stores:
         route=tuple(route_guard.serial_route(state['grid'],state['blocks'],dev.reg))
         if route==serial_build.ROUTE:
             proof=getattr(dev,'_album_store_proof',None)
+            count=len(proof.get('scene_fingerprints',{})) if isinstance(proof,dict) else 0
             if (getattr(dev,'_album_store_stamp',None)!=digest(state) or not proof
                     or proof.get('final_fingerprint')!=digest(state)
-                    or set(proof.get('scene_fingerprints',{}))!={str(n) for n in range(1,9)}):
-                raise ValueError('AMP/CAB Store requires an unchanged complete successful eight-scene SEND on this connection')
+                    or count not in fw33_profile.ALBUM_SCENE_COUNTS
+                    or set(proof.get('scene_fingerprints',{}))!={str(n) for n in range(1,count+1)}):
+                raise ValueError('AMP/CAB Store requires an unchanged complete successful SEND for every designed scene on this connection')
         elif route!=fw33_profile.NAM_ROUTE:
             raise ValueError('Store requires the complete measured NAM route or completed album SEND')
         before=dev.slot_name(expected_preset)
@@ -34,12 +36,12 @@ class Stores:
             raise ValueError('Stored destination cannot be read')
         token=secrets.token_urlsafe(32)
         self.pending=dict(token=token,device=dev,stamp=digest(state),before=before,
-                          preset=expected_preset,album=route==serial_build.ROUTE,
+                          preset=expected_preset,album=route==serial_build.ROUTE,count=count if route==serial_build.ROUTE else 0,
                           proof=getattr(dev,'_album_store_proof',None) if route==serial_build.ROUTE else None,
                           expires=time.monotonic()+600)
         return dict(token=token,preset=expected_preset,name=state['preset'][1],
                     replaces=before.name,permanent=True,readonly=True,expires_in=600,
-                    verification_note='Voor Store selecteert TC onder externe mute alle acht scenes voor controle, zonder hun instellingen te herschrijven. Eindigt op scene8.' if route==serial_build.ROUTE else '')
+                    verification_note=(f'Voor Store selecteert TC onder externe mute alle {"acht" if count==8 else count} scenes voor controle, zonder hun instellingen te herschrijven. Eindigt op scene{count}.' if route==serial_build.ROUTE else ''))
 
     def send(self,dev,token,external_audio_muted,confirm_permanent_write):
         if external_audio_muted is not True or confirm_permanent_write is not True:
@@ -56,7 +58,7 @@ class Stores:
             if digest(tone_review.snapshot(dev,include_nam=None)) != pending['stamp'] or dev.slot_name(pending['preset']) != pending['before']:
                 raise ValueError('Preset, NAM memory or stored target changed; nothing stored')
             if pending['album']:
-                for number in range(1,9):
+                for number in range(1,pending['count']+1):
                     navigation.switch_scene(dev,number,dev.current_preset(),external_audio_muted=True)
                     if digest(tone_review.snapshot(dev,include_nam=False))!=pending['proof']['scene_fingerprints'][str(number)]:
                         dev._album_store_stamp=None;dev._album_store_proof=None

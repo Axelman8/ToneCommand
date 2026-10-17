@@ -12,6 +12,7 @@ const path=require('node:path');
     const errors=[],plans=[],sends=[];
     let audioFetches=0,sourceBackendReady=true,routeOptionsReady=false,navigationReady=false,serialReady=false,multiSceneReady=false,albumReady=false;
     let currentPreset=325,currentScene=1,navigationRequest=null;
+    let albumCounts=[8];
     const serialRoute=['Input 1','Wah 1','Drive 1','Amp 1','Cab 1','Chorus 1','Compressor 1','Delay 1','Enhancer 1','Filter 1','Flanger 1','GEQ 1','PEQ 2','Output 1'];
     const navigationSelections=[];
     const explorations=[];
@@ -73,6 +74,7 @@ const path=require('node:path');
         if(!sourceBackendReady)delete result.source_support;
         if(serialReady)result.serial_build_supported=true;
         if(albumReady){result.album_build_supported=true;result.amp_refresh_supported=true;result.design_history_supported=true;
+          result.album_scene_counts=albumCounts;
           const models=JSON.parse(fs.readFileSync(path.join(__dirname,'../devices/axefx3/data/fw33_amp_models.json'),'utf8')).models;
           result.amp_inventory={count:336,models:Object.entries(models).map(([ordinal,name])=>({ordinal:Number(ordinal),name}))};
           result.workspace={revision:'abc1234',source_root:'C:/test/current-checkout',pid:1234};
@@ -577,6 +579,21 @@ const path=require('node:path');
     await page.click('#exploreRoutes');await page.locator('#refresh:not([disabled])').waitFor();
     await page.selectOption('#buildRoute','nam');
     assert(await page.locator('#scenes option').nth(7).evaluate(o=>o.disabled));
+    // Only the backend's released scene counts are selectable. Preserve an
+    // explicit choice when controls refresh; never force every AMP request8.
+    await request();albumCounts=[1,2,3,4,5,6,7,8];
+    await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    await page.click('#exploreRoutes');await page.locator('#refresh:not([disabled])').waitFor();
+    await page.selectOption('#buildRoute','amp');
+    await page.selectOption('#scenes','3');
+    const countPlans=plans.length,countSends=sends.length;
+    await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    assert.equal(await page.inputValue('#scenes'),'3');
+    assert(await page.locator('#scenes option').evaluateAll(options=>options.every(o=>!o.disabled)));
+    assert.equal(plans.length,countPlans);assert.equal(sends.length,countSends);
+    albumCounts=[8];await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    assert.equal(await page.inputValue('#scenes'),'8');
+    assert(await page.locator('#scenes option').first().evaluate(o=>o.disabled));
     assert.deepEqual(errors,[]);
     console.log('AFX3 shared FM9 layout: workflow, fit, consent, reset, MK, audio, XSS; FW33 NAM foundation/two scenes, permanent install and separate Store consent passed');
   }finally{await browser.close();}

@@ -4,6 +4,21 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Release reviewed T808 Mod Drive1 A-D on the measured eight-scene AMP/CAB
+  route after actual selected-AI planning,384-action normal SEND, complete
+  scene proofs and independent eight-scene Axe-Edit comparison. Other Drive
+  numeric voicings, free insertion, physical volume and sound matching are not
+  promoted. Independent Compressor/GEQ A-D calibration also passes, but those
+  normal builder extensions remain pending.
+
+- Prepare exact one-to-eight scene layouts through AMP/CAB compilation,
+  deterministic review grammar, complete scene proofs, private history/resume
+  and separate Store consent. Negotiate released counts from the backend;
+  malformed counts or incomplete proofs never authorize SEND. Preserve the
+  selected route/count during a same-target status refresh without preserving
+  old recommendations, SEND or Store approval. Hardware acceptance of each
+  newly released count remains separate from synthetic coverage.
+
 - Complete remaining GEQ A-D numeric/zero captures and typed effect bypass
   captures. Extend the closed developer calibration to379 exact recorded
   steps. Correct GEQ Q normalization to its independently observed logarithmic

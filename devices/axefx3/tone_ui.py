@@ -154,6 +154,7 @@ def register(app, host):
                             route_options_supported=True,
                             serial_build_supported=serial_build.supported(dev.reg),
                             album_build_supported=album_build.supported(dev.reg),
+                            album_scene_counts=sorted(fw33_profile.ALBUM_SCENE_COUNTS) if album_build.supported(dev.reg) else [],
                             amp_refresh_supported=True,
                             amp_inventory=amp_inventory.report(dev.reg) if album_build.supported(dev.reg) else None,
                             cab_inventory=cab_inventory.choices(dev.reg,include_fullres=True) if album_build.supported(dev.reg) else [],
@@ -298,9 +299,9 @@ def register(app, host):
                     raise ValueError('FW33 NAM planning requires the declared measured MK2 profile')
                 serial_mode = body.mode == 'serial'
                 album_mode = body.mode=='amp' and dev.reg.firmware==fw33_profile.KEY
-                if album_mode and (not album_build.supported(dev.reg) or body.scenes!=8
+                if album_mode and (not album_build.supported(dev.reg) or body.scenes not in fw33_profile.ALBUM_SCENE_COUNTS
                         or body.wah_source or body.nam_slot is not None or body.source_kind!='tone'):
-                    raise ValueError('Measured FW33 AMP/CAB album route: eight scenes, four voices, no NAM/controller or rig translation')
+                    raise ValueError('Measured FW33 AMP/CAB route: released scene counts only, four voices, no NAM/controller or rig translation')
                 if (album_mode and album_planning.user_cab_requested(body.prompt)
                         and not any(c['bank'] in (2,3) for c in album_planning.cab_inventory.choices(dev.reg))):
                     raise ValueError(album_planning.USER_CAB_NOTICE)

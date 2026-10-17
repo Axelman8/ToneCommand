@@ -11,11 +11,11 @@ unchanged. MK2 hardware does not prove MK1 or other firmware compatibility.
 | 2 | Full Factory cab catalog and selection | Integrated 2048 names; fixed native replay and actual AI/normal SEND pass within measured FW33/MK2 route. |
 | 3 | Full User banks and separate FullRes | Correct FW33 addressing and whole-bank MK1 protection; normal User1/2 SEND and independent editor pass. FullRes names/restrictions separate, no occupied FullRes audition claimed. |
 | 4 | Four-slot cab mixer and stereo | All four slots and A-D: captured/native mode, selector, level/pan, actual339-action SEND and independent eight-scene editor checks pass. |
-| 5 | Drive, compressor and post-EQ | Drive:87 selector captures,171 native steps and independent A-D editor readback pass. Compressor:19 model captures and A-D basic/auto-off capture. GEQ:18 model captures and complete A-D numeric/zero capture. Expanded379-step native pass verifies full-state preservation and all24 typed Drive/Compressor/GEQ bypass transitions. Reviewed Drive prototype remains release-gated until normal SEND/post-native editor acceptance. |
+| 5 | Drive, compressor and post-EQ | T808 Mod A-D released within the measured route: actual AI/384-action normal SEND and independent eight-scene editor pass. Compressor/GEQ379-step native calibration and independent12-channel editor comparison pass, including typed bypass; normal planner integration remains pending. Other Drive voicings/PEQ remain separate. |
 | 6 | Additional effects and model selection | First-instance configurable effect coverage needs measured expansion. |
 | 7 | Additional block instances/channels | Native layouts and preservation need measurement per supported family. |
 | 8 | Free route construction | Developer graph evidence exists; normal route planner/executor not generally enabled. Send/Return separately guarded. |
-| 9 | One to eight scenes | Eight-scene AMP/CAB and narrow serial/NAM modes exist; unified count support pending. |
+| 9 | One to eight scenes | Compiler/grammar/history/Store/UI negotiation supports a bounded1..8 prototype with synthetic tests and actual Chrome. Only eight-scene native release is enabled until per-count normal SEND/editor acceptance. Narrow serial/NAM paths remain separate. |
 | 10 | Controllers/modifiers | FW33 new bindings and preservation need independent evidence. Global CC maps remain user-owned. |
 | 11 | Tempo sync and exact zero | Remaining FW33 enum/zero writes need captured setters and native replay. |
 | 12 | Persistent designs and existing-preset refinement | Successful eight-scene AMP/CAB designs persist privately. Cold GUI resume verifies all8 scenes and independent native full-state readback passes. Arbitrary third-party preset adoption remains unsupported. |

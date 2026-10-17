@@ -87,7 +87,9 @@ function controls(){
   sourceKind.disabled=busy;rigMode.disabled=busy;
   const serial=el('buildRoute').value==='serial';
   const album=el('buildRoute').value==='amp'&&!!state?.album_build_supported;
-  el('buildRoute').querySelector('option[value="amp"]').textContent=state?.album_build_supported?'AMP / CAB: acht scenes met klankdoelen':'AMP / CAB + pedals';
+  const albumCounts=state?.album_scene_counts?.length?state.album_scene_counts:[8];
+  const albumCountText=albumCounts.length===1&&albumCounts[0]===8?'acht':albumCounts.join('/');
+  el('buildRoute').querySelector('option[value="amp"]').textContent=state?.album_build_supported?`AMP / CAB: ${albumCountText} scenes met klankdoelen`:'AMP / CAB + pedals';
   const serialOption=el('buildRoute').querySelector('option[value="serial"]');
   serialOption.hidden=!state?.serial_build_supported;
   serialOption.disabled=!state?.serial_build_supported||sourceKind.value==='rig';
@@ -97,9 +99,9 @@ function controls(){
   el('connectDevice').disabled=busy||!!state?.connected;
   el('wahMode').disabled=busy||!el('wah').value;
   const fw33=state?.firmware==='33.00-beta.20261006';
-  const maxScenes=album?8:serial?1:fw33?(state.route?.length?2:1):state?.multiscene_planning_supported?8:4;
-  for(const option of el('scenes').options)option.disabled=album?Number(option.value)!==8:Number(option.value)>maxScenes;
-  if(album)el('scenes').value='8';
+  const maxScenes=album?Math.max(...albumCounts):serial?1:fw33?(state.route?.length?2:1):state?.multiscene_planning_supported?8:4;
+  for(const option of el('scenes').options)option.disabled=album?!albumCounts.includes(Number(option.value)):Number(option.value)>maxScenes;
+  if(album&&!albumCounts.includes(Number(el('scenes').value)))el('scenes').value=String(albumCounts[0]);
   if(Number(el('scenes').value)>maxScenes)el('scenes').value=String(maxScenes);
   el('generate').disabled=busy||el('deviceChoice').value!=='axefx3'||!state?.connected||!!state.route_problem||(!fw33&&!state.cab_count);
   if((serial||album)&&state?.scene!==1)el('generate').disabled=true;
@@ -118,7 +120,7 @@ function controls(){
   el('storeCommit').disabled=busy||!storePreview||!el('storeMute').checked||!el('storeFlash').checked;
   el('send').disabled=busy||currentStage!==3||el('deviceChoice').value!=='axefx3'||!proposal||!el('confirmed').checked||!el('muted').checked;
   stage(currentStage);
-  el('controllerHint').textContent=album?'FW33: acht scenes met klankdoelen en maximaal vier ampvoicings/vier cabkanalen A-D. Geen verplichte sceneparen. Delay/Chorus delen A, Output -18dB. Start op scene 1; geen nieuwe controllers of onbewezen post-EQ.':serial?'Gemeten AMP/CAB-testketen: uitsluitend scene1/A. Modellen blijven behouden, reserveblokken blijven bypassed. Geen nieuwe controllers.':fw33?'FW33 NAM: eerst 1 scene vanuit leeg; daarna maximaal 2 met NAM A/B. Nieuwe controllerkoppelingen zijn voor dit profiel nog niet geverifieerd.':!el('wah').value?'Geen nieuwe controllerkoppeling. Bestaande Auto Engage blijft behouden en kan de scene-bypass beinvloeden.':
+  el('controllerHint').textContent=album?`FW33: ${albumCountText} scenes beschikbaar, met klankdoelen en maximaal vier ampvoicings/vier cabkanalen A-D. Geen verplichte sceneparen. Delay/Chorus delen A, Output -18dB. Start op scene 1; geen nieuwe controllers of onbewezen post-EQ.`:serial?'Gemeten AMP/CAB-testketen: uitsluitend scene1/A. Modellen blijven behouden, reserveblokken blijven bypassed. Geen nieuwe controllers.':fw33?'FW33 NAM: eerst 1 scene vanuit leeg; daarna maximaal 2 met NAM A/B. Nieuwe controllerkoppelingen zijn voor dit profiel nog niet geverifieerd.':!el('wah').value?'Geen nieuwe controllerkoppeling. Bestaande Auto Engage blijft behouden en kan de scene-bypass beinvloeden.':
     el('wahMode').value==='Fast Pos'?'Fast Pos: pedaalbeweging kan de Wah ook inschakelen in een scene met Wah uit. Kies Off voor aan/uit via de scenes.':
     el('wahMode').value==='Off'?'Off: het pedaal stuurt de Wah-filterstand, maar schakelt de Wah niet automatisch aan of uit.':
     'Bestaande Auto Engage-modus blijft behouden. Bij een nieuwe koppeling gebruikt het apparaat zijn standaard; controleer het gedrag.';
@@ -209,8 +211,13 @@ ampRefreshButton.onclick=async()=>{
   finally{busy=false;controls();}
 };
 async function refresh(){
+  const priorState=state,priorRoute=el('buildRoute').value,priorScenes=el('scenes').value;
   navigationPreview=null;el('navigationDialog').close();
   clearRouteExploration();invalidate();clearNamSlots();state=null;state=await api('state');
+  if(!adjusting&&priorState?.connected&&state.connected&&priorState.preset===state.preset&&priorState.firmware===state.firmware&&priorState.profile?.variant===state.profile?.variant&&priorRoute){
+    el('buildRoute').value=priorRoute;el('scenes').value=priorScenes;
+    el('routeReason').textContent='Bouwroute en sceneaantal behouden. Verken de routes opnieuw voordat je een nieuw plan maakt; niets is verzonden.';
+  }
   if(refineContext&&state.preset!==refineContext.preset){refineContext=null;adjusting=false;adjustPanel.hidden=true;el('generate').textContent='GENERATE PLAN';clearRouteExploration();}
   el('workspaceIdentity').textContent='TC FX3'+(state.workspace?.revision?' '+state.workspace.revision:'');
   el('workspaceIdentity').title=state.workspace?`${state.workspace.source_root} | PID ${state.workspace.pid}`:'Werkruimte-identiteit niet beschikbaar; controleer je startscript.';

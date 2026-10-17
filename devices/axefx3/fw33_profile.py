@@ -6,9 +6,12 @@ promotes model, routing, modifier, CAB/NAM install or permanent Store writes.
 from copy import deepcopy
 
 KEY = '33.00-beta.20261006'
-# Release gate, not an end-user override. Basic Drive calibration exists;
-# exact engage/bypass and normal SEND/editor acceptance are still pending.
-DRIVE_RELEASED = False
+# Candidate release after exact native and independent editor calibration.
+# Normal SEND/editor acceptance must complete before this candidate is shipped.
+DRIVE_RELEASED = True
+# New scene counts require their own normal SEND/editor acceptance. Keep the
+# existing eight-scene release while the bounded compiler extension is tested.
+ALBUM_SCENE_COUNTS = frozenset({8})
 IDENTITY = (0,1,116,16,8,97,0,16,1,17,0,0,79,99,116,32,32,54,32,
             50,48,50,54,32,49,54,58,50,50,58,53,51,0,0,0,0,0,0,0,0,0,0,0,0,21)
 NAMES = {

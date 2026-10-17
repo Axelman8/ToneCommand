@@ -197,7 +197,7 @@ def test_fw33_non_album_scene_count_is_refused_before_ai(api, dev):
     dev.firmware_label.return_value = fw33_profile.KEY
     response = client.post('/api/axefx3/plan', json=dict(prompt='Metallica albums', expected_preset=324, mode='amp', scenes=4))
     assert response.status_code == 409, response.text
-    assert 'eight scenes' in response.text and 'no NAM/controller' in response.text
+    assert 'released scene counts' in response.text and 'no NAM/controller' in response.text
     ask.assert_not_called()
     dev.edit_session.assert_not_called()
     dev._write.assert_not_called()
