@@ -53,5 +53,5 @@ def test_encoder_does_not_invent_additional_modes_or_values(family,name,value):
 
 
 def test_metadata_and_release_flags_do_not_expose_io():
-    assert not voices.COMPRESSOR_RELEASED and not voices.GEQ_RELEASED
+    assert voices.COMPRESSOR_RELEASED is True and voices.GEQ_RELEASED is True
     assert not any(hasattr(voices,name) for name in ('send','write','execute','connect'))

@@ -11,14 +11,14 @@ unchanged. MK2 hardware does not prove MK1 or other firmware compatibility.
 | 2 | Full Factory cab catalog and selection | Integrated 2048 names; fixed native replay and actual AI/normal SEND pass within measured FW33/MK2 route. |
 | 3 | Full User banks and separate FullRes | Correct FW33 addressing and whole-bank MK1 protection; normal User1/2 SEND and independent editor pass. FullRes names/restrictions separate, no occupied FullRes audition claimed. |
 | 4 | Four-slot cab mixer and stereo | All four slots and A-D: captured/native mode, selector, level/pan, actual339-action SEND and independent eight-scene editor checks pass. |
-| 5 | Drive, compressor and post-EQ | T808 Mod A-D released within the measured route: actual AI/384-action normal SEND and independent eight-scene editor pass. Compressor/GEQ379-step native calibration and independent12-channel editor comparison pass. Normal planner integration is now implemented as a release-gated prototype, with exact grammar, typed bypass, manual compressor modes and cut-only EQ; normal SEND/editor acceptance remains pending. Other Drive voicings/PEQ remain separate. |
+| 5 | Drive, compressor and post-EQ | T808 Mod, Modern VCA Compressor and10 Band Variable Q A-D released within the measured route. Actual selected-AI536-action normal SEND and independent16-effect/eight-scene editor comparison pass, following379-step calibration. Exact grammar, typed bypass, manual compressor modes and cut-only EQ remain enforced. Other Drive/Comp/EQ models and PEQ remain separate. |
 | 6 | Additional effects and model selection | First-instance configurable effect coverage needs measured expansion. |
 | 7 | Additional block instances/channels | Native layouts and preservation need measurement per supported family. |
 | 8 | Free route construction | Developer graph evidence exists; normal route planner/executor not generally enabled. Send/Return separately guarded. |
-| 9 | One to eight scenes | Compiler/grammar/history/Store/UI negotiation supports a bounded1..8 prototype with synthetic tests and actual Chrome. Only eight-scene native release is enabled until per-count normal SEND/editor acceptance. Narrow serial/NAM paths remain separate. |
+| 9 | One to eight scenes | Released on the measured fixed AMP/CAB route after native prefix1..8 normal SEND with complete full-state/outside-scene checks and separate post-batch eight-scene editor comparison. Compiler/grammar/history/Store/UI agree on the count. This does not prove empty-grid construction for every count or general routing. Narrow serial/NAM paths remain separate. |
 | 10 | Controllers/modifiers | FW33 new bindings and preservation need independent evidence. Global CC maps remain user-owned. |
-| 11 | Tempo sync and exact zero | Remaining FW33 enum/zero writes need captured setters and native replay. |
-| 12 | Persistent designs and existing-preset refinement | Successful eight-scene AMP/CAB designs persist privately. Cold GUI resume verifies all8 scenes and independent native full-state readback passes. Arbitrary third-party preset adoption remains unsupported. |
+| 11 | Tempo sync and exact zero | Seven core Amp knobs A-D plus four model-bound Delay/Chorus scalar zeros pass72 captured/native literals, actual333-action normal SEND and independent editor comparison. Reviewed AMP/CAB builds automatically verify/set Tempo NONE before literal timing. Other enum/zero domains remain unmeasured; global BPM is not changed. |
+| 12 | Persistent designs and existing-preset refinement | Successful AMP/CAB designs and requested counts1..8 persist privately. Cold resume verifies every requested scene; independent native eight-scene full-state acceptance passes. Arbitrary third-party preset adoption remains unsupported. |
 | 13 | Multi-capture/multiscene NAM | Native install and narrow builds exist. Broader selection/build support pending. |
 | 14 | Audio segments, isolation and comparison | Explicit windows up to60 seconds and channel-power-v2 local analysis pass realChrome anti-phase/alias tests. Optional local recording comparison reports descriptive numerical differences only. Sanitized reference metrics survive verified history resume. Guitar isolation, musical alignment, direct unit recording and sound matching remain pending. |
 | 15 | Save As, backup and recovery | Narrow Store proofs exist; general recovery must never retry an unknown write automatically. |
@@ -61,7 +61,7 @@ Windows security; new release flags remain disabled until actually verified.
 History contains design metadata and fingerprints, not saved executable actions,
 provider credentials or persistent SEND/Store consent. Resuming requires the
 currently selected target, fresh external-mute consent and an unchanged complete
-eight-scene survey. A mismatch stops without rollback or preset reload. Disk
+designed-scene survey. A mismatch stops without rollback or preset reload. Disk
 failure cannot turn a completed SEND into a retry. CAB name caches are separate
 per chassis and survive reconnects, but never prove installed IR contents.
 

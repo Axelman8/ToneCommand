@@ -4,6 +4,28 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Release exact zero for seven core Amp knobs and four measured Delay/Chorus
+  scalars, plus verified automatic Tempo NONE within reviewed AMP/CAB timing.
+  Closed72-literal native calibration, actual selected-AI333-action normal
+  SEND and independent four-channel editor comparison pass without Store.
+  Fix synchronized-display parsing order: verify NONE before reading the
+  numeric timing display. Preserve model/channel/full-state guards, separate
+  NAM/serial preflights and no retry/rollback. Startup identity checks now
+  include the immutable zero/tempo evidence. No global BPM write or limiter.
+
+- Release Modern VCA Compressor and10 Band Variable Q A-D on the measured
+  AMP/CAB route after actual selected-AI536-action normal SEND, complete
+  full-state readback and independent16-effect/eight-scene editor comparison.
+  Manual compressor modes, nonpositive levels/EQ gains and exact typed grammar
+  remain mandatory. Other effect models, PEQ, physical sound and loudness are
+  not promoted.
+
+- Release bounded1..8 scene counts on the measured fixed AMP/CAB route after
+  native reviewed prefix builds match the full independently checked baseline,
+  outside scenes remain unchanged and a separate post-batch eight-scene
+  Axe-Edit comparison passes. No fresh AI call per prefix, new topology or
+  native empty-grid-per-count/Store acceptance is implied.
+
 - Improve local reference analysis with independent channel power, original
   sample metering, explicit anti-alias filtering and energy-weighted spectra.
   Real Chrome opposite-phase and high-frequency-alias fixtures pass. Add an

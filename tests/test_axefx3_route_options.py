@@ -22,7 +22,7 @@ def test_capabilities_do_not_force_or_promote_nam(firmware,variant,amp,nam):
     expected=dict(amp=amp,nam=nam)
     if firmware==fw33_profile.KEY and variant=='mk2':expected['serial']=True
     assert {x['mode']:x['enabled'] for x in choices}==expected
-    assert choices[0]['label']==('AMP / CAB: acht scenes met klankdoelen' if firmware==fw33_profile.KEY and variant=='mk2' else 'AMP / CAB + pedals')
+    assert choices[0]['label']==('AMP / CAB: 1-8 scenes met klankdoelen' if firmware==fw33_profile.KEY and variant=='mk2' else 'AMP / CAB + pedals')
 
 
 def request(api,dev,monkeypatch):

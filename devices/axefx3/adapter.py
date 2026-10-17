@@ -20,7 +20,7 @@ from fm9 import protocol as shared
 from fm9.safety import sysex_guard
 from . import protocol, audio_safety, cab_mix, models, cab_selection, grid, modifiers, pedal_control
 from .registry import Registry, SUPPORTED_FIRMWARE
-from . import evidence, nam_slots
+from . import evidence, nam_slots, fw33_profile
 
 
 class AxeFxIII:
@@ -104,12 +104,29 @@ class AxeFxIII:
                                  shared.decode14(payload[2],payload[3]) in protocol.NUMERIC_ZERO_EFFECTS)))
                     or frame == grid.reframe(shared.build_request_grid_layout()))
         if not readonly:
+            # A closed developer measurement cannot fall through to a newly
+            # released general setter, even if that value is normally valid.
+            if self.reg.firmware==fw33_profile.KEY:
+                from . import zero_tempo_calibration
+                if (isinstance(getattr(self,'_zero_tempo_calibration',None),zero_tempo_calibration.Probe)
+                        and not zero_tempo_calibration.allowed(self,frame)):
+                    raise PermissionError('Only the current closed calibration literal may be written')
             if self._approved_frame != tuple(frame):
                 raise PermissionError("Raw writes must pass the verified Axe-Fx III action path")
             if fn == 1:
                 from . import album_build
                 if album_build.frame_allowed(self,frame):
                     pass  # Exact active reviewed operation, plus approved frame above.
+                elif (self.reg.firmware=='33.00-beta.20261006'
+                        and getattr(self,'_fw33_tempo_permit',None)==tuple(frame)):
+                    from . import tempo_control
+                    if not tempo_control.allowed(self,frame):
+                        raise PermissionError('Outside the exact reviewed Tempo NONE operation')
+                elif (self.reg.firmware=='33.00-beta.20261006'
+                        and getattr(self,'_zero_tempo_permit',None)==tuple(frame)):
+                    from . import zero_tempo_calibration
+                    if not zero_tempo_calibration.allowed(self,frame):
+                        raise PermissionError('Outside the closed zero/tempo calibration')
                 elif (self.reg.firmware == '33.00-beta.20261006'
                         and getattr(self,'_effects_calibration_permit',None)==tuple(frame)):
                     from . import effects_calibration
@@ -494,6 +511,11 @@ class AxeFxIII:
     def _prepare_delay_milliseconds(self, spec, channel):
         if spec.tempo_param_id is None:
             return None
+        if self.reg.firmware=='33.00-beta.20261006' and fw33_profile.TEMPO_NONE_RELEASED:
+            from . import tempo_control
+            try:tempo_control.ensure(self,spec)
+            except (ValueError,PermissionError) as exc:return str(exc)
+            return None
         if spec.family == 'CHORUS':
             words = self.bulk_read(spec.effect_id)
             shown = self.read_display_text(spec.effect_id, spec.tempo_param_id)
@@ -535,16 +557,32 @@ class AxeFxIII:
             if channel not in (0, 1, 2, 3):
                 return SetResult(False, "Channel unreadable; nothing written", None, None)
             before = self.get_param_display(spec)
-            if before is None:
+            deferred_timing=(self.reg.firmware==fw33_profile.KEY and fw33_profile.TEMPO_NONE_RELEASED
+                             and spec.tempo_param_id is not None)
+            if before is None and not deferred_timing:
                 return SetResult(False, "Display unreadable; nothing written", None, None)
             from .tone_controls import domain_error
             control_error = (self._set_domain_guard(spec, channel)
                              if self.reg.firmware != '32.06' else domain_error(self,spec,channel))
             if control_error:
                 return SetResult(False,control_error,before,None)
+            if self.reg.firmware==fw33_profile.KEY:
+                from . import fw33
+                zero_error=fw33.zero_control_error(self,spec,display_value)
+                if zero_error:return SetResult(False,zero_error,before,None)
             tempo_error = self._prepare_delay_milliseconds(spec, channel)
             if tempo_error:
                 return SetResult(False, tempo_error, before, None)
+            if before is None:
+                # A synchronized display can contain a note suffix instead of
+                # a standalone number. NONE has just been independently
+                # verified; settle its numeric display before the value write.
+                for _ in range(5):
+                    time.sleep(.15)
+                    before=self.get_param_display(spec)
+                    if before is not None:break
+                if before is None:
+                    return SetResult(False,"Numeric display unreadable after tempo verification; target value not written",None,None)
             if self.get_channel(spec.effect_id) != channel:
                 return SetResult(False, "Channel changed; nothing written", before, None)
             self._write(frame)

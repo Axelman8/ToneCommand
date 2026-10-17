@@ -2,13 +2,13 @@
 
 ## Continue a successful design after restarting TC
 
-After a fully verified SEND of the measured FW33/MK2 eight-scene AMP/CAB mode,
+After a fully verified SEND of the measured FW33/MK2 one-to-eight-scene AMP/CAB mode,
 TC saves the design and full-scene fingerprints locally. Expand **ONTWERP
 HERVATTEN**, choose a record for the currently selected preset, confirm the
 target and external audio mute, then select **CONTROLEER & HERVAT**.
 
 TC checks the current state before switching scenes, independently checks all
-eight scenes, then selects scene1 for listening-feedback adjustments. Draft text
+requested scenes, then selects scene1 for listening-feedback adjustments. Draft text
 is retained. It does not run an old SEND, call the AI, write effect parameters,
 select another preset or Store anything just because a record was selected.
 Every subsequent adjustment still needs its normal review and SEND consent.

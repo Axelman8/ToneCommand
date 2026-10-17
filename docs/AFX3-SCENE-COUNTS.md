@@ -17,6 +17,15 @@ counts require their own native normal-SEND and independent editor acceptance.
 Synthetic tests exercise all counts, history, Store consent and unchanged
 outside scene maps without claiming native acceptance.
 
+Native acceptance now completes one through eight reviewed prefix builds on
+the existing authorized322 fixture, recompiled from the prior actual selected-AI
+eight-scene design. Each complete designed-scene fingerprint matches that known
+baseline; every outside scene was separately checked unchanged. This used no
+fresh AI request per count and no Store. A separate post-batch Axe-Edit comparison
+confirms all eight names, Amp/Cab/Drive channels, bypass states and Drive numeric
+voices. The backend now releases1..8 within this same measured fixed route.
+This is not native empty-grid construction for every count or arbitrary routing.
+
 Refreshing the same target retains the user's route/count choice, but clears
 the earlier recommendation and all plan/SEND approval. A fresh route exploration
 is required before another plan. Changing device identity, firmware, chassis or

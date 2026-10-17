@@ -110,8 +110,12 @@ def validate_actions(reg,actions,existing):
                 allowed={'value'}
             if template['param']=='DISTORT_LEVEL' and actual['value']>-12:
                 raise ValueError('Album Amp level must remain <= -12dB')
-            if template['param'].startswith('DISTORT_') and template['param']!='DISTORT_LEVEL' and actual['value']<=0:
-                raise ValueError('Exact-zero Amp knobs are not measured')
+            if template['param'].startswith('DISTORT_') and template['param']!='DISTORT_LEVEL' and (
+                    actual['value']<0 or (actual['value']==0 and not fw33_profile.AMP_ZERO_RELEASED)):
+                raise ValueError('Exact-zero Amp knobs are not released or the value is negative')
+            if (template['param'] in fw33_profile.FX_ZERO_NAMES and actual['value']==0
+                    and not fw33_profile.FX_ZERO_RELEASED):
+                raise ValueError('Exact-zero effect controls are not released')
         if kind=='set_type':
             names=(planning.MODELS.values() if template['block']=='DISTORT' else
                 (reviewed_effects.model(template['block'])[4],) if template['block'] in ('COMP','GEQ') else ('T808 Mod',))
@@ -154,8 +158,13 @@ def prepare(dev,resolved,expected,actual):
         if len(now['bulk'].get(58,[]))!=568: raise ValueError('Complete four-channel Amp layout required')
         cab_layout(now['bulk'].get(62),expanded=any(i.family=='CABINET' and i.spec for i in resolved))
         for item in resolved:
+            if item.spec is not None:
+                from . import fw33
+                error=fw33.zero_control_error(dev,item.spec,item.value)
+                if error:raise ValueError(error)
             if item.spec is not None and item.spec.tempo_param_id is not None:
-                serial_build.require_tempo(dev,item.spec)
+                from . import tempo_control
+                tempo_control.preflight(dev,item.spec)
     return resolved,expected,actual
 
 

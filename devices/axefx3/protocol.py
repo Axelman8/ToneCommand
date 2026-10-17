@@ -65,6 +65,11 @@ def set_parameter(registry: Registry, spec: ParamSpec, value: float) -> list[int
         return param_frame(spec.effect_id, spec.param_id, wire, opcode=int(spec.set_opcode, 16))
     if value == 0:
         if registry.firmware == fw33_profile.KEY:
+            if fw33_profile.FX_ZERO_RELEASED and spec.name in fw33_profile.FX_ZERO_NAMES:
+                return param_frame(spec.effect_id,spec.param_id,0,opcode=0x09)
+            if (fw33_profile.AMP_ZERO_RELEASED and spec.family=='DISTORT'
+                    and spec.name in fw33_profile.NAMES['DISTORT'][:-1]):
+                return param_frame(spec.effect_id,spec.param_id,0,opcode=0x09)
             if spec.name in fw33_profile.effect_controls.AUTO_OFF:
                 return param_frame(spec.effect_id,spec.param_id,0,opcode=0x52)
             if spec.name not in fw33_profile.ZERO_TYPED:

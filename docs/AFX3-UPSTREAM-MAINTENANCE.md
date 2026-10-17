@@ -49,12 +49,15 @@ installation and resource/API smoke have run in a fresh same-Windows environment
 this is not other-machine/platform or remote CI acceptance. See
 [AFX3-DESIGN-HISTORY.md](AFX3-DESIGN-HISTORY.md).
 
-New effect calibration and the default-disabled Drive prototype stay within the
-adapter. They do not extend the shared FM9 planner, transport or never-brick
-guard. Add their tests and runtime/data hashes to upstream reconciliation. Do
-not release the prototype based on simulator success: exact engage/bypass,
-normal SEND and independent editor acceptance remain required. The complete
-seventeen-item status lives in
+Released T808 Mod, Modern VCA and10 Band Variable Q voices stay within the
+adapter. Each passed actual selected-AI/normal SEND and independent editor
+acceptance; their selectors do not enable numeric voicing for other models.
+One-to-eight scene prefixes are released on the same measured route, with
+four stored Amp/Cab voices, not eight independent channels. These changes do
+not extend the shared FM9 planner, transport or never-brick guard. Add their
+tests and runtime/data hashes to upstream reconciliation. Unmeasured prototypes
+must not be released based on simulator success. The complete seventeen-item
+status lives in
 [AFX3-COMPLETION-BACKLOG.md](AFX3-COMPLETION-BACKLOG.md).
 
 ### Scene-intent contribution boundary, 2026-10-16

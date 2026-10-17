@@ -35,10 +35,11 @@ def runtime_write_error(dev):
 
 def check_frame(dev, frame):
     fn, payload = frame[5], frame[6:-2]
-    from . import amp_probe,cab_probe,album_build,effect_probe,effects_calibration
+    from . import amp_probe,cab_probe,album_build,effect_probe,effects_calibration,zero_tempo_calibration,tempo_control
     if (amp_probe.allowed(dev, frame) or cab_probe.allowed(dev,frame)
             or album_build.frame_allowed(dev,frame) or effect_probe.allowed(dev,frame)
-            or effects_calibration.allowed(dev,frame)):
+            or effects_calibration.allowed(dev,frame) or zero_tempo_calibration.allowed(dev,frame)
+            or tempo_control.allowed(dev,frame)):
         return
     if fn != 1:
         if fn == 0x0c and payload != [127] and payload not in ([0],[1]):
@@ -93,6 +94,20 @@ def check_frame(dev, frame):
     if sub in ([0x30, 0], [0x32, 0], [0x35, 0]) and getattr(dev, '_fw33_route_permit', None) == tuple(frame):
         return
     raise PermissionError('Editor command is not in the exact measured FW33 scope')
+
+
+def zero_control_error(dev,spec,value):
+    """The new scalar-zero evidence covers two exact first-instance models."""
+    if (dev.reg.firmware!=profile.KEY or value!=0
+            or spec.name not in profile.FX_ZERO_NAMES):return None
+    from .tempo_control import DOMAINS
+    eid,stride,model,_,_=DOMAINS[spec.family]
+    words=dev.bulk_read(eid)
+    if (not profile.FX_ZERO_RELEASED or spec.instance!=1 or spec.effect_id!=eid
+            or dev.get_channel(eid)!=0 or not isinstance(words,list)
+            or len(words)!=4*stride or type(words[0]) is not int or words[0]!=model):
+        return 'Exact-zero FX control requires its measured first-instance model on A'
+    return None
 
 
 def domain_error(dev, spec, channel):

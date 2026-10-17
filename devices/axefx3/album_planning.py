@@ -16,7 +16,7 @@ USER_CAB_NOTICE = ('Usercabselectie gebruikt de geimporteerde namenlijst: User1/
     'Importeer eerst je actuele Usercabnamen; lege slots worden niet voorgesteld. '
     'FullRes is apart, alleen IR3/4. MK1 met NAM-firmware heeft geen User2-cabbank. '
     'Een naamimport installeert niets en bewijst geen hoorbare klankmatch.')
-Positive = Annotated[float, Field(gt=0, le=10, allow_inf_nan=False, strict=True)]
+MeasuredKnob = Annotated[float, Field(ge=0, le=10, allow_inf_nan=False, strict=True)]
 
 
 def user_cab_requested(prompt):
@@ -26,13 +26,13 @@ def user_cab_requested(prompt):
 
 
 class Amp(planning.Amp):
-    gain: Positive
-    bass: Positive
-    mid: Positive
-    treble: Positive
-    master: Positive
-    depth: Positive
-    presence: Positive
+    gain: MeasuredKnob
+    bass: MeasuredKnob
+    mid: MeasuredKnob
+    treble: MeasuredKnob
+    master: MeasuredKnob
+    depth: MeasuredKnob
+    presence: MeasuredKnob
     level: Annotated[float, Field(ge=-60, le=-12, allow_inf_nan=False, strict=True)]
 
 
@@ -105,13 +105,13 @@ class Album(planning.Shape):
 
 
 class Delay(planning.Delay):
-    feedback: Annotated[float, Field(gt=0, le=60, allow_inf_nan=False, strict=True)]
-    mix: Annotated[float, Field(gt=0, le=50, allow_inf_nan=False, strict=True)]
+    feedback: Annotated[float, Field(ge=0, le=60, allow_inf_nan=False, strict=True)]
+    mix: Annotated[float, Field(ge=0, le=50, allow_inf_nan=False, strict=True)]
 
 
 class Chorus(planning.Chorus):
-    depth: Annotated[float, Field(gt=0, le=100, allow_inf_nan=False, strict=True)]
-    mix: Annotated[float, Field(gt=0, le=100, allow_inf_nan=False, strict=True)]
+    depth: Annotated[float, Field(ge=0, le=100, allow_inf_nan=False, strict=True)]
+    mix: Annotated[float, Field(ge=0, le=100, allow_inf_nan=False, strict=True)]
 
 
 class SceneLayout(Role):
@@ -152,8 +152,14 @@ Use real gain and focused EQ; reduce LEVEL, not gain, for conservative volume.
 Any scene may use a different available Amp/Cab voice; do not invent extra
 channels or output boosts. Delay and Chorus each share one fully voiced A.
 Their active fields are global defaults only; the scene_layout flags decide the
-actual scene states. Output A stays -18dB, Amp levels <=-12dB. Nonzero amp
-knobs only; exact-zero Amp knobs were not measured. The supplied reference's
+actual scene states. Output A stays -18dB, Amp levels <=-12dB. When
+effect_exact_zero_executable is true, Delay feedback/mix and Chorus depth/mix
+may be zero within their measured first-instance models. Otherwise use positive
+values for those four controls. Literal milliseconds/Hz require Tempo NONE;
+tempo_none_executable means the executor may verify and set NONE automatically,
+not choose arbitrary tempo divisions or change global BPM. Nonzero amp
+knobs only unless amp_exact_zero_executable is true, which permits0..10 on
+the seven core knobs, never a0dB Amp level. The supplied reference's
 drive_executable flag is authoritative: when false, all album drive values
 must be null and every scene drive flag false. Disclose a required-but-blocked
 Drive rather than silently dropping it. When executable, optional drive on each
@@ -188,6 +194,9 @@ Return only the supplied schema. Explain limitations briefly in user language.
 def reference(reg):
     return json.dumps(dict(firmware=reg.firmware, scene_counts=sorted(fw33_profile.ALBUM_SCENE_COUNTS), amp_channels='ABCD',
         drive_executable=fw33_profile.DRIVE_RELEASED,
+        amp_exact_zero_executable=fw33_profile.AMP_ZERO_RELEASED,
+        tempo_none_executable=fw33_profile.TEMPO_NONE_RELEASED,
+        effect_exact_zero_executable=fw33_profile.FX_ZERO_RELEASED,
         compressor_executable=effect_voicing.COMPRESSOR_RELEASED,geq_executable=effect_voicing.GEQ_RELEASED,
         drive_notice='When false, omit Drive voicing and keep every scene drive flag false. A requested Drive remains an explicit unsupported requirement, not a silent substitution.',
         models=list(MODELS.values()),
@@ -195,8 +204,8 @@ def reference(reg):
         cab_format='Each entry is [wire bank, one-based slot, name]. FullRes bank6 only IR3/4. Names do not prove audible match.',
         controls={f:reg.definitions[f] for f in ('DISTORT','OUTPUT','DELAY','CHORUS','CABINET','FUZZ','COMP','GEQ')},
         route=route_guard.labels(serial_build.ROUTE,reg), output_db=-18,
-        shared_effect_channels='Delay/Chorus A; optional T808 Mod Drive A-D follows Amp channel',
-        reserve_effects_bypassed='All except explicitly voiced and requested T808 Mod'))
+        shared_effect_channels='Delay/Chorus A; optional T808 Mod, Modern VCA and10 Band Variable Q A-D follow Amp channel',
+        reserve_effects_bypassed='All except explicitly voiced and requested released Drive/Compressor/GEQ profiles'))
 
 
 def actions_for(reg, design, existing):
@@ -304,6 +313,11 @@ def compile_design(reg,raw,current_route,scene_count):
     if design.scene_count!=scene_count:
         raise ValueError('AI scene count differs from the explicitly requested scene count')
     assignments=layout(design.model_dump())
+    if not fw33_profile.AMP_ZERO_RELEASED and any(getattr(a.amp,key)==0 for a in design.albums for key in KNOBS[:-1]):
+        raise ValueError('Exact-zero Amp knobs await independent normal SEND/editor acceptance')
+    if not fw33_profile.FX_ZERO_RELEASED and any(v==0 for v in
+            (design.delay.feedback,design.delay.mix,design.chorus.depth,design.chorus.mix)):
+        raise ValueError('Exact-zero effect controls await independent normal SEND/editor acceptance')
     for key,family,released in (('compressor','COMP',effect_voicing.COMPRESSOR_RELEASED),('geq','GEQ',effect_voicing.GEQ_RELEASED)):
         present=any(getattr(a,key) is not None for a in design.albums)
         if present and not released:

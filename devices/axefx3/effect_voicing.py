@@ -9,8 +9,10 @@ from pydantic import Field
 from . import planning,protocol
 from .effect_controls_fw33 import MODELS,AUTO_OFF,DEFINITIONS,ZERO_TYPED
 
-COMPRESSOR_RELEASED=False
-GEQ_RELEASED=False
+# Native379-step calibration, actual selected-AI536-action normal SEND and
+# independent16-effect/eight-scene editor comparison, exact FW33/MK2 only.
+COMPRESSOR_RELEASED=True
+GEQ_RELEASED=True
 
 
 def number(lo,hi):return Annotated[float,Field(ge=lo,le=hi,strict=True,allow_inf_nan=False)]

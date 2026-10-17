@@ -3,7 +3,7 @@ import json
 from typing import Annotated, Literal
 
 from pydantic import Field
-from . import planning, fw33_profile, serial_build,album_build,amp_inventory
+from . import planning, fw33_profile, serial_build,album_build,amp_inventory,effect_voicing
 
 
 class Comparison(planning.Shape):
@@ -22,8 +22,10 @@ def capabilities(reg):
     album=album_build.supported(reg)
     counts=sorted(fw33_profile.ALBUM_SCENE_COUNTS)
     count_text='acht' if counts==[8] else '1-8' if counts==list(range(1,9)) else '/'.join(map(str,counts))
-    drive_note=('T808 Mod Drive A-D is beschikbaar als expliciet ingerichte voicing. Compressor/post-EQ wachten op normale bouwacceptatie.'
-                if fw33_profile.DRIVE_RELEASED else 'Nieuwe Drive/Compressor/post-EQ-voicing wacht op volledige onafhankelijke acceptatie.')
+    available=[name for name,ready in (('T808 Mod',fw33_profile.DRIVE_RELEASED),
+        ('Modern VCA Compressor',effect_voicing.COMPRESSOR_RELEASED),('10 Band Variable Q',effect_voicing.GEQ_RELEASED)) if ready]
+    drive_note=('Gemeten A-D-effectvoicings: '+', '.join(available)+'. Overige modellen blijven geblokkeerd.'
+                if available else 'Nieuwe Drive/Compressor/post-EQ-voicing wacht op volledige onafhankelijke acceptatie.')
     return [dict(mode='amp',label=f'AMP / CAB: {count_text} scenes met klankdoelen' if album else 'AMP / CAB + pedals',enabled=amp or album,
         reason=(f'FW33: vaste14-blokkenketen, beschikbare sceneaantallen {count_text} met maximaal vier ampvoicings en vier cabkanalen A-D. Expliciete scene-indeling, geen verplichte rhythm/solo-paren. Alle {len(amp_inventory.roster(firmware))} Amp1-modellen, 2048 Factory-cabs en beschikbare geimporteerde Usernamen, met expliciete vier-IR-mix. Delay/Chorus delen A; Output -18dB en niet-ingerichte reserveblokken bypassed. {drive_note} Geen nieuwe controllers.' if album else
                 'Geverifieerde amp/cab-keuze en beschikbare effecten; volledige route wordt bij review gecontroleerd.' if amp else

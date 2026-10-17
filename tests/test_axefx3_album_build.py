@@ -126,13 +126,13 @@ def test_normal_review_send_full_state_checks_and_no_nam_or_store(monkeypatch):
     with pytest.raises(ValueError):reviews.send(d,prepared['token'],target_confirmed=True,external_audio_muted=True)
 
 
-@pytest.mark.parametrize('fault',['output','unsafe_amp','zero','model','cab','bank','right','fifth_channel',
+@pytest.mark.parametrize('fault',['output','unsafe_amp','negative','model','cab','bank','right','fifth_channel',
     'reserve','reorder','extra','incomplete','modifier','ir2','pan','legacy','layout','scene','variant','route'])
 def test_invalid_contract_fails_before_writes(monkeypatch,fault):
     d=device(monkeypatch);p=plan(d);a=p['actions']
     if fault=='output':a[0]['value']=-6
     if fault=='unsafe_amp':next(x for x in a if x.get('param')=='DISTORT_LEVEL')['value']=-1
-    if fault=='zero':next(x for x in a if x.get('param')=='DISTORT_DEPTH')['value']=0
+    if fault=='negative':next(x for x in a if x.get('param')=='DISTORT_DEPTH')['value']=-.01
     if fault=='model':next(x for x in a if x['kind']=='set_type')['type_name']='Unknown amplifier'
     if fault=='cab':next(x for x in a if x['kind']=='set_cab')['value']=841
     if fault=='bank':next(x for x in a if x['kind']=='set_cab')['bank']=2
@@ -271,6 +271,8 @@ def test_store_detects_hidden_changed_scene_after_return_to_scene8(monkeypatch):
 
 @pytest.mark.parametrize('family,key',[('delay','feedback'),('delay','mix'),('chorus','depth'),('chorus','mix')])
 def test_schema_never_advertises_unmeasured_zero_fx_values(monkeypatch,family,key):
+    from devices.axefx3 import fw33_profile
+    monkeypatch.setattr(fw33_profile,'FX_ZERO_RELEASED',False)
     d=device(monkeypatch);raw=design();raw[family][key]=0.
     with pytest.raises(ValueError):planning.compile_design(d.reg,raw,list(serial_build.ROUTE),8)
 

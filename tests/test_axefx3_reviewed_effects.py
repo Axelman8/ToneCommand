@@ -50,6 +50,19 @@ def test_normal_auxiliary_send_four_channels_and_complete_proofs(monkeypatch):
     d.store_preset.assert_not_called()
 
 
+@pytest.mark.parametrize('count',range(1,9))
+def test_auxiliary_voices_follow_explicit_short_layout_and_complete_prefix(monkeypatch,count):
+    from devices.axefx3 import fw33_profile
+    monkeypatch.setattr(fw33_profile,'ALBUM_SCENE_COUNTS',frozenset(range(1,9)))
+    d=fixture(monkeypatch);source=raw();source['scene_count']=count
+    source['scene_layout']=planning.layout(source)[:count]
+    plan=planning.compile_design(d.reg,source,list(planning.serial_build.ROUTE),count)
+    result=executor.execute(d,plan['actions'],plan['required_route'],expected_preset=322,external_audio_muted=True)
+    assert result['ok'],result
+    assert set(result['album_verification']['scene_fingerprints'])==set(map(str,range(1,count+1)))
+    assert d.current_scene()==count
+
+
 @pytest.mark.parametrize('key,family,flag',[('compressor','COMP','COMPRESSOR_RELEASED'),('geq','GEQ','GEQ_RELEASED')])
 def test_release_gate_is_authoritative_at_compile_and_executor(monkeypatch,key,family,flag):
     d=fixture(monkeypatch);source=raw()

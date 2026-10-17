@@ -1,4 +1,4 @@
-"""Bounded FW33 beta controls measured with Axe-Edit 1.15.01, 2026-10-08.
+"""Bounded FW33 beta controls measured with Axe-Edit, 2026-10-08 through17.
 
 Only this exact identity/build is recognized. Metadata equality alone never
 promotes model, routing, modifier, CAB/NAM install or permanent Store writes.
@@ -10,9 +10,15 @@ KEY = '33.00-beta.20261006'
 # Released after exact native calibration, normal AI/SEND and independent
 # eight-scene editor acceptance; no end-user/environment override.
 DRIVE_RELEASED = True
-# The compiler prototype supports1..8. Newly measured counts remain gated
-# until their independent post-native editor acceptance also completes.
-ALBUM_SCENE_COUNTS = frozenset({8})
+# Closed72-literal calibration, actual selected-AI333-action normal SEND and
+# independent28-knob/four-scalar/Tempo NONE editor comparison passed on322.
+AMP_ZERO_RELEASED = True
+TEMPO_NONE_RELEASED = True
+FX_ZERO_RELEASED = True
+FX_ZERO_NAMES = frozenset({'DELAY_FEED','DELAY_MIX','CHORUS_DEPTH','CHORUS_MIX'})
+# Released after native prefix1..8 normal SEND/full-state preservation and
+# independent post-batch eight-scene editor comparison. Same fixed topology.
+ALBUM_SCENE_COUNTS = frozenset(range(1,9))
 IDENTITY = (0,1,116,16,8,97,0,16,1,17,0,0,79,99,116,32,32,54,32,
             50,48,50,54,32,49,54,58,50,50,58,53,51,0,0,0,0,0,0,0,0,0,0,0,0,21)
 NAMES = {

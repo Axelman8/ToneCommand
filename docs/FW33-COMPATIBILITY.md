@@ -1,5 +1,20 @@
 # FX3 adapter FW33/NAM port
 
+## Current acceptance, 2026-10-17
+
+The sections below record successive historical checkpoints, not a single
+current feature list. Current support includes336 amps,2048 Factory cabs,
+User1/2 catalog addressing, four-slot cab mixing, measured1..8-scene AMP/CAB
+builds and released T808 Mod, Modern VCA and10 Band Variable Q voices. New
+measured Amp/effect scalar zeros and automatic verified Tempo NONE on reviewed
+AMP/CAB timing pass native, normal SEND and independent editor acceptance.
+See [zero/timing scope](AFX3-ZERO-TEMPO.md), the
+[seventeen-item ledger](AFX3-COMPLETION-BACKLOG.md) and
+[remaining work](AFX3-REMAINING-ACCEPTANCE.md). This does not enable arbitrary
+graphs, controllers, every effect model or other firmware/chassis/platforms.
+
+## Earlier port baseline
+
 This integration port uses the owner's inspected 939e3ef implementation and
 historical muted Axe-Edit 1.15.01 comparisons. It is not new hardware acceptance.
 The exact firmware identity is `33.00-beta.20261006`; raw 97.00, a different

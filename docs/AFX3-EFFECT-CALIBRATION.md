@@ -68,4 +68,11 @@ The owner will save the test fixture manually, which is not a TC Store proof.
 After the owner resumed testing, the separate editor comparison passes all12
 Drive/Compressor/GEQ channel states. Drive then passes actual AI/normal SEND and
 its own independent eight-scene editor comparison. Compressor/GEQ still require
-their normal planner/executor integration and acceptance; PEQ remains unmeasured.
+their normal planner/executor integration and acceptance at that checkpoint.
+The later actual selected-AI536-action normal SEND now passes all eight scenes,
+with independent full-state readback and no Store. A subsequent independent
+Axe-Edit comparison verifies Compressor/GEQ models, manual modes, values,
+channel assignments and bypass in all eight scenes. Modern VCA and10 Band
+Variable Q A-D are now released narrowly on the same fixed route, with manual
+compressor auto modes OFF and nonpositive EQ gains/levels. PEQ and other model
+families remain unmeasured. Physical sound/loudness acceptance is separate.
