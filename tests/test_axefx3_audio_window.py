@@ -29,3 +29,34 @@ def test_explicit_window_is_preserved_in_ai_evidence():
 def test_bad_or_out_of_source_window_is_rejected(patch):
     data=reading();data.update(patch)
     with pytest.raises(ValueError):Measurements.model_validate(data)
+
+
+def test_v2_provenance_is_explicit_and_legacy_defaults_stay_compatible():
+    assert Measurements.model_validate(reading()).analysis_method=='legacy-v1'
+    data=dict(**reading(),analysis_method='channel-power-v2',analysis_rate_hz=16000,analysis_cutoff_hz=7000.,analysis_channels=2,analysis_frames=157)
+    assert Measurements.model_validate(data).model_dump()['analysis_frames']==157
+
+
+@pytest.mark.parametrize('patch',[
+    {'analysis_method':'channel-power-v2'},
+    {'analysis_method':'channel-power-v2','analysis_rate_hz':44100,'analysis_channels':2,'analysis_frames':10},
+    {'analysis_method':'channel-power-v2','analysis_rate_hz':16000,'analysis_channels':0,'analysis_frames':10},
+    {'analysis_method':'channel-power-v2','analysis_rate_hz':16000,'analysis_channels':9,'analysis_frames':10},
+    {'analysis_method':'channel-power-v2','analysis_rate_hz':16000,'analysis_channels':2,'analysis_frames':513},
+    {'analysis_method':'channel-power-v2','analysis_rate_hz':16000,'analysis_channels':True,'analysis_frames':10},
+    {'analysis_method':'legacy-v1','analysis_rate_hz':16000},
+    {'analysis_method':'unmeasured-v3'},
+])
+def test_invalid_or_mislabelled_provenance_is_rejected(patch):
+    with pytest.raises(ValueError):Measurements.model_validate(dict(**reading(),**patch))
+
+
+@pytest.mark.parametrize('patch',[
+    {'analysis_rate_hz':44100},{'analysis_channels':0},{'analysis_channels':9},
+    {'analysis_channels':True},{'analysis_frames':513},{'analysis_frames':0},
+    {'analysis_cutoff_hz':8000.},{'analysis_cutoff_hz':None},{'analysis_cutoff_hz':math.nan},
+    {'analysis_method':'legacy-v1'},
+])
+def test_individual_v2_provenance_fields_cannot_bypass_validation(patch):
+    valid=dict(**reading(),analysis_method='channel-power-v2',analysis_rate_hz=16000,analysis_cutoff_hz=7000.,analysis_channels=2,analysis_frames=157)
+    with pytest.raises(ValueError):Measurements.model_validate({**valid,**patch})

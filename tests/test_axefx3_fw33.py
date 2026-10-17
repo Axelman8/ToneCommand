@@ -62,9 +62,9 @@ def test_exact_identity_required_and_fm9_untouched():
     assert protocol.envelope(8,[])[4]==16
 
 
-def test_exact_52_controls_no_legacy_model_setters_or_extra_instance():
+def test_exact_70_controls_no_legacy_model_setters_or_extra_instance():
     reg=Registry(profile.KEY)
-    assert len(reg.params)==52 and not reg.selectable_amp_models()
+    assert len(reg.params)==70 and profile.CONTROL_COUNT==70 and not reg.selectable_amp_models()
     assert reg.resolve_block('NAM')==('NAM',206)
     assert reg.family_of_effect_id(78)==('CHORUS',1)
     with pytest.raises(ValueError):reg.resolve_block('NAM',2)
@@ -80,10 +80,11 @@ def test_all_measured_numeric_specs_encode_in_their_set_units(family):
         spec=reg.find_param(family,name)
         value=-12 if spec.unit=='dB' else max(spec.dmin, (spec.dmin+spec.dmax)/2)
         if name=='DELAY_FEED':value=20
+        if name in profile.effect_controls.AUTO_OFF:value=0
         frame=protocol.set_parameter(reg,spec,value)
         assert frame[4:8]==[16,1,int(spec.set_opcode,16),0]
         assert abs(p.decode_f32_septets(frame[12:17])-value/spec.set_divisor)<.002
-        if family in ('CABINET','FUZZ'):
+        if family in ('CABINET','FUZZ','COMP','GEQ'):
             with pytest.raises(PermissionError):fw33.check_frame(Mock(reg=reg),frame)
         else:fw33.check_frame(Mock(reg=reg),frame)
         with pytest.raises(ValueError):protocol.set_parameter(reg,replace(spec,effect_id=207),value)

@@ -4,13 +4,14 @@ Only this exact identity/build is recognized. Metadata equality alone never
 promotes model, routing, modifier, CAB/NAM install or permanent Store writes.
 """
 from copy import deepcopy
+from . import effect_controls_fw33 as effect_controls
 
 KEY = '33.00-beta.20261006'
-# Candidate release after exact native and independent editor calibration.
-# Normal SEND/editor acceptance must complete before this candidate is shipped.
+# Released after exact native calibration, normal AI/SEND and independent
+# eight-scene editor acceptance; no end-user/environment override.
 DRIVE_RELEASED = True
-# New scene counts require their own normal SEND/editor acceptance. Keep the
-# existing eight-scene release while the bounded compiler extension is tested.
+# The compiler prototype supports1..8. Newly measured counts remain gated
+# until their independent post-native editor acceptance also completes.
 ALBUM_SCENE_COUNTS = frozenset({8})
 IDENTITY = (0,1,116,16,8,97,0,16,1,17,0,0,79,99,116,32,32,54,32,
             50,48,50,54,32,49,54,58,50,50,58,53,51,0,0,0,0,0,0,0,0,0,0,0,0,21)
@@ -23,18 +24,19 @@ NAMES = {
     'REVERB': ('REVERB_TIME','REVERB_MIX','REVERB_LEVEL'),
     'OUTPUT': ('OUTPUT_LEVEL',),
     'CHORUS': ('CHORUS_RATE','CHORUS_DEPTH','CHORUS_MIX','CHORUS_LEVEL'),
-    'COMP': ('COMP_THRESH','COMP_RATIO'),
+    'COMP': tuple(effect_controls.DEFINITIONS['COMP']),
+    'GEQ': tuple(effect_controls.DEFINITIONS['GEQ']),
     'FUZZ': ('FUZZ_DRIVE','FUZZ_TONE','FUZZ_LEVEL','FUZZ_MIX'),
     'NAM': ('NAM_INPUT_GAIN','NAM_BASS','NAM_MID','NAM_TREBLE','NAM_LEVEL'),
     'CABINET': tuple(f'CABINET_{field}{i}' for field in ('LEVEL','PAN','MUTE') for i in range(1,5)),
 }
 ZERO_TYPED = frozenset({'DELAY_LEVEL','REVERB_LEVEL','CHORUS_LEVEL',
-                        'NAM_INPUT_GAIN','NAM_LEVEL'}) | frozenset(NAMES['CABINET']) | frozenset(NAMES['FUZZ'])
+                        'NAM_INPUT_GAIN','NAM_LEVEL'}) | frozenset(NAMES['CABINET']) | frozenset(NAMES['FUZZ']) | effect_controls.ZERO_TYPED
 LEVELS = frozenset({'DISTORT_LEVEL','WAH_LEVEL','DELAY_LEVEL','REVERB_LEVEL',
                    'CHORUS_LEVEL','OUTPUT_LEVEL','NAM_LEVEL'})
 # Measured channel-A layouts; runtime also requires four channels and instance 1.
 STRIDES = {'DISTORT':142,'WAH':25,'DELAY':89,'REVERB':71,'CHORUS':32,
-           'COMP':37,'OUTPUT':26,'NAM':18,'CABINET':106,'FUZZ':44}
+           'COMP':37,'GEQ':20,'OUTPUT':26,'NAM':18,'CABINET':106,'FUZZ':44}
 CONTROL_COUNT = sum(map(len, NAMES.values()))
 # Complete empty-slot route independently constructed/read on muted preset 325.
 # This is not a generic FW33 insertion/splice/parallel-route authorization.
@@ -52,7 +54,7 @@ def identity_key(reply) -> str | None:
 
 
 def definitions(legacy: dict) -> dict:
-    result = {family: {name: deepcopy(legacy[family][name]) for name in names}
+    result = {family: {name: deepcopy(legacy[family][name]) for name in names if name in legacy[family]}
               for family, names in NAMES.items() if family in legacy}
     for name in NAMES['DISTORT'][:-1]:
         result['DISTORT'][name].update(set_divisor=10.0,display_tolerance=.011)
@@ -69,12 +71,7 @@ def definitions(legacy: dict) -> dict:
         'CHORUS_LEVEL':dict(pid=11,label='Level',unit='dB',min=-80.,max=20.,
                             set_divisor=1.,set_opcode='09',display_tolerance=.051),
     }
-    result['COMP'] = {
-        'COMP_THRESH':dict(pid=0,label='Threshold',unit='dB',min=-60.,max=20.,
-                           set_divisor=1.,set_opcode='09',display_tolerance=.051),
-        'COMP_RATIO':dict(pid=1,label='Ratio',unit='',min=1.,max=20.,scale='log10',
-                          set_divisor=1.,set_opcode='09',display_tolerance=.0011),
-    }
+    result.update(deepcopy(effect_controls.DEFINITIONS))
     from .tone_controls import DEFINITIONS
     result['FUZZ']=deepcopy(DEFINITIONS['FUZZ'])
     # NAM Player 1, effect 206: captured editor SETs, independently verified
@@ -94,4 +91,6 @@ def definitions(legacy: dict) -> dict:
         for data in controls.values():
             data.update(firmware_versions=(KEY,),hardware_verified=True,
                         bulk_restore_supported=True)
+    for family in effect_controls.MODELS:
+        for data in result[family].values():data['bulk_restore_supported']=False
     return result

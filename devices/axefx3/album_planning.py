@@ -5,7 +5,7 @@ import re
 from typing import Annotated, Literal
 from pydantic import Field, StrictBool, StrictInt, model_validator
 from . import planning, serial_build, route_guard, executor, scene_intent, amp_inventory, fw33_profile
-from . import cab_inventory
+from . import cab_inventory,effect_voicing
 
 MODELS = amp_inventory.roster(fw33_profile.KEY)
 AmpName = Literal[tuple(MODELS.values())]
@@ -41,6 +41,8 @@ class Role(planning.Shape):
     delay: StrictBool
     chorus: StrictBool
     drive: StrictBool=False
+    compressor: StrictBool=False
+    geq: StrictBool=False
 
 
 class Drive(planning.Shape):
@@ -98,6 +100,8 @@ class Album(planning.Shape):
     lead: Role
     solo: Role
     drive: Drive | None=None
+    compressor: effect_voicing.Compressor | None=None
+    geq: effect_voicing.GraphicEQ | None=None
 
 
 class Delay(planning.Delay):
@@ -155,10 +159,16 @@ must be null and every scene drive flag false. Disclose a required-but-blocked
 Drive rather than silently dropping it. When executable, optional drive on each
 voice uses measured T808 Mod only, gain/tone0..10, level KNOB0..2.5 (NOT dB,
 not guaranteed unity), mix0..100. Scene drive flags activate that amp voice's
-Drive A-D channel; a missing voice defaults to muted knob level0. Use drive
-only for a musical reason, not as a substitute for high amp gain. No wah/controller,
-reverb, NAM, IR installation or arbitrary grid layout. Reserve blocks stay
-bypassed on the fixed captured14-block route. Choose a cab object with exactly
+Drive A-D channel; every active scene requires an explicit selected voice. Use
+drive only for a musical reason, not as a substitute for high amp gain. Separate
+compressor_executable and geq_executable flags govern optional four-channel
+voices, also following Amp A-D. If false, omit that voicing and set every related
+scene flag false; disclose a required-but-blocked feature. Compressor supports
+Modern VCA only, automatic makeup/timing OFF, threshold<=0dB and level<=0dB.
+GEQ supports10 Band Variable Q only, all10 gains<=0dB and level<=0dB, not PEQ.
+No wah/controller, reverb, NAM, IR installation or arbitrary grid layout.
+Other reserve blocks stay bypassed on the fixed captured14-block route.
+Choose a cab object with exactly
 four IR slots, bank/slot, mode(normal/mute/solo), level_db and pan(-100L..100R).
 Factory bank0/1 and imported User1=bank2/User2=bank3 each have1024 slots;
 User3 FullRes bank6 has64 slots and is eligible only for IR3/4. Never select
@@ -178,11 +188,12 @@ Return only the supplied schema. Explain limitations briefly in user language.
 def reference(reg):
     return json.dumps(dict(firmware=reg.firmware, scene_counts=sorted(fw33_profile.ALBUM_SCENE_COUNTS), amp_channels='ABCD',
         drive_executable=fw33_profile.DRIVE_RELEASED,
+        compressor_executable=effect_voicing.COMPRESSOR_RELEASED,geq_executable=effect_voicing.GEQ_RELEASED,
         drive_notice='When false, omit Drive voicing and keep every scene drive flag false. A requested Drive remains an explicit unsupported requirement, not a silent substitution.',
         models=list(MODELS.values()),
         cabs=[[c['bank'],c['slot'],c['name']] for c in cab_inventory.choices(reg,include_fullres=True)],
         cab_format='Each entry is [wire bank, one-based slot, name]. FullRes bank6 only IR3/4. Names do not prove audible match.',
-        controls={f:reg.definitions[f] for f in ('DISTORT','OUTPUT','DELAY','CHORUS','CABINET','FUZZ')},
+        controls={f:reg.definitions[f] for f in ('DISTORT','OUTPUT','DELAY','CHORUS','CABINET','FUZZ','COMP','GEQ')},
         route=route_guard.labels(serial_build.ROUTE,reg), output_db=-18,
         shared_effect_channels='Delay/Chorus A; optional T808 Mod Drive A-D follows Amp channel',
         reserve_effects_bypassed='All except explicitly voiced and requested T808 Mod'))
@@ -226,13 +237,27 @@ def actions_for(reg, design, existing):
             emit('set_cab',62,bank=bank,value=ordinal,cab_side='left')
         if has_drive(design):
             voice=drive_voice(album)
+            param(58,'DISTORT_LEVEL',-18.)
             emit('set_channel',118,value=c)
             emit('set_type',118,type_name=voice.model)
             param(118,'FUZZ_LEVEL',0.)
             for name,value in (('DRIVE',voice.gain),('TONE',voice.tone),('MIX',voice.mix),('LEVEL',voice.level)):
                 param(118,'FUZZ_'+name,value)
+            param(58,'DISTORT_LEVEL',album.amp.level)
     for eid in (58,62,70,78,42): emit('set_channel',eid,value=0)
     if has_drive(design):emit('set_channel',118,value=0)
+    # Additional measured voices are staged separately with Amp bypassed.
+    # Re-select Amp A and quiet it BEFORE any auxiliary model operation.
+    for key,family in (('compressor','COMP'),('geq','GEQ')):
+        if not any(getattr(a,key) is not None for a in design.albums):continue
+        eid=effect_voicing.MODELS[family][0]
+        emit('set_channel',58,value=0);param(58,'DISTORT_LEVEL',-18.)
+        for c,album in enumerate(design.albums):
+            voice=getattr(album,key) or effect_voicing.default(family)
+            emit('set_channel',eid,value=c);emit('set_type',eid,type_name=voice.model)
+            for name,value in effect_voicing.parameters(family,voice):param(eid,name,value)
+        emit('set_channel',eid,value=0)
+        param(58,'DISTORT_LEVEL',design.albums[0].amp.level)
     for eid,family,values in (
         (70,'DELAY',dict(TIME=design.delay.time_ms,FEED=design.delay.feedback,MIX=design.delay.mix,LEVEL=0)),
         (78,'CHORUS',dict(RATE=design.chorus.rate_hz,DEPTH=design.chorus.depth,MIX=design.chorus.mix,LEVEL=0))):
@@ -251,6 +276,10 @@ def actions_for(reg, design, existing):
         if has_drive(design):
             emit('set_channel',118,value=item['amp_channel'])
             bypass(118,not item.get('drive',False))
+        for key,family in (('compressor','COMP'),('geq','GEQ')):
+            if any(getattr(a,key) is not None for a in design.albums):
+                eid=effect_voicing.MODELS[family][0]
+                emit('set_channel',eid,value=item['amp_channel']);bypass(eid,not item.get(key,False))
         bypass(58,False); bypass(62,False)
         bypass(70,not item['delay']); bypass(78,not item['chorus'])
         emit('rename_scene',value=number,type_name=item['name'])
@@ -275,10 +304,18 @@ def compile_design(reg,raw,current_route,scene_count):
     if design.scene_count!=scene_count:
         raise ValueError('AI scene count differs from the explicitly requested scene count')
     assignments=layout(design.model_dump())
+    for key,family,released in (('compressor','COMP',effect_voicing.COMPRESSOR_RELEASED),('geq','GEQ',effect_voicing.GEQ_RELEASED)):
+        present=any(getattr(a,key) is not None for a in design.albums)
+        if present and not released:
+            raise ValueError(f'{family} normal builder awaits independent SEND/editor acceptance')
+        if any(item.get(key) and getattr(design.albums[item['amp_channel']],key) is None for item in assignments):
+            raise ValueError(f'Every active {family} scene requires explicit voicing on its selected amp channel')
     if has_drive(design) and not fw33_profile.DRIVE_RELEASED:
         raise ValueError('Drive prototype awaits exact engage/bypass and normal SEND/editor acceptance; nothing sent')
     if any(item.get('drive') for item in assignments) and not has_drive(design):
         raise ValueError('Active Drive scenes require explicit T808 Mod voicing')
+    if any(item.get('drive') and design.albums[item['amp_channel']].drive is None for item in assignments):
+        raise ValueError('Every active Drive scene requires its own selected amp voice to have explicit T808 Mod voicing')
     if assignments[0]['amp_channel'] != 0 or assignments[0]['cab_channel'] != 0:
         raise ValueError('Scene1 must retain Amp/Cab A as the measured review starting point')
     if not serial_build.supported(reg):
@@ -298,10 +335,11 @@ def compile_design(reg,raw,current_route,scene_count):
             else dict(channel='ABCD'[c],bank=CABS[a.cab][0],slot=CABS[a.cab][1]+1,
                       name=CABS[a.cab][2],side='IR1 only')) for c,a in enumerate(design.albums)],
         channel_mapping=[dict(scene=i+1,amp='ABCD'[item['amp_channel']],cab='ABCD'[item['cab_channel']],
-            delay='A',chorus='A',output='A',**({'drive':'ABCD'[item['amp_channel']]} if has_drive(design) else {})) for i,item in enumerate(assignments)],
+            delay='A',chorus='A',output='A',**({'drive':'ABCD'[item['amp_channel']]} if has_drive(design) else {}),
+            **{key:'ABCD'[item['amp_channel']] for key in ('compressor','geq') if any(getattr(a,key) is not None for a in design.albums)}) for i,item in enumerate(assignments)],
         warnings=['Maximaal vier ampvoicings en vier cabkanalen A-D; zie de expliciete scene-indeling. Delay/Chorus delen A.',
-            f'{len(MODELS)} FW33-ampmodellen, 2048 Factory-cabs en geimporteerde niet-lege Usercabs. T808 Mod is de gemeten Drive-voicing; post-EQ vereist aanvullende meting.',
-            'Gemeten vaste14-blokkenketen. Alleen expliciet ingerichte T808 Mod mag actief; overige reserve-effecten blijven bypassed. Geen nieuwe controllers.',
+            f'{len(MODELS)} FW33-ampmodellen, 2048 Factory-cabs en geimporteerde niet-lege Usercabs. Alleen vrijgegeven effectprofielen mogen worden ingericht.',
+            'Gemeten vaste14-blokkenketen. Alleen expliciet ingerichte en vrijgegeven T808 Mod, Modern VCA en 10 Band Variable Q mogen actief; overige reserve-effecten blijven bypassed. Geen nieuwe controllers.',
             'Expliciete vier-IR-mix met level/pan/mute/solo.' if expanded_cabs(design) else 'Compatibiliteitsontwerp: alleen IR1 in de mix; IR2-4 blijven gemute.',
             'Cabselectie installeert geen IRs. Mixerstatus bewijst geen hoorbare output of veilige fysieke luidheid.',
             'Output -18dB; voorlopige scenevolumes. Externe mute is verplicht, geen limiter.',

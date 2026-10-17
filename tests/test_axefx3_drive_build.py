@@ -98,6 +98,13 @@ def test_active_drive_without_voicing_is_not_a_prose_only_success(monkeypatch):
     with pytest.raises(ValueError,match='voicing'):planning.compile_design(d.reg,source,list(planning.serial_build.ROUTE),8)
 
 
+def test_other_voiced_channel_does_not_make_missing_active_voice_valid(monkeypatch):
+    d=device(monkeypatch);source=raw();source['albums'][1]['drive']=None
+    with pytest.raises(ValueError,match='selected amp voice'):
+        planning.compile_design(d.reg,source,list(planning.serial_build.ROUTE),8)
+    d._write.assert_not_called();d.set_param_display.assert_not_called()
+
+
 def test_prototype_is_not_available_in_normal_release(monkeypatch):
     d=fixture(monkeypatch);source=raw()
     plan=planning.compile_design(d.reg,source,list(planning.serial_build.ROUTE),8)

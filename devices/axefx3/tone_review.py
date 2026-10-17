@@ -108,6 +108,8 @@ class Reviews:
             route=route_guard.serial_route(initial['grid'],initial['blocks'],dev.reg)
             count=record['plan']['design'].get('scene_count',8)
             plan=album_planning.compile_design(dev.reg,record['plan']['design'],route,count)
+            if record['version']==2:
+                plan['reference_measurements']=deepcopy(record['plan']['reference_measurements'])
             self.clear();self.last_sent=None
             # Scene selection is explicitly consented, but a mismatch never
             # triggers a rollback, old SEND, model write or preset reload.

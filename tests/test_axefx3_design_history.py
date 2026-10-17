@@ -29,6 +29,60 @@ def test_successful_send_persists_only_design_and_evidence(monkeypatch):
     entries=history.entries();assert len(entries['designs'])==1 and not entries['hardware_written']
 
 
+def test_numeric_reference_survives_cold_resume_without_private_source_or_authority(monkeypatch):
+    from test_axefx3_audio_comparison import reading
+    d=device(monkeypatch);p=plan(d);reviews=tone_review.Reviews()
+    p['reference_measurements']=reading(url='https://example.com/?secret=private',file_name='personal.wav')
+    prepared=reviews.prepare(d,p,tone_review.snapshot(d,include_nam=False))
+    result=reviews.send(d,prepared['token'],target_confirmed=True,external_audio_muted=True)
+    record=history.load(result['history']['id'])
+    assert record['version']==2
+    evidence=record['plan']['reference_measurements']
+    assert evidence['centroid_hz']==440 and evidence['analysis_method']=='channel-power-v2'
+    assert 'url' not in evidence and 'file_name' not in evidence
+    assert 'private' not in str(record) and 'personal' not in str(record)
+    fresh=tone_review.Reviews()
+    resumed=fresh.resume(d,record['id'],expected_preset=322,external_audio_muted=True,target_confirmed=True)
+    assert fresh.refinement(d,resumed['refine_token'],tone_review.snapshot(d,include_nam=False))['reference_measurements']==evidence
+    assert not resumed['stored'] and not resumed['parameters_written']
+
+
+def test_version_two_cannot_hide_urls_or_actions_in_numeric_evidence(monkeypatch):
+    from test_axefx3_audio_comparison import reading
+    d,p,reviews,result=sent(monkeypatch)
+    record=history.load(result['history']['id']);record['version']=2
+    record['plan']['reference_measurements']=reading(url='https://private.invalid')
+    with pytest.raises(ValueError,match='private numeric'):history.validate(record)
+    record['plan']['reference_measurements']=dict(reading(),actions=[])
+    with pytest.raises(ValueError):history.validate(record)
+
+
+def test_refinement_reuses_numeric_reference_without_claiming_new_analysis(monkeypatch):
+    from test_axefx3_audio_comparison import reading
+    from tests.scene_intent_fixtures import with_goals
+    d=device(monkeypatch);p=plan(d);reviews=server._afx3_tone_reviews
+    p['reference_measurements']=reading()
+    prepared=reviews.prepare(d,p,tone_review.snapshot(d,include_nam=False))
+    sent=reviews.send(d,prepared['token'],target_confirmed=True,external_audio_muted=True)
+    d.set_scene(1)
+    monkeypatch.setattr(server,'_context',server.DeviceContext('axefx3',d.reg,d,'Axe-Fx III'))
+    monkeypatch.setattr(server,'_gig_mode',{'on':False});monkeypatch.setattr(server,'_plan_revisions',{})
+    monkeypatch.setattr(server,'_audition',{'open':False})
+    monkeypatch.setattr(server.ai_settings,'apply_to_env',lambda:None);monkeypatch.setenv('PLANNER_BACKEND','cli')
+    changed=deepcopy(p['design']);changed['albums'][0]['amp']['gain']+=.5
+    ask=Mock(side_effect=lambda *args,**kw:dict(**kw['validate'](with_goals(changed)),backend='cli'))
+    monkeypatch.setattr(server.planner,'plan',ask)
+    try:
+        response=TestClient(server.app).post('/api/axefx3/plan',json=dict(prompt='Scene 1 en 2 hebben iets meer gain nodig',
+            expected_preset=322,mode='amp',scenes=8,refine_token=sent['refine_token'],adjust_scenes=[1,2]))
+        assert response.status_code==200,response.text
+        assert response.json()['reference_measurements']['centroid_hz']==440
+        assert 'Previous user-supplied reference measurements reused' in ask.call_args.args[0]
+        assert 'not a new recording' in ask.call_args.args[0]
+        assert 'actions' not in response.json()['reference_measurements']
+    finally:reviews.clear();reviews.last_sent=None
+
+
 def test_new_review_service_can_resume_only_after_all_eight_scene_checks(monkeypatch):
     d,p,old,result=sent(monkeypatch)
     writes=d.set_param_display.call_count;models=d._write.call_count

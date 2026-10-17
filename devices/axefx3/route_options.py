@@ -21,9 +21,11 @@ def capabilities(reg):
     amp=(firmware=='32.06' and bool(reg.selectable_amp_models()) and bool(reg.cab_catalog.names))
     album=album_build.supported(reg)
     counts=sorted(fw33_profile.ALBUM_SCENE_COUNTS)
-    count_text='acht' if counts==[8] else '/'.join(map(str,counts))
+    count_text='acht' if counts==[8] else '1-8' if counts==list(range(1,9)) else '/'.join(map(str,counts))
+    drive_note=('T808 Mod Drive A-D is beschikbaar als expliciet ingerichte voicing. Compressor/post-EQ wachten op normale bouwacceptatie.'
+                if fw33_profile.DRIVE_RELEASED else 'Nieuwe Drive/Compressor/post-EQ-voicing wacht op volledige onafhankelijke acceptatie.')
     return [dict(mode='amp',label=f'AMP / CAB: {count_text} scenes met klankdoelen' if album else 'AMP / CAB + pedals',enabled=amp or album,
-        reason=(f'FW33: vaste14-blokkenketen, beschikbare sceneaantallen {count_text} met maximaal vier ampvoicings en vier cabkanalen A-D. Expliciete scene-indeling, geen verplichte rhythm/solo-paren. Alle {len(amp_inventory.roster(firmware))} Amp1-modellen, 2048 Factory-cabs en beschikbare geimporteerde Usernamen, met expliciete vier-IR-mix. Delay/Chorus delen A; Output -18dB en reserveblokken bypassed. Nieuwe Drive/Compressor/post-EQ-voicing wacht op volledige onafhankelijke acceptatie; geen nieuwe controllers.' if album else
+        reason=(f'FW33: vaste14-blokkenketen, beschikbare sceneaantallen {count_text} met maximaal vier ampvoicings en vier cabkanalen A-D. Expliciete scene-indeling, geen verplichte rhythm/solo-paren. Alle {len(amp_inventory.roster(firmware))} Amp1-modellen, 2048 Factory-cabs en beschikbare geimporteerde Usernamen, met expliciete vier-IR-mix. Delay/Chorus delen A; Output -18dB en niet-ingerichte reserveblokken bypassed. {drive_note} Geen nieuwe controllers.' if album else
                 'Geverifieerde amp/cab-keuze en beschikbare effecten; volledige route wordt bij review gecontroleerd.' if amp else
                 'FW33 amp/cab-modelselectie, routing en extra pedals moeten nog onafhankelijk worden gemeten.' if firmware==fw33_profile.KEY else
                 'Geverifieerde firmware, ampmodellen en een geimporteerde cabnamenlijst zijn nodig.'),

@@ -13,9 +13,10 @@ const path=require('node:path');
     let audioFetches=0,sourceBackendReady=true,routeOptionsReady=false,navigationReady=false,serialReady=false,multiSceneReady=false,albumReady=false;
     let currentPreset=325,currentScene=1,navigationRequest=null;
     let albumCounts=[8];
+    let audioV2Ready=false;
     const serialRoute=['Input 1','Wah 1','Drive 1','Amp 1','Cab 1','Chorus 1','Compressor 1','Delay 1','Enhancer 1','Filter 1','Flanger 1','GEQ 1','PEQ 2','Output 1'];
     const navigationSelections=[];
-    const explorations=[];
+    const explorations=[],audioComparisons=[];
     let ampRefreshMode='same';const ampRefreshes=[];
     page.on('pageerror',e=>errors.push(e.message));
     let failPlan=false,failSend=false,failRead=false,addedExtras=false;
@@ -72,6 +73,7 @@ const path=require('node:path');
           nam_selection_supported:fw33,nam:fw33?{slot:1,name:'Old capture'}:null,
           profile:{variant,warning:'Memory policy from declared variant',user2_cabs:true}};
         if(!sourceBackendReady)delete result.source_support;
+        if(audioV2Ready)result.audio_analysis_version=2;
         if(serialReady)result.serial_build_supported=true;
         if(albumReady){result.album_build_supported=true;result.amp_refresh_supported=true;result.design_history_supported=true;
           result.album_scene_counts=albumCounts;
@@ -146,8 +148,10 @@ const path=require('node:path');
         if(albumReady&&req.postDataJSON().mode==='amp'){
           result.mode='album';delete result.capture;result.required_route=serialRoute;
           result.design={albums:Array.from({length:4},(_,c)=>({amp_model:c?'USA JP IIC+ Yellow':'Brit 800 2204 High',amp:{gain:5+c,bass:4,mid:5,treble:6,level:-18},lead:{name:`Album ${c+1} Lead`,delay:false,chorus:false},solo:{name:`Album ${c+1} Solo`,delay:true,chorus:true}})),delay:{time_ms:350,feedback:25,mix:18},chorus:{rate_hz:.7,mix:10}};
+          for(const [c,album] of result.design.albums.entries())album.drive={model:'T808 Mod',gain:c,tone:5,level:1.5,mix:100};
           result.scenes=result.design.albums.flatMap(a=>[a.lead.name,a.solo.name]);
           result.design.scene_layout=result.scenes.map((name,i)=>({name,amp_channel:i%4,cab_channel:[0,3,2,1,0,1,2,3][i],delay:i%2===1,chorus:i===7}));
+          for(const [i,role] of result.design.scene_layout.entries())role.drive=i%2===1;
           result.cab_choices=Array.from({length:4},(_,c)=>({channel:'ABCD'[c],slot:c?800:516,name:c?'4x12 Recto57A':'4x12 Brit70s GB57A'}));
           result.cab_choices[0]={channel:'A',irs:[{ir:1,bank:3,slot:1024,name:'<img src=x> User cab',mode:'normal',level_db:-6.1,pan:-70},{ir:2,bank:1,slot:516,name:'Selected but muted cab',mode:'mute',level_db:-6.1,pan:70}]};
         }
@@ -177,6 +181,12 @@ const path=require('node:path');
         for(let i=0;i<size;i++)buf.writeInt16LE(Math.round(8000*Math.sin(2*Math.PI*440*i/16000)),44+2*i);
         return route.fulfill({contentType:'audio/wav',body:buf});
       }
+      if(url.pathname==='/api/axefx3/audio/compare'){
+        audioComparisons.push(req.postDataJSON());
+        result={hardware_written:false,differences:{rms_db:0,peak_db:0,crest_db:0,centroid_hz:0,
+          band_energy:[{band:'250-600 Hz',delta_fraction:0,relative_db:0}]},
+          note:'<img src=x onerror=alert(1)> Geen bewijs van klankmatch of luidheid.'};
+      }
       await route.fulfill({status,contentType:'application/json',body:JSON.stringify(result)});
     });
     async function review(){
@@ -198,6 +208,26 @@ const path=require('node:path');
       await page.click('#apply');
     }
     await page.goto('http://tc.test/axefx3');await page.locator('#engage:not([disabled])').waitFor();
+    const dsp=await page.evaluate(async()=>{
+      const rate=44100;
+      const stereo=new AudioBuffer({numberOfChannels:2,length:rate,sampleRate:rate});
+      const a=stereo.getChannelData(0),b=stereo.getChannelData(1);
+      for(let i=0;i<rate;i++){a[i]=.25*Math.sin(2*Math.PI*440*i/rate);b[i]=-a[i];}
+      const opposite=await measureWindowV2(stereo,0,rate);
+      const mixed=new AudioBuffer({numberOfChannels:1,length:rate,sampleRate:rate}),samples=mixed.getChannelData(0);
+      for(let i=0;i<rate;i++)samples[i]=.25*(Math.sin(2*Math.PI*440*i/rate)+Math.sin(2*Math.PI*12000*i/rate));
+      const antialias=await measureWindowV2(mixed,0,rate);
+      let silence=false,invalid=false;
+      try{await measureWindowV2(new AudioBuffer({numberOfChannels:1,length:16000,sampleRate:16000}),0,16000);}catch(e){silence=/geen meetbaar/.test(e.message);}
+      samples[0]=NaN;try{await measureWindowV2(mixed,0,rate);}catch(e){invalid=/ongeldige samples/.test(e.message);}
+      return {opposite,antialias,silence,invalid};
+    });
+    assert.equal(dsp.opposite.analysis_channels,2);assert.equal(dsp.opposite.analysis_rate_hz,16000);
+    assert(Math.abs(dsp.opposite.rms_dbfs-(-15.0515))<.06);
+    assert(Math.abs(dsp.opposite.centroid_hz-440)<40);assert(dsp.opposite.band_energy[1]>.98);
+    assert(Math.abs(dsp.antialias.centroid_hz-440)<60,JSON.stringify(dsp.antialias));assert(dsp.antialias.band_energy[1]>.95);
+    assert(Math.abs(dsp.antialias.rms_dbfs-(-12.0412))<.06);assert(dsp.antialias.peak_dbfs>-6.2);
+    assert(dsp.silence&&dsp.invalid);
     assert.equal(await page.locator('#rail .stg').count(),5);
     assert.equal(await page.locator('#sceneRack .sc').count(),8);
     assert(await page.locator('#scenes option').nth(4).evaluate(o=>o.disabled));
@@ -538,6 +568,8 @@ const path=require('node:path');
     assert.equal(await page.locator('#sceneRows img').count(),0);
     assert.match(await page.locator('#sceneRows tr').nth(1).textContent(),/2\. Album 1 Solo \/ B/);
     assert.match(await page.locator('#sceneRows tr').nth(1).textContent(),/Factory 2 slot 800 \/ D/);
+    assert.match(await page.locator('#sceneRows tr').first().textContent(),/Drive: uit.*T808 Mod \/ A.*levelknop 1.5\/10/);
+    assert.match(await page.locator('#sceneRows tr').nth(1).textContent(),/Drive: aan.*T808 Mod \/ B.*gain 1.*mix 100%/);
     await page.click('#backPlan');
     assert.match(await page.textContent('#sceneIntent'),/KLANKDOEL PER SCENE/);
     assert.equal(await page.locator('#sceneIntent img').count(),0);
@@ -594,6 +626,37 @@ const path=require('node:path');
     albumCounts=[8];await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
     assert.equal(await page.inputValue('#scenes'),'8');
     assert(await page.locator('#scenes option').first().evaluate(o=>o.disabled));
+    // New provenance is sent only when the backend explicitly advertises v2.
+    audioV2Ready=true;await request();await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    await page.fill('#prompt','Klank van https://example.com/v2.wav');
+    if((await page.locator('#audioPanel').getAttribute('open'))===null)await page.locator('#audioPanel summary').click();
+    await page.fill('#audioStart','0');await page.fill('#audioLength','1');
+    await page.click('#exploreRoutes');await page.locator('#refresh:not([disabled])').waitFor();
+    const v2=explorations.at(-1).audio_reference;
+    assert.equal(v2.analysis_method,'channel-power-v2');assert.equal(v2.analysis_rate_hz,16000);
+    assert.equal(v2.analysis_channels,1);assert.equal(v2.analysis_frames,8);
+    assert(Math.abs(v2.centroid_hz-440)<40);
+    assert.match(await page.textContent('#audioStatus'),/Kanaalenergie apart/);
+    await page.locator('#audioComparePanel summary').click();
+    const ownSize=16000,own=Buffer.alloc(44+ownSize*2);
+    own.write('RIFF');own.writeUInt32LE(own.length-8,4);own.write('WAVEfmt ',8);own.writeUInt32LE(16,16);
+    own.writeUInt16LE(1,20);own.writeUInt16LE(1,22);own.writeUInt32LE(16000,24);own.writeUInt32LE(32000,28);
+    own.writeUInt16LE(2,32);own.writeUInt16LE(16,34);own.write('data',36);own.writeUInt32LE(ownSize*2,40);
+    for(let i=0;i<ownSize;i++)own.writeInt16LE(Math.round(8000*Math.sin(2*Math.PI*440*i/16000)),44+2*i);
+    await page.setInputFiles('#recordingFile',{name:'own-private.wav',mimeType:'audio/wav',buffer:own});
+    await page.fill('#recordingLength','1');
+    const comparisonPlans=plans.length,comparisonSends=sends.length;
+    await page.click('#compareAudio');await page.locator('#compareAudio:not([disabled])').waitFor();
+    assert.equal(audioComparisons.length,1);assert.equal(plans.length,comparisonPlans);assert.equal(sends.length,comparisonSends);
+    assert.equal(audioComparisons[0].recording.analysis_method,'channel-power-v2');
+    assert(!Object.hasOwn(audioComparisons[0].recording,'file_name'));
+    assert.match(await page.textContent('#comparisonStatus'),/niets afgespeeld/);
+    assert.match(await page.textContent('#comparisonResults'),/Opname minus referentie/);
+    assert.equal(await page.locator('#comparisonResults img').count(),0);
+    await page.fill('#recordingStart','99');
+    assert.equal(await page.textContent('#comparisonResults'),'');
+    await page.click('#compareAudio');await page.locator('#compareAudio:not([disabled])').waitFor();
+    assert.equal(audioComparisons.length,1);assert.match(await page.textContent('#comparisonStatus'),/buiten de opname/);
     assert.deepEqual(errors,[]);
     console.log('AFX3 shared FM9 layout: workflow, fit, consent, reset, MK, audio, XSS; FW33 NAM foundation/two scenes, permanent install and separate Store consent passed');
   }finally{await browser.close();}

@@ -71,7 +71,7 @@ def check_frame(dev, frame):
         if family:
             spec=dev.reg.spec(family[0], pid, family[1])
             value=shared.decode_f32_septets(payload[6:11]) * spec.set_divisor
-            if family[0] in ('CABINET','FUZZ'):
+            if family[0] in ('CABINET','FUZZ','COMP','GEQ'):
                 session=getattr(dev,'_album_session',None)
                 if (not isinstance(session,album_build.Session) or session.item is None
                         or session.item.spec!=spec
@@ -99,7 +99,7 @@ def domain_error(dev, spec, channel):
     channels = {0, 1} if spec.family == 'NAM' else {0}
     from . import album_build
     if album_build.amp_domain(dev,spec,channel): channels=set(range(4))
-    if spec.family in ('CABINET','FUZZ') and not album_build.amp_domain(dev,spec,channel):
+    if spec.family in ('CABINET','FUZZ','COMP','GEQ') and not album_build.amp_domain(dev,spec,channel):
         return 'FW33 Cab/Drive requires the exact active reviewed build operation'
     if channel not in channels:
         return 'FW33 numeric channel is outside the measured profile'
@@ -110,6 +110,13 @@ def domain_error(dev, spec, channel):
         return 'FW33 full four-channel layout could not be verified'
     if spec.family=='FUZZ' and words[channel*44]!=8:
         return 'FW33 Drive numeric voicing requires measured T808 Mod'
+    if spec.family in ('COMP','GEQ'):
+        _,stride,selector,ordinal,_=profile.effect_controls.MODELS[spec.family]
+        base=channel*stride
+        if words[base+selector]!=ordinal:return 'Auxiliary numeric voicing requires its exact measured model'
+        if (spec.family=='COMP' and spec.name not in profile.effect_controls.AUTO_OFF
+                and (words[base+6]!=0 or words[base+16]!=0)):
+            return 'Compressor manual modes must be independently OFF before manual voicing'
     if spec.family == 'NAM':
         try:
             nam_selector.capture(dev, nam_selector.slots(words)[channel])

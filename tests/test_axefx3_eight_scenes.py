@@ -190,7 +190,8 @@ def test_eight_scenes_use_normal_review_send_in_simulation(api, dev, design):
     dev.store_preset.assert_not_called()
 
 
-def test_fw33_non_album_scene_count_is_refused_before_ai(api, dev):
+def test_unreleased_fw33_scene_count_is_refused_before_ai(api, dev,monkeypatch):
+    monkeypatch.setattr(fw33_profile,'ALBUM_SCENE_COUNTS',frozenset({8}))
     client, ask = api
     dev.reg = Registry(fw33_profile.KEY)
     dev.reg.hardware_variant = 'mk2'

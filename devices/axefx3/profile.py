@@ -13,7 +13,7 @@ def memory_policy(firmware, variant=None):
                 nam_writes=firmware == fw33_profile.KEY and variant == 'mk2',
                 write_supported=old or firmware == fw33_profile.KEY,
                 warning='MK-keuze is door de gebruiker opgegeven, niet door het apparaat bewezen. '
-                + ('NAM: gemeten FW33/MK2/Windows-profiel, installatie in slots 001-256 na slotkeuze. Presetbouw gebruikt voorlopig slot 001. '
+                + ('NAM: gemeten FW33/MK2/Windows-profiel, installatie in slots 001-256 na slotkeuze. Presetbouw kiest expliciet een volledig uitgelezen geinstalleerd slot; selectie en installatie zijn aparte stappen. '
                  if firmware == fw33_profile.KEY else 'NAM plaatsen/installeren is niet geverifieerd.')
                 + ('User2 is beschikbaar als cabnamenlijst.' if user2 else
                    'User2 niet als cabbank gebruiken: op MK1 met NAM-firmware is dit NAM-geheugen.'))

@@ -21,6 +21,11 @@ const refineButton=document.createElement('button');refineButton.id='refineSound
 el('returnRequest').after(refineButton);
 const adjustPanel=document.createElement('fieldset');adjustPanel.id='adjustScenes';adjustPanel.hidden=true;
 el('requestPanel').querySelector('.formbar').after(adjustPanel);
+const comparisonPanel=document.createElement('details');comparisonPanel.id='audioComparePanel';comparisonPanel.hidden=true;
+comparisonPanel.innerHTML='<summary>OPNAME VERGELIJKEN</summary><p>Vergelijk een zelf opgenomen gitaarfragment met het klankvoorbeeld uit SONG / AUDIO of je verzoek. Gebruik dezelfde passage en vergelijkbare aanslag. Dit is geen automatische klankscore.</p><label>Eigen opname <input id="recordingFile" type="file" accept="audio/*"></label><label>Start (seconden) <input id="recordingStart" type="number" min="0" max="86400" step="0.25" value="0"></label><label>Lengte (maximaal 60 seconden) <input id="recordingLength" type="number" min="0.25" max="60" step="0.25" value="20"></label><button id="compareAudio">VERGELIJK FRAGMENTEN</button><p id="comparisonStatus" role="status">Alleen lokale analyse; geen opname, afspelen, AI-aanroep of verzending naar de Fractal.</p><div id="comparisonResults"></div>';
+el('rightrail').prepend(comparisonPanel);
+function clearAudioComparison(){el('comparisonResults').replaceChildren();el('comparisonStatus').textContent='Bron of opname gewijzigd. Vergelijk de fragmenten opnieuw.';}
+for(const id of ['recordingFile','recordingStart','recordingLength'])el(id).addEventListener('input',clearAudioComparison);
 function enterRefinement(){
   if(!refineContext)return;
   adjusting=true;invalidate();el('buildRoute').value=refineContext.mode;
@@ -71,6 +76,8 @@ function stage(index){
 }
 function controls(){
   historyControls();
+  comparisonPanel.hidden=state?.audio_analysis_version!==2;
+  for(const id of ['compareAudio','recordingFile','recordingStart','recordingLength'])el(id).disabled=busy;
   ampRefreshButton.disabled=busy||!state?.connected||!state?.amp_refresh_supported;
   el('target').disabled=busy||!state?.connected||!state?.navigation_supported;
   el('connectDevice').textContent=state?.connected?'VERBONDEN':'VERBIND';
@@ -88,7 +95,7 @@ function controls(){
   const serial=el('buildRoute').value==='serial';
   const album=el('buildRoute').value==='amp'&&!!state?.album_build_supported;
   const albumCounts=state?.album_scene_counts?.length?state.album_scene_counts:[8];
-  const albumCountText=albumCounts.length===1&&albumCounts[0]===8?'acht':albumCounts.join('/');
+  const albumCountText=albumCounts.length===1&&albumCounts[0]===8?'acht':albumCounts.length===8&&albumCounts.every((n,i)=>n===i+1)?'1-8':albumCounts.join('/');
   el('buildRoute').querySelector('option[value="amp"]').textContent=state?.album_build_supported?`AMP / CAB: ${albumCountText} scenes met klankdoelen`:'AMP / CAB + pedals';
   const serialOption=el('buildRoute').querySelector('option[value="serial"]');
   serialOption.hidden=!state?.serial_build_supported;
@@ -139,7 +146,7 @@ async function api(name,body){
 }
 async function run(work){if(busy)return;busy=true;controls();try{await work();}catch(e){invalidate();note(e.message);}finally{busy=false;controls();}}
 function renderAmps(amps){
-  el('ampCount').textContent=amps?`${amps.count} modellen beschikbaar voor de acht-scene AMP/CAB-bouwer. De AI kiest uit deze volledige FW33-lijst. Dit verandert niets zonder review en SEND.`:'De volledige FW33-versterkerlijst vereist het ondersteunde MK2-profiel.';
+  el('ampCount').textContent=amps?`${amps.count} modellen beschikbaar voor de AMP/CAB-bouwer. De AI kiest uit deze volledige FW33-lijst. Dit verandert niets zonder review en SEND.`:'De volledige FW33-versterkerlijst vereist het ondersteunde MK2-profiel.';
   el('ampModels').replaceChildren();
   if(amps)for(const amp of amps.models){const item=document.createElement('li');item.textContent=amp.name;el('ampModels').append(item);}
 }
@@ -358,6 +365,7 @@ el('newDesign').onclick=()=>run(async()=>{
   if((el('prompt').value||proposal)&&!confirm('Nieuw ontwerp beginnen? Het verzoek en voorstel worden gewist, niet de Fractal.'))return;
   await api('discard',{});invalidate();el('prompt').value='';audioReference=null;el('audioFile').value='';
   el('audioStart').value='0';el('audioLength').value='60';audioReferenceKey='';
+  el('recordingFile').value='';clearAudioComparison();
   el('historyTarget').checked=el('historyMute').checked=false;
   refineContext=null;adjusting=false;adjustPanel.hidden=true;el('generate').textContent='GENERATE PLAN';
   clearRouteExploration();
@@ -459,9 +467,9 @@ el('namInstallCommit').onclick=()=>run(async()=>{
   await accountStatus();await refresh();note(`${result.bytes_verified} NAM-bytes gecontroleerd. Geen preset opgeslagen; audio blijft gedempt.`);
 });
 for(const id of ['namQuery','namWithRequest'])el(id).addEventListener('input',invalidate);
-el('audioFile').addEventListener('input',()=>{audioReference=null;invalidate();});
+el('audioFile').addEventListener('input',()=>{audioReference=null;clearAudioComparison();invalidate();});
 for(const id of ['audioStart','audioLength'])el(id).addEventListener('input',()=>{
-  audioReference=null;audioReferenceKey='';invalidate();clearRouteExploration();
+  audioReference=null;audioReferenceKey='';clearAudioComparison();invalidate();clearRouteExploration();
 });
 function requestLinks(text){return [...new Set((text.match(/https?:\/\/[^\s<>"\]]+/g)||[]).map(x=>x.replace(/[).,;]+$/,'')))];}
 function spectrum(samples,rate){
@@ -476,7 +484,66 @@ function spectrum(samples,rate){
   let total=0,weighted=0;const bands=[0,0,0,0,0];
   for(let i=1;i<size/2;i++){const hz=i*rate/size,power=real[i]**2+imag[i]**2;
     const band=hz<250?0:hz<600?1:hz<2000?2:hz<5000?3:4;bands[band]+=power;total+=power;weighted+=hz*power;}
-  return {centroid:total?weighted/total:0,bands:bands.map(x=>total?x/total:0)};
+  return {centroid:total?weighted/total:0,bands:bands.map(x=>total?x/total:0),total,weighted,band_power:bands};
+}
+async function measureWindowV2(buffer,first,limit){
+  const channels=buffer.numberOfChannels,rate=16000;
+  if(!Number.isInteger(first)||!Number.isInteger(limit)||first<0||first+limit>buffer.length||channels<1||channels>8||limit<buffer.sampleRate*.25||limit>buffer.sampleRate*60)
+    throw new Error('Kies 0,25 tot 60 seconden audio met maximaal acht kanalen.');
+  let power=0,peak=0;
+  // Meter original samples per channel: opposite phases must not cancel and
+  // filtering/downsampling must not hide the original file's sample peaks.
+  for(let ch=0;ch<channels;ch++){
+    const data=buffer.getChannelData(ch);
+    for(let i=first;i<first+limit;i++){
+      const x=data[i];if(!Number.isFinite(x))throw new Error('Audio bevat ongeldige samples.');
+      power+=x*x;peak=Math.max(peak,Math.abs(x));
+    }
+    await new Promise(resolve=>setTimeout(resolve,0));
+  }
+  if(peak<1e-7)throw new Error('Audiofragment bevat geen meetbaar signaal.');
+  // Explicit phase-table, Blackman-windowed sinc resampling. Browser
+  // interpolation alone did NOT reject a12kHz alias in the real Chrome test.
+  // Original samples remain untouched; no audio is played or uploaded.
+  const cutoff=Math.min(7000,buffer.sampleRate*.45),phases=512;
+  const radius=Math.min(256,Math.max(32,Math.ceil(buffer.sampleRate/700))),taps=radius*2+1;
+  const kernels=Array.from({length:phases},(_,p)=>{
+    const kernel=new Float64Array(taps),fraction=p/phases;let sum=0;
+    for(let k=0;k<taps;k++){
+      const x=k-radius-fraction;
+      if(Math.abs(x)>radius)continue;
+      const lowpass=Math.abs(x)<1e-12?2*cutoff/buffer.sampleRate:Math.sin(2*Math.PI*cutoff/buffer.sampleRate*x)/(Math.PI*x);
+      kernel[k]=lowpass*(.42+.5*Math.cos(Math.PI*x/radius)+.08*Math.cos(2*Math.PI*x/radius));sum+=kernel[k];
+    }
+    for(let k=0;k<taps;k++)kernel[k]/=sum;
+    return kernel;
+  });
+  const length=Math.floor(limit/buffer.sampleRate*rate),count=Math.min(512,Math.max(1,Math.ceil(length/2048)));
+  let total=0,weighted=0;const bands=[0,0,0,0,0];
+  for(let ch=0;ch<channels;ch++){
+    const original=buffer.getChannelData(ch),data=new Float32Array(length);
+    for(let i=0;i<length;i++){
+      const position=i*buffer.sampleRate/rate;let center=Math.floor(position),phase=Math.round((position-center)*phases);
+      if(phase===phases){center++;phase=0;}
+      const kernel=kernels[phase];let value=0;
+      for(let k=0;k<taps;k++){
+        const index=center+k-radius;
+        if(index>=0&&index<limit)value+=original[first+index]*kernel[k];
+      }
+      data[i]=value;
+      if(i%8192===8191)await new Promise(resolve=>setTimeout(resolve,0));
+    }
+    for(let i=0;i<count;i++){
+      const offset=Math.floor(i*Math.max(0,data.length-2048)/Math.max(1,count-1));
+      const frame=spectrum(data.subarray(offset,offset+2048),rate);
+      total+=frame.total;weighted+=frame.weighted;
+      for(let b=0;b<5;b++)bands[b]+=frame.band_power[b];
+    }
+  }
+  const db=x=>20*Math.log10(Math.max(x,1e-7)),rms=Math.sqrt(power/(channels*limit));
+  return {rms_dbfs:db(rms),peak_dbfs:db(peak),crest_db:db(peak)-db(rms),
+    centroid_hz:total?weighted/total:0,band_energy:bands.map(x=>total?x/total:0),
+    analysis_method:'channel-power-v2',analysis_rate_hz:rate,analysis_cutoff_hz:cutoff,analysis_channels:channels,analysis_frames:count};
 }
 async function analyseRequestAudio(){
   const urls=requestLinks(el('prompt').value),file=el('audioFile').files[0];
@@ -487,7 +554,7 @@ async function analyseRequestAudio(){
   const start=Number(el('audioStart').value),length=Number(el('audioLength').value);
   if(!Number.isFinite(start)||start<0||start>86400||!Number.isFinite(length)||length<.25||length>60)
     throw new Error('Kies een geldige starttijd en een fragmentlengte van 0,25 tot 60 seconden.');
-  const key=JSON.stringify([file?[file.name,file.size,file.lastModified]:urls[0],start,length]);
+  const key=JSON.stringify([file?[file.name,file.size,file.lastModified]:urls[0],start,length,state?.audio_analysis_version||1]);
   if(audioReference&&audioReferenceKey===key){
     el('audioStatus').textContent='Eerder lokaal gemeten klankvoorbeeld hergebruikt; geen tweede download.';
     return audioReference;
@@ -507,6 +574,9 @@ async function analyseRequestAudio(){
       throw new Error('De starttijd valt buiten het audiobestand of de bron is te lang.');
     const limit=Math.min(buffer.length-first,Math.floor(buffer.sampleRate*length));
     if(limit<buffer.sampleRate*.25)throw new Error('Het gekozen fragment is korter dan 0,25 seconde.');
+    let metrics;
+    if(state?.audio_analysis_version===2)metrics=await measureWindowV2(buffer,first,limit);
+    else{
     const step=Math.max(1,Math.floor(buffer.sampleRate/16000)),mono=new Float32Array(Math.ceil(limit/step));
     for(let ch=0;ch<buffer.numberOfChannels;ch++){const data=buffer.getChannelData(ch);for(let i=0,j=0;i<limit;i+=step,j++)mono[j]+=data[first+i]/buffer.numberOfChannels;}
     let power=0,peak=0;for(const x of mono){power+=x*x;peak=Math.max(peak,Math.abs(x));}
@@ -517,14 +587,46 @@ async function analyseRequestAudio(){
       const frame=spectrum(mono.subarray(Math.max(0,offset),Math.max(0,offset)+2048),buffer.sampleRate/step);
       centroid+=frame.centroid/count;for(let b=0;b<5;b++)bands[b]+=frame.bands[b]/count;
     }
+    metrics={rms_dbfs:db(rms),peak_dbfs:db(peak),crest_db:db(peak)-db(rms),centroid_hz:centroid,band_energy:bands};
+    }
     const measured={url:urls[0]||null,file_name:file?.name?.slice(0,180)||null,sample_seconds:limit/buffer.sampleRate,
-      start_seconds:first/buffer.sampleRate,source_seconds:buffer.duration,
-      rms_dbfs:db(rms),peak_dbfs:db(peak),crest_db:db(peak)-db(rms),centroid_hz:centroid,band_energy:bands};
-    el('audioStatus').textContent=`Fragment ${measured.start_seconds.toFixed(2)}-${(measured.start_seconds+measured.sample_seconds).toFixed(2)} s lokaal gemeten, RMS ${measured.rms_dbfs.toFixed(1)} dBFS. Geen gitaarisolatie of directe AI-beluistering.`;
+      start_seconds:first/buffer.sampleRate,source_seconds:buffer.duration,...metrics};
+    el('audioStatus').textContent=`Fragment ${measured.start_seconds.toFixed(2)}-${(measured.start_seconds+measured.sample_seconds).toFixed(2)} s lokaal gemeten, RMS ${measured.rms_dbfs.toFixed(1)} dBFS. ${metrics.analysis_method?`Kanaalenergie apart, spectrum met ${metrics.analysis_cutoff_hz/1000} kHz anti-aliasfilter. `:''}Geen gitaarisolatie of directe AI-beluistering.`;
     audioReferenceKey=key;
     return measured;
   }finally{await context.close();}
 }
+el('compareAudio').onclick=async()=>{
+  if(busy)return;
+  busy=true;controls();clearAudioComparison();
+  try{
+    if(state?.audio_analysis_version!==2)throw new Error('Deze backend ondersteunt de nieuwe lokale analyse nog niet.');
+    if(sourceKind.value==='rig')throw new Error('Kies een klankvoorbeeld, geen gesproken apparatuuruitleg.');
+    const file=el('recordingFile').files[0],start=Number(el('recordingStart').value),length=Number(el('recordingLength').value);
+    if(!file||file.size>40*1024*1024)throw new Error('Kies een eigen audio-opname van maximaal 40 MiB.');
+    if(!Number.isFinite(start)||start<0||start>86400||!Number.isFinite(length)||length<.25||length>60)
+      throw new Error('Kies een geldige opnamestart en lengte van 0,25 tot 60 seconden.');
+    audioReference=await analyseRequestAudio();
+    if(!audioReference)throw new Error('Voeg eerst het klankvoorbeeld toe in SONG / AUDIO of je verzoek.');
+    const context=new AudioContext();let recording;
+    try{
+      const buffer=await context.decodeAudioData(await file.arrayBuffer()),first=Math.floor(start*buffer.sampleRate);
+      if(buffer.duration>86400||first>=buffer.length)throw new Error('De starttijd valt buiten de opname.');
+      const count=Math.min(buffer.length-first,Math.floor(length*buffer.sampleRate));
+      recording={sample_seconds:count/buffer.sampleRate,start_seconds:first/buffer.sampleRate,source_seconds:buffer.duration,
+        ...await measureWindowV2(buffer,first,count)};
+    }finally{await context.close();}
+    const result=await api('audio/compare',{reference:audioReference,recording});
+    const d=result.differences,root=el('comparisonResults');
+    for(const text of [`Opname minus referentie: RMS ${d.rms_db.toFixed(1)} dB, piek ${d.peak_db.toFixed(1)} dB, crest ${d.crest_db.toFixed(1)} dB.`,
+        `Spectraal zwaartepunt: ${d.centroid_hz.toFixed(0)} Hz verschil.`,
+        ...d.band_energy.map(b=>`${b.band}: ${(100*b.delta_fraction).toFixed(1)} procentpunt energieverschil${b.relative_db===null?'':`, ${b.relative_db.toFixed(1)} dB relatief`}.`),result.note]){
+      const p=document.createElement('p');p.textContent=text;root.append(p);
+    }
+    el('comparisonStatus').textContent='Vergelijking gereed. Geen preset, AI-plan of instellingen gewijzigd; niets afgespeeld of naar de Fractal verzonden.';
+  }catch(error){el('comparisonStatus').textContent=error.message;}
+  finally{busy=false;controls();}
+};
 function showDesign(plan){
   intentPanel.replaceChildren();intentPanel.hidden=!plan.scene_intent?.goals?.length;
   if(!intentPanel.hidden){
@@ -538,13 +640,18 @@ function showDesign(plan){
   const design=plan.design, controller=plan.controller;
   if(plan.mode==='album'){
     el('toneChoice').textContent='Maximaal vier ampvoicings en vier cabkanalen A-D, expliciete indeling per scene; Output A -18dB.';
-    el('controllerChoice').textContent='Reserveblokken bypassed, geen nieuwe controllers of NAM.';
+    el('controllerChoice').textContent='Alleen expliciet ingerichte effecten actief; overige reserveblokken bypassed. Geen nieuwe controllers of NAM.';
     el('planWarnings').replaceChildren();for(const warning of plan.warnings||[]){const li=document.createElement('li');li.textContent=warning;el('planWarnings').append(li);}
     el('sceneTable').hidden=false;el('sceneRows').replaceChildren();
     const layout=design.scene_layout||design.albums.flatMap((a,c)=>[a.lead,a.solo].map(role=>({...role,amp_channel:c,cab_channel:c})));
     for(const [index,role] of layout.entries()){
       const album=design.albums[role.amp_channel],cab=plan.cab_choices[role.cab_channel],row=document.createElement('tr');
-      for(const value of [`${index+1}. ${role.name} / ${'ABCD'[role.amp_channel]}`,`${album.amp_model} | gain ${album.amp.gain} | EQ ${album.amp.bass}/${album.amp.mid}/${album.amp.treble} | ${album.amp.level}dB`,'Uit',role.chorus?`${design.chorus.rate_hz}Hz / ${design.chorus.mix}% (A)`:'Uit',role.delay?`${design.delay.time_ms}ms / ${design.delay.feedback}% / ${design.delay.mix}% (A)`:'Uit','Niet in route',`${cabDescription(cab)} | Output A -18dB`]){const td=document.createElement('td');td.textContent=value;row.append(td);}
+      const voice=album.drive;
+      const drive=voice?`Drive: ${role.drive?'aan':'uit'} | ${voice.model} / ${'ABCD'[role.amp_channel]} | gain ${voice.gain}, tone ${voice.tone}, levelknop ${voice.level}/10, mix ${voice.mix}%`:'Drive: uit (geen voicing)';
+      const comp=album.compressor,eq=album.geq;
+      const auxiliary=[drive,comp?`Compressor: ${role.compressor?'aan':'uit'} / ${'ABCD'[role.amp_channel]} | ${comp.model}, threshold ${comp.threshold}dB, ratio ${comp.ratio}, attack ${comp.attack_ms}ms, release ${comp.release_ms}ms, mix ${comp.mix}%, level ${comp.level}dB, auto OFF`:'Compressor: uit (geen voicing)',
+        eq?`GEQ: ${role.geq?'aan':'uit'} / ${'ABCD'[role.amp_channel]} | ${eq.model}, banden ${eq.gains.join('/')}dB, Q ${eq.q}, level ${eq.level}dB`:'GEQ: uit (geen voicing)'].join('\n');
+      for(const value of [`${index+1}. ${role.name} / ${'ABCD'[role.amp_channel]}`,`${album.amp_model} | gain ${album.amp.gain} | EQ ${album.amp.bass}/${album.amp.mid}/${album.amp.treble} | ${album.amp.level}dB`,'Uit',role.chorus?`${design.chorus.rate_hz}Hz / ${design.chorus.mix}% (A)`:'Uit',role.delay?`${design.delay.time_ms}ms / ${design.delay.feedback}% / ${design.delay.mix}% (A)`:'Uit','Niet in route',`${auxiliary}\n${cabDescription(cab)} | Output A -18dB`]){const td=document.createElement('td');td.textContent=value;row.append(td);}
       el('sceneRows').append(row);
     }return;
   }

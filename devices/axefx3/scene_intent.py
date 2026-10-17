@@ -17,7 +17,7 @@ class Goal(BaseModel):
     realization: Annotated[str, Field(min_length=3, max_length=600)]
     distinct_from: Annotated[list[Annotated[StrictInt, Field(ge=1, le=8)]], Field(max_length=7)] = []
     distinction: Literal['base_tone', 'effects', 'shared'] = 'shared'
-    required_features: Annotated[list[Literal['drive','post_eq','reverb','wah_controller','pitch']], Field(max_length=5)] = []
+    required_features: Annotated[list[Literal['drive','compressor','post_eq','reverb','wah_controller','pitch']], Field(max_length=6)] = []
 
 
 class IntentDesign(BaseModel):
@@ -38,7 +38,7 @@ tone. Never claim audible success. If the measured tools cannot represent a
 requested contrast, disclose that limitation, not an invented effect write.
 For listening adjustments preserve untargeted scene settings and preset name;
 check shared channels before changing them. Use only the supplied capabilities.
-List explicitly requested drive/post_eq/reverb/wah_controller/pitch in each
+List explicitly requested drive/compressor/post_eq/reverb/wah_controller/pitch in each
 goal's required_features. An unsupported requirement cannot silently disappear.
 '''
 
@@ -64,6 +64,12 @@ def scenes(plan):
                 voice=amp.get('drive') or dict(model='T808 Mod',gain=0.,tone=5.,level=0.,mix=100.)
                 result[-1]['effects']['drive']={**voice,'active':item.get('drive',False)}
                 result[-1]['channels']['drive']=item['amp_channel']
+            for key,family in (('compressor','COMP'),('geq','GEQ')):
+                if any(a.get(key) is not None for a in d['albums']):
+                    from . import effect_voicing
+                    voice=amp.get(key) or effect_voicing.default(family).model_dump()
+                    result[-1]['effects'][key]={**voice,'active':item.get(key,False)}
+                    result[-1]['channels'][key]=item['amp_channel']
     elif plan.get('mode') == 'serial':
         result.append(dict(name=d['scene_name'], base=dict(amp=d['amp'], model='retained', cab='retained'),
                            effects=dict(delay=d['delay'], chorus=d['chorus'])))
@@ -130,7 +136,7 @@ def assess(plan, *, require=False):
             def active(name):
                 value=fx.get(name)
                 return bool(value) and (not isinstance(value,dict) or value.get('active'))
-            realized=dict(drive=active('drive'),post_eq=active('geq') or active('peq'),
+            realized=dict(drive=active('drive'),compressor=active('compressor'),post_eq=active('geq') or active('peq'),
                 reverb=active('reverb'),wah_controller=bool(plan.get('controller') and
                 plan['controller'].get('source')) and active('wah'),pitch=False)
             if not realized[feature]:

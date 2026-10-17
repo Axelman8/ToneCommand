@@ -12,7 +12,7 @@ from pathlib import Path
 import re
 import secrets
 import tempfile
-from . import fw33_profile
+from . import fw33_profile,audio_measurements
 from .controller_review import digest
 
 LIMIT=2*1024*1024
@@ -37,15 +37,19 @@ def identifier(value):
 
 def validate(data):
     fields={'version','id','created','preset','firmware','variant','plan','proof','stamp'}
-    if (not isinstance(data,dict) or set(data)!=fields or data['version']!=1
+    if (not isinstance(data,dict) or set(data)!=fields or type(data['version']) is not int or data['version'] not in (1,2)
             or type(data['preset']) is not int or data['preset'] not in range(512)
             or data['firmware']!=fw33_profile.KEY or data['variant']!='mk2'
             or not isinstance(data['created'],str) or len(data['created'])>40
-            or not isinstance(data['plan'],dict) or set(data['plan'])!={'mode','design'}
+            or not isinstance(data['plan'],dict) or set(data['plan'])!=({'mode','design'} if data['version']==1 else {'mode','design','reference_measurements'})
             or data['plan']['mode']!='album' or not isinstance(data['plan']['design'],dict)
             or not isinstance(data['proof'],dict)
             or set(data['proof'])!={'final_fingerprint','scene_fingerprints'}):
         raise ValueError('Unsupported or invalid local design record')
+    if data['version']==2:
+        evidence=data['plan']['reference_measurements']
+        if not isinstance(evidence,dict) or audio_measurements.private_evidence(evidence)!=evidence:
+            raise ValueError('Only bounded private numeric reference evidence may be saved')
     identifier(data['id'])
     try:datetime.fromisoformat(data['created'])
     except ValueError:raise ValueError('Invalid local design date') from None
@@ -64,9 +68,12 @@ def validate(data):
 
 def remember(plan,proof,state):
     """Only a fully successful album SEND may create a history record."""
-    record=validate(dict(version=1,id=secrets.token_hex(16),created=datetime.now(timezone.utc).isoformat(),
+    saved=dict(mode=plan.get('mode'),design=deepcopy(plan['design']))
+    if plan.get('reference_measurements') is not None:
+        saved['reference_measurements']=audio_measurements.private_evidence(plan['reference_measurements'])
+    record=validate(dict(version=2 if 'reference_measurements' in saved else 1,id=secrets.token_hex(16),created=datetime.now(timezone.utc).isoformat(),
         preset=state['preset'][0],firmware=state['firmware'],variant=state['variant'],
-        plan=dict(mode=plan.get('mode'),design=deepcopy(plan['design'])),
+        plan=saved,
         proof=deepcopy(proof),stamp=digest(state)))
     payload=dict(record=record,checksum=hashlib.sha256(canonical(record).encode('ascii')).hexdigest())
     text=canonical(payload)

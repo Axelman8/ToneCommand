@@ -4,6 +4,24 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Improve local reference analysis with independent channel power, original
+  sample metering, explicit anti-alias filtering and energy-weighted spectra.
+  Real Chrome opposite-phase and high-frequency-alias fixtures pass. Add an
+  optional local-recording comparison widget and pure numeric endpoint: no
+  playback, AI, MIDI, tone score or automatic gain correction. Save sanitized
+  numeric reference evidence with private version2 design history and preserve
+  it through verified cold resume/refinement without URLs, file names or old
+  SEND/Store consent. Legacy histories/backends remain supported.
+
+- Prepare measured Modern VCA Compressor and10 Band Variable Q A-D voices in
+  the bounded normal AMP/CAB grammar. Keep public release gates disabled until
+  actual normal SEND and independent editor acceptance pass. Automatic makeup
+  and attack/release remain OFF; EQ gains and effect levels cannot be positive.
+  Use exact captured model/bypass/zero opcodes and full-state verification.
+  Stage quiet Amp levels before auxiliary model changes. Bound explicit FW33
+  plans to640 actions while retaining exact grammar and legacy512-action limit;
+  no preset/NAM/IR allowlist or FM9 never-brick guard changes.
+
 - Release reviewed T808 Mod Drive1 A-D on the measured eight-scene AMP/CAB
   route after actual selected-AI planning,384-action normal SEND, complete
   scene proofs and independent eight-scene Axe-Edit comparison. Other Drive

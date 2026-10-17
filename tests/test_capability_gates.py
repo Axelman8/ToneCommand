@@ -303,6 +303,7 @@ def _table(sim) -> list[dict]:
         ("POST", "/api/axefx3/profile", {}, {"variant":"mk1"}, None),
         ("POST", "/api/axefx3/search", {}, {"query":"Marshall Plexi","format":"nam"}, None),
         ("POST", "/api/axefx3/audio", {}, {"url":"https://example.com/reference.wav"}, None),
+        ("POST", "/api/axefx3/audio/compare", {}, {"reference":{"sample_seconds":1,"rms_dbfs":-18,"peak_dbfs":-3,"crest_db":15,"centroid_hz":440,"band_energy":[0,1,0,0,0]},"recording":{"sample_seconds":1,"rms_dbfs":-18,"peak_dbfs":-3,"crest_db":15,"centroid_hz":440,"band_energy":[0,1,0,0,0]}}, None),
         ("POST", "/api/axefx3/cabs", {}, {"kind":"user","text":"U1.0001 Test"}, None),
         ("POST", "/api/axefx3/plan", {}, {"prompt":"test preset","expected_preset":324,"scenes":4}, None),
         ("POST", "/api/axefx3/options", {}, {"prompt":"test preset","expected_preset":324}, None),

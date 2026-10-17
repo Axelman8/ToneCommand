@@ -378,6 +378,8 @@ class AxeFxIII:
 
     @staticmethod
     def _parse_display_value(text, unit):
+        if unit=='switch':
+            return {'OFF':0,'ON':1}.get(str(text).strip().upper())
         if unit == "IR mode":
             return {"--": 0, "MUTE": 1, "SOLO": 2}.get(str(text).strip().upper())
         match = re.fullmatch(r"\s*([-+]?\d+(?:[.,]\d+)?)\s*(dB|s|sec|seconds|ms|Hz|kHz|%)?\s*",

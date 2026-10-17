@@ -8,7 +8,7 @@ from dataclasses import replace
 import time
 from fm9.device import SetResult
 from fm9 import protocol as shared
-from . import album_planning as planning, fw33_profile, serial_build, protocol, grid, tone_review
+from . import album_planning as planning, fw33_profile, serial_build, protocol, grid, tone_review,reviewed_effects
 from .controller_review import digest
 
 
@@ -77,6 +77,9 @@ def validate_actions(reg,actions,existing):
                 if type(scene) is not int or scene not in range(1,9):raise ValueError('Invalid Drive scene context')
                 mapping[scene-1]['amp_channel' if a['block']=='DISTORT' else 'cab_channel']=a.get('value')
         base.scene_layout=[planning.SceneLayout.model_validate(item) for item in mapping]
+    if any(a.get('block') in ('COMP','GEQ') and a['kind']=='set_param' for a in actions):
+        first_scene=next((i for i,a in enumerate(actions) if a['kind']=='set_scene'),len(actions))
+        reviewed_effects.reconstruct(base,actions,first_scene,planning)
     expected=planning.actions_for(reg,base,existing)
     if len(actions)!=len(expected): raise ValueError('Incomplete or extra album actions')
     role_flags={j for i,a in enumerate(expected) if a['kind']=='rename_scene' for j in (i-2,i-1)}
@@ -99,22 +102,26 @@ def validate_actions(reg,actions,existing):
         allowed=set()
         kind=template['kind']
         if kind=='set_param':
+            quiet_stage=(template['param']=='DISTORT_LEVEL' and
+                (expected[index+1]['kind']=='set_type' or (expected[index+1]['kind']=='set_channel'
+                    and expected[index+1].get('block') in ('FUZZ','COMP','GEQ'))))
             if template['param']!='OUTPUT_LEVEL' and not (
-                    template['param']=='DISTORT_LEVEL' and expected[index+1]['kind']=='set_type'):
+                    quiet_stage):
                 allowed={'value'}
             if template['param']=='DISTORT_LEVEL' and actual['value']>-12:
                 raise ValueError('Album Amp level must remain <= -12dB')
             if template['param'].startswith('DISTORT_') and template['param']!='DISTORT_LEVEL' and actual['value']<=0:
                 raise ValueError('Exact-zero Amp knobs are not measured')
         if kind=='set_type':
-            names=planning.MODELS.values() if template['block']=='DISTORT' else ('T808 Mod',)
+            names=(planning.MODELS.values() if template['block']=='DISTORT' else
+                (reviewed_effects.model(template['block'])[4],) if template['block'] in ('COMP','GEQ') else ('T808 Mod',))
             if actual['type_name'] not in names: raise ValueError('Unmeasured album model')
             allowed={'type_name'}
         if kind=='set_cab':
             if not expanded:
                 if actual['value'] not in (515,799): raise ValueError('Unmeasured album IR1')
                 allowed={'value'}
-        if template.get('block') in ('CABINET','FUZZ') and kind=='set_param':allowed=set()
+        if template.get('block') in ('CABINET','FUZZ','COMP','GEQ') and kind=='set_param':allowed=set()
         if kind in ('rename_preset','rename_scene'): allowed={'type_name'}
         if index in role_flags: allowed={'bypassed'}
         if index in scene_channel_indices: allowed={'value'}
@@ -159,17 +166,20 @@ def frame_allowed(dev,frame):
         and session.frame==tuple(frame) and session.item is not None)
     if not active: return False
     item=session.item
-    if item.action['kind']=='set_bypass' and item.effect_id==118:
-        return frame==protocol.param_frame(118,7,int(item.value),opcode=9)
+    if item.action['kind']=='set_bypass' and item.effect_id in (118,46,50):
+        return frame==protocol.param_frame(item.effect_id,{118:7,46:9,50:18}[item.effect_id],int(item.value),opcode=9)
     if item.action['kind']=='set_type':
         eid=item.effect_id
+        if eid in (46,50):
+            _,_,selector,ordinal,name=reviewed_effects.model(item.family)
+            return item.value==name and frame==protocol.param_frame(eid,selector,ordinal,opcode=9)
         ordinal=next(k for k,v in planning.MODELS.items() if v==item.value) if eid==58 else 8
         return eid in (58,118) and frame==protocol.param_frame(eid,0,ordinal,opcode=9)
     if item.action['kind']=='set_cab':
         bank,ordinal,side=item.value
         slot=int(side[2:])-1 if side.startswith('ir') else 0
         return frame in [protocol.param_frame(62,p,v,opcode=9) for p,v in ((slot,bank),(4+slot,ordinal))]
-    if item.action['kind']=='set_channel' and item.effect_id in (58,62,118):
+    if item.action['kind']=='set_channel' and item.effect_id in (58,62,118,46,50):
         return frame==protocol.envelope(1,[22,0,item.effect_id,0,0,0,item.value,0,0,0,0,0,0,0,0])
     if item.action['kind']=='set_scene': return frame==protocol.envelope(0x0c,[item.value-1])
     return False
@@ -179,7 +189,7 @@ def amp_domain(dev,spec,channel):
     session=getattr(dev,'_album_session',None)
     return (isinstance(session,Session) and not session.failed and session.item is not None
         and session.item.action['kind']=='set_param' and session.item.spec==spec
-        and (spec.effect_id,spec.family) in ((58,'DISTORT'),(62,'CABINET'),(118,'FUZZ')) and channel in range(4)
+        and (spec.effect_id,spec.family) in ((58,'DISTORT'),(62,'CABINET'),(118,'FUZZ'),(46,'COMP'),(50,'GEQ')) and channel in range(4)
         and supported(dev.reg) and session.target==getattr(dev,'_edit_target',None))
 
 
@@ -211,7 +221,7 @@ class Session:
         raise ValueError('Independent full-state mismatch; no write retry or rollback')
 
     def channel(self,eid,value):
-        if eid not in (58,62,118): return self.dev.set_channel(eid,value)
+        if eid not in (58,62,118,46,50): return self.dev.set_channel(eid,value)
         before=self.expected
         wanted={**before,'blocks':[replace(b,channel=value) if b.effect_id==eid else b for b in before['blocks']]}
         if before==wanted: return value
@@ -237,18 +247,20 @@ class Session:
 
     def model(self,name):
         before=self.expected
-        eid=self.item.effect_id;stride=142 if eid==58 else 44
+        eid=self.item.effect_id;stride=fw33_profile.STRIDES[self.item.family]
         channel=next(b.channel for b in before['blocks'] if b.effect_id==eid)
         base=stride*channel
-        ordinal=next(k for k,v in planning.MODELS.items() if v==name) if eid==58 else 8
-        if before['bulk'][eid][base]==ordinal: return SetResult(True,'Model retained without reset',name,name)
+        selector=0
+        if eid in (46,50):_,_,selector,ordinal,_=reviewed_effects.model(self.item.family)
+        else:ordinal=next(k for k,v in planning.MODELS.items() if v==name) if eid==58 else 8
+        if before['bulk'][eid][base+selector]==ordinal: return SetResult(True,'Model retained without reset',name,name)
         level=self.dev.get_param_display(self.dev.reg.find_param('DISTORT','DISTORT_LEVEL'))
         if (self.dev.get_bypass(58) is not True or self.dev.get_bypass(eid) is not True
                 or type(level) not in (int,float) or level>-18):
             raise PermissionError('Bypassed and verified quiet Amp required before model write')
-        self.write(protocol.param_frame(eid,0,ordinal,opcode=9))
+        self.write(protocol.param_frame(eid,selector,ordinal,opcode=9))
         def match(now):
-            if now['bulk'][eid][base]!=ordinal: return False
+            if now['bulk'][eid][base+selector]!=ordinal: return False
             words=list(before['bulk'][eid]);words[base:base+stride]=now['bulk'][eid][base:base+stride]
             return now=={**before,'bulk':{**before['bulk'],eid:words}}
         self.settle(match)
@@ -292,8 +304,8 @@ class Session:
                     # quantization word, never copy an arbitrary stale value.
                     target=round(shared.display_to_normalized(item.value,item.spec.dmin,
                         item.spec.dmax,item.spec.scale)*65534)
-                    if item.family=='CABINET' and item.spec.kind=='enum':target=int(item.value)
-                    if abs(now['bulk'][eid][pos]-target)>(0 if item.family=='CABINET' and item.spec.kind=='enum' else 1): return False
+                    if item.spec.kind=='enum':target=int(item.value)
+                    if abs(now['bulk'][eid][pos]-target)>(0 if item.spec.kind=='enum' else 1): return False
                     words=list(before['bulk'][eid]);words[pos]=now['bulk'][eid][pos]
                     wanted['bulk']={**before['bulk'],eid:words}
                 elif kind=='set_type':

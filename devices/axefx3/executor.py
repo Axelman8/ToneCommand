@@ -93,8 +93,10 @@ def resolve(reg, action):
             if reg.firmware==fw33_profile.KEY:
                 from . import album_planning
                 if not ((family=='DISTORT' and eid==58 and a.get('type_name') in album_planning.MODELS.values())
-                        or (family=='FUZZ' and eid==118 and a.get('type_name')=='T808 Mod')):
-                    raise ValueError('Only measured FW33 Amp1 or T808 Mod Drive1 models')
+                        or (family=='FUZZ' and eid==118 and a.get('type_name')=='T808 Mod')
+                        or (family in fw33_profile.effect_controls.MODELS and
+                            (eid,a.get('type_name'))==(fw33_profile.effect_controls.MODELS[family][0],fw33_profile.effect_controls.MODELS[family][4]))):
+                    raise ValueError('Only explicitly measured FW33 first-instance models')
             else: models.target(reg, family, eid, a.get("type_name"))
             result.value = a["type_name"]
         elif kind == "set_cab":
@@ -138,8 +140,9 @@ def prepare(dev, actions, required_route, expected_preset):
     """All validation is read-only, including before an empty-grid build."""
     if type(expected_preset) is not int or expected_preset not in range(512):
         raise ValueError("Explicit target preset in 0..511 required")
-    if not isinstance(actions, list) or not actions or len(actions) > 512:
-        raise ValueError("Plan must contain 1..512 explicit actions")
+    limit=640 if dev.reg.firmware==fw33_profile.KEY else 512
+    if not isinstance(actions, list) or not actions or len(actions) > limit:
+        raise ValueError(f"Plan must contain 1..{limit} explicit actions")
     resolved = [resolve(dev.reg, a) for a in actions]
     if dev.firmware_label() != dev.reg.firmware or dev.reg.firmware not in ('32.06', fw33_profile.KEY):
         raise ValueError("Firmware does not match the verified profile")
@@ -262,6 +265,9 @@ def execute(dev, actions, required_route, *, expected_preset, external_audio_mut
                         if album and kind=='set_bypass' and eid==118:
                             got=album.drive_bypass(item.value)
                             return SetResult(got is item.value,'Drive state independently read back',None,got)
+                        if album and kind=='set_bypass' and eid in (46,50):
+                            got=album_build.reviewed_effects.typed_bypass(album,eid,item.value)
+                            return SetResult(got is item.value,'Typed auxiliary state; full independent verification follows',None,got)
                         if album and kind=='set_cab': return album.cab(*item.value)
                         if album and kind=='set_channel':
                             got=album.channel(eid,item.value)

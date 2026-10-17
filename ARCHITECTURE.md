@@ -43,6 +43,14 @@ readback. Cab imports/selections and narrow grid/modifier operations remain
 behind this boundary; broad topology/modifier capabilities stay disabled.
 See `docs/AFX3-INTEGRATION.md` for the remaining
 server/UI and hardware gates. `server.py` has 8,481 lines in this stage.
+
+FX3 reference measurements and descriptive comparison live in the side-effect
+free `audio_measurements.py`; their endpoint does not obtain a device or call
+an AI. Sanitized numeric evidence can accompany private design-history v2,
+never executable actions or old approval. `effect_controls_fw33.py` holds
+captured Compressor/GEQ facts separately from typed voicing schemas and the
+bounded reviewed-effect grammar. Disabled release flags remain authoritative
+until normal SEND and independent editor acceptance, not simulator success.
 FX3 `navigation` is an explicit human-only selection service, separate from
 planner actions and automatic reload. State-bound single-use confirmations
 protect scene/preset transitions; native readback verifies selection, not sound.
