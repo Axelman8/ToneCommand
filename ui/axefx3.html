@@ -13,6 +13,7 @@
 .afx3-workspace #navigationDialog label{display:block;margin:16px 0}.afx3-workspace .sc:disabled{cursor:default}
 .afx3-workspace #workspace{grid-template-columns:minmax(0,1fr) 350px!important}
 .afx3-workspace #canvas{overflow:hidden}.afx3-workspace .stagepane{overflow:hidden}.afx3-workspace .stagecard{overflow:auto;min-height:0;overflow-wrap:anywhere}
+.afx3-workspace #pane-request{overflow-y:auto}
 .afx3-workspace #rightrail{display:block!important;overflow:auto}.afx3-workspace #rightrail details{margin-bottom:12px;padding:14px;border:1px solid var(--line);border-radius:4px;background:var(--panel)}
 .afx3-workspace details>summary{cursor:pointer;color:var(--cyan);font-size:var(--fs-label);letter-spacing:.08em}
 .afx3-workspace #rightrail p{font-size:var(--fs-hint);margin:12px 0}.afx3-workspace #rightrail label{display:block;margin:8px 0;font-size:var(--fs-hint)}
@@ -41,6 +42,7 @@
 .afx3-workspace .checks label{display:flex;gap:12px;margin:18px 0;align-items:start}.afx3-workspace .checks input{flex:none;margin-top:5px;accent-color:var(--cyan)}
 .afx3-workspace pre{white-space:pre-wrap;overflow-wrap:anywhere}.afx3-workspace #namResults a{display:block;padding:8px 0}
 .afx3-workspace #shelf{grid-template-columns:minmax(0,1fr) auto}.afx3-workspace #status{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:var(--fs-hint);color:var(--amber);align-self:center}
+.afx3-workspace #workflowError{flex:none;max-height:110px;overflow:auto;padding:10px 14px;border:1px solid var(--amber);border-radius:4px;background:var(--panel);color:var(--amber);font-size:var(--fs-hint);white-space:pre-wrap;overflow-wrap:anywhere}
 .afx3-workspace #controllerHint{margin:8px 0}.afx3-workspace #who{font-size:var(--fs-hint);color:var(--muted)}.afx3-workspace .stageintro{flex:none}.afx3-workspace #shelf a{font-size:var(--fs-label)}
 </style></head><body class="afx3-workspace" data-stage="request">
 <div id="unsupported"><p>Gebruik een desktopvenster van minimaal 1180 pixels breed om voorstel en hardwarebevestiging veilig te bekijken.</p></div>
@@ -74,4 +76,4 @@
 <div id="namInstallPanel" hidden><p id="namInstallSummary"></p><p id="namInstallWarning" class="warning"></p><label><input id="namInstallMute" type="checkbox">Externe audio blijft volledig gedempt.</label><label><input id="namInstallFlash" type="checkbox">Ik bevestig een permanente NAM-geheugenschrijving.</label><label><input id="namInstallOverwrite" type="checkbox"><span id="namSlotConsent">Ik bevestig het gekozen doelslot.</span></label><button id="namInstallCommit" disabled>INSTALLEER IN GEKOZEN SLOT</button></div>
 <p>4. Kies bij de ontwerpopties de volledig uitgelezen, geinstalleerde NAM. Installatie en selectie in een preset zijn aparte stappen; TC kiest niet stilzwijgend een ander slot. Vanuit een lege preset begint de bouw met 1 scene; daarna kun je uitbreiden naar 2 scenes (NAM A/B). Geen automatische installatie of presetopslag.</p><p>Native installatie: uitsluitend Windows, opgegeven MK2, exact gemeten FW33-build en ondersteunde A2-structuur. Geen Axe-Edit nodig. Andere profielen blijven geblokkeerd.</p></details>
 <details><summary>CAPABILITIES &amp; SAFETY</summary><p>TC gebruikt uitsluitend het geverifieerde Axe-Fx III-schrijfprofiel. MK-keuze is opgegeven door de gebruiker, niet onafhankelijk bewezen.</p><p>Op FW32.06 kan TC ondersteunde seriele routes bouwen en Amp, Cab, Wah, Delay, Reverb, Chorus, Drive, Compressor en bestaande EQ instellen. Geen automatische herbouw van bestaande presets.</p><p>De AI gebruikt lokale audiometingen, geen gitaarisolatie of directe opnamebeluistering. Geen bewezen klankmatch of fysieke volumecontrole.</p></details></aside></main>
-<footer id="shelf"><span id="status" role="status" aria-live="polite">Status ophalen...</span><a class="shbtn" href="/controllers"><span id="workspaceIdentity">TC FX3</span> | CONTROLLERS</a></footer></div><script src="/axefx3.js"></script></body></html>
+<div id="workflowError" role="alert" hidden></div><footer id="shelf"><span id="status" role="status" aria-live="polite">Status ophalen...</span><a class="shbtn" href="/controllers"><span id="workspaceIdentity">TC FX3</span> | CONTROLLERS</a></footer></div><script src="/axefx3.js"></script></body></html>

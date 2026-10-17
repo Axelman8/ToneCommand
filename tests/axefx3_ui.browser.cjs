@@ -9,7 +9,7 @@ const path=require('node:path');
     ...(process.env.TC_BROWSER_EXECUTABLE?{executablePath:process.env.TC_BROWSER_EXECUTABLE}:{})});
   try{
     const page=await browser.newPage({viewport:{width:1440,height:1000}});
-    const errors=[],plans=[],sends=[];
+    const errors=[],plans=[],sends=[],requestAttempts=[];
     let audioFetches=0,sourceBackendReady=true,routeOptionsReady=false,navigationReady=false,serialReady=false,multiSceneReady=false,albumReady=false;
     let currentPreset=325,currentScene=1,navigationRequest=null;
     let albumCounts=[8];
@@ -20,10 +20,16 @@ const path=require('node:path');
     let ampRefreshMode='same';const ampRefreshes=[];
     page.on('pageerror',e=>errors.push(e.message));
     let failPlan=false,failSend=false,failRead=false,addedExtras=false;
+    let disconnected=false,routeProblem='',failedTransport='',invalidPlanReply=false,largePlan=false,holdPlan=null;
     let variant=null,fw33=false,namRoute=false,selected=null,slotsFull=false,slotsFail=false;
     const installs=[],stores=[],previews=[],historyResumes=[];
     await page.route('**/*',async route=>{
       const req=route.request(),url=new URL(req.url()),name=url.pathname.split('/').pop();
+      if(url.pathname==='/')return route.fulfill({contentType:'text/html',body:'<title>FM9 test workspace</title>'});
+      if(url.pathname==='/api/controllers/disconnect'){
+        requestAttempts.push({path:url.pathname,method:req.method()});
+        return route.fulfill({contentType:'application/json',body:JSON.stringify({connected:false})});
+      }
       if(url.pathname==='/logo.png')return route.fulfill({contentType:'image/png',body:fs.readFileSync(path.join(__dirname,'../ui/logo.png'))});
       if(url.pathname==='/axefx3.css'){
         const source=fs.readFileSync(path.join(__dirname,'../ui/index.html'),'utf8');
@@ -34,6 +40,10 @@ const path=require('node:path');
           body:fs.readFileSync(path.join(__dirname,'../ui',name==='axefx3'?'axefx3.html':name),'utf8')});
       }
       if(!url.pathname.startsWith('/api/axefx3/'))return route.fulfill({status:404,body:''});
+      requestAttempts.push({path:url.pathname,method:req.method()});
+      if(name===failedTransport)return route.abort('failed');
+      if(name==='plan'&&invalidPlanReply)return route.fulfill({status:502,contentType:'text/html',body:'<h1>Bad gateway</h1>'});
+      if(name==='plan'&&holdPlan)await holdPlan;
       let status=200,result={};
       if(url.pathname==='/api/axefx3/amps/refresh'){
         ampRefreshes.push(req.postDataJSON());
@@ -68,10 +78,11 @@ const path=require('node:path');
         result={ok:true,kind:navigationRequest.kind,selected:navigationRequest.value,stored:false};
       }
       if(name==='state'){
-        result={connected:true,preset:currentPreset,name:'Test',scene:currentScene,firmware:fw33?'33.00-beta.20261006':'32.06',cab_count:fw33?0:20,
+        result={connected:!disconnected,preset:currentPreset,name:'Test',scene:currentScene,firmware:fw33?'33.00-beta.20261006':'32.06',cab_count:fw33?0:20,
           source_support:{rig_reader:true,modes:['closest','faithful','simplified']},
           nam_selection_supported:fw33,nam:fw33?{slot:1,name:'Old capture'}:null,
           profile:{variant,warning:'Memory policy from declared variant',user2_cabs:true}};
+        if(routeProblem)result.route_problem=routeProblem;
         if(!sourceBackendReady)delete result.source_support;
         if(audioV2Ready)result.audio_analysis_version=2;
         if(serialReady)result.serial_build_supported=true;
@@ -161,6 +172,8 @@ const path=require('node:path');
         }
         if(failPlan){status=409;result={detail:'AI output refused'};}
         if(!failPlan)result.scene_intent={goals:result.scenes.map((name,i)=>({scene:i+1,target:'<img src=x> Requested tone',role:name,realization:'Settings follow the requested sound.'})),audible_match_verified:false};
+        if(largePlan){result.summary='Een uitgebreid voorstel met uitleg per album, scene en beschikbaar effect. '.repeat(100);
+          result.actions=Array.from({length:200},(_,i)=>({kind:'set_param',param:'DISTORT_MID',value:5,reason:`Controleer wijziging ${i+1}`}));}
       }
       if(name==='send'){
         sends.push(req.postDataJSON());
@@ -666,6 +679,97 @@ const path=require('node:path');
     assert.equal(await page.textContent('#comparisonResults'),'');
     await page.click('#compareAudio');await page.locator('#compareAudio:not([disabled])').waitFor();
     assert.equal(audioComparisons.length,1);assert.match(await page.textContent('#comparisonStatus'),/buiten de opname/);
+    // Additional user-test preflight: no real hardware or AI is involved.
+    await request();await page.setInputFiles('#audioFile',[]);await page.fill('#prompt','Metallica albums met acht duidelijk verschillende scenes. '.repeat(25));
+    await page.click('#engage');await page.locator('#refresh:not([disabled])').waitFor();
+    await page.selectOption('#buildRoute','amp');await page.selectOption('#scenes','8');
+    const longDraft=await page.inputValue('#prompt');
+    await page.locator('#requestOptions summary').focus();await page.keyboard.press('Enter');
+    assert.equal(await page.locator('#requestOptions').getAttribute('open'),null);
+    await page.locator('#requestPanel > summary').focus();await page.keyboard.press('Enter');
+    assert.equal(await page.locator('#requestPanel').getAttribute('open'),null);
+    await page.keyboard.press('Enter');assert.equal(await page.inputValue('#prompt'),longDraft);
+    await page.locator('#prompt').focus();await page.keyboard.press('Tab');
+    assert(await page.locator('#engage').evaluate(e=>document.activeElement===e));
+    for(const viewport of [{width:1180,height:720},{width:1280,height:720},{width:1440,height:900},{width:1920,height:1080}]){
+      await page.setViewportSize(viewport);
+      assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+      const noOverlap=await page.evaluate(()=>{
+        const ids=['chat','routeOptionsPanel','requestPanel'];
+        const boxes=ids.map(id=>document.getElementById(id).getBoundingClientRect());
+        return boxes.every((r,i)=>!i||boxes[i-1].bottom<=r.top+1);
+      });
+      assert(noOverlap,'Conversation, route choice and request must not overlap at '+JSON.stringify(viewport));
+      await page.locator('#engage').scrollIntoViewIfNeeded();
+      assert(await page.locator('#engage').evaluate(e=>{const r=e.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight;}));
+      if(process.env.TC_SCREENSHOT_DIR&&viewport.width===1180)await page.screenshot({path:path.join(process.env.TC_SCREENSHOT_DIR,'ux-long-request-1180x720.png')});
+    }
+    await page.setViewportSize({width:1440,height:900});
+    largePlan=true;await review();assert.equal(await page.locator('#sceneRows tr').count(),8);
+    await page.locator('#actionCount').click();await page.locator('#actions li').last().scrollIntoViewIfNeeded();
+    assert.equal(await page.locator('#actions li').count(),200);
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+    await page.click('#toconfirm');await page.check('#confirmed');await page.check('#muted');
+    const attemptsBefore={plans:plans.length,sends:sends.length,installs:installs.length,stores:stores.length};
+    await request();failedTransport='plan';await page.click('#engage');
+    await page.locator('#refresh:not([disabled])').waitFor();
+    assert(await page.locator('#workflowError').isVisible());
+    assert.match(await page.textContent('#workflowError'),/Geen antwoord van TC/);
+    assert.equal(await page.inputValue('#prompt'),longDraft);
+    assert(!(await page.isChecked('#confirmed'))&&!(await page.isChecked('#muted')));
+    assert(await page.locator('#apply').isDisabled());
+    assert.deepEqual({plans:plans.length,sends:sends.length,installs:installs.length,stores:stores.length},attemptsBefore);
+    failedTransport='';await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    assert(await page.locator('#workflowError').isHidden());
+    await page.click('#engage');await page.locator('#refresh:not([disabled])').waitFor();await page.selectOption('#buildRoute','amp');
+    invalidPlanReply=true;await page.click('#engage');await page.locator('#refresh:not([disabled])').waitFor();
+    assert.match(await page.textContent('#workflowError'),/ongeldig antwoord/);assert.equal(await page.inputValue('#prompt'),longDraft);
+    invalidPlanReply=false;await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    disconnected=true;await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    assert(await page.locator('#engage').isDisabled());assert.match(await page.textContent('#requestNext'),/Verbind eerst/);
+    assert.equal(await page.inputValue('#prompt'),longDraft);
+    disconnected=false;routeProblem='Route niet verifieerbaar; niets verzonden.';
+    await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    assert(await page.locator('#engage').isDisabled());assert.match(await page.textContent('#requestNext'),/Route niet verifieerbaar/);
+    routeProblem='';await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    await page.selectOption('#deviceChoice','fm9');
+    assert(await page.locator('#connectDevice').isEnabled());assert.match(await page.textContent('#connectDevice'),/FM9/);
+    await page.selectOption('#deviceChoice','axefx3');
+    assert(await page.locator('#connectDevice').isDisabled());
+    await page.click('#engage');await page.locator('#refresh:not([disabled])').waitFor();await page.selectOption('#buildRoute','amp');
+    let releasePlan;holdPlan=new Promise(resolve=>{releasePlan=resolve;});
+    await page.click('#engage');await page.locator('#pane-plan:not([hidden])').waitFor();
+    assert(await page.locator('#newDesign').isDisabled());assert(await page.locator('#prompt').isDisabled());
+    assert(await page.locator('#rail [data-step="0"]').isDisabled());assert.equal(await page.inputValue('#prompt'),longDraft);
+    releasePlan();holdPlan=null;await page.locator('#reviewbtn:not([disabled])').waitFor();
+    assert.equal(sends.length,attemptsBefore.sends);assert.equal(installs.length,attemptsBefore.installs);assert.equal(stores.length,attemptsBefore.stores);
+    await page.click('#reviewbtn');
+    const sendAttemptsBefore=requestAttempts.filter(r=>r.path.endsWith('/send')).length;
+    failedTransport='send';await confirmSend();await page.locator('#refresh:not([disabled])').waitFor();
+    assert.match(await page.textContent('#workflowError'),/Verzending niet bevestigd.*niet automatisch opnieuw verzenden/);
+    assert(await page.locator('#apply').isDisabled());assert.equal(await page.inputValue('#prompt'),longDraft);
+    await page.setViewportSize({width:1180,height:720});
+    await request();await page.locator('#prompt').scrollIntoViewIfNeeded();
+    assert(await page.locator('#workflowError').evaluate(e=>{const r=e.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight;}));
+    assert(await page.locator('#shell').evaluate(e=>e.scrollTop===0));
+    assert.equal(await page.locator('#pane-request').evaluate(e=>getComputedStyle(e).overflowY),'auto');
+    const requestScroll=await page.locator('#pane-request').evaluate(e=>{e.scrollTop=e.scrollHeight;return e.scrollTop;});
+    if(requestScroll>0){
+      const box=await page.locator('#pane-request').boundingBox();
+      await page.mouse.move(box.x+4,box.y+12);await page.mouse.wheel(0,-1200);
+      await page.waitForFunction(limit=>document.getElementById('pane-request').scrollTop<limit,requestScroll);
+    }
+    if(process.env.TC_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.TC_SCREENSHOT_DIR,'ux-send-connection-error-1180x720.png')});
+    assert.equal(requestAttempts.filter(r=>r.path.endsWith('/send')).length,sendAttemptsBefore+1);
+    assert.equal(stores.length,attemptsBefore.stores);assert.equal(installs.length,attemptsBefore.installs);
+    await page.selectOption('#deviceChoice','fm9');
+    page.once('dialog',dialog=>dialog.dismiss());await page.click('#connectDevice');
+    await page.locator('#connectDevice:not([disabled])').waitFor();
+    assert.equal(await page.inputValue('#prompt'),longDraft);assert.equal(new URL(page.url()).pathname,'/axefx3');
+    assert.equal(requestAttempts.filter(r=>r.path==='/api/controllers/disconnect').length,0);
+    page.once('dialog',dialog=>dialog.accept());await page.click('#connectDevice');await page.waitForURL('http://tc.test/');
+    assert.equal(await page.title(),'FM9 test workspace');
+    assert.deepEqual(requestAttempts.filter(r=>r.path==='/api/controllers/disconnect'),[{path:'/api/controllers/disconnect',method:'POST'}]);
     assert.deepEqual(errors,[]);
     console.log('AFX3 shared FM9 layout: workflow, fit, consent, reset, MK, audio, XSS; FW33 NAM foundation/two scenes, permanent install and separate Store consent passed');
   }finally{await browser.close();}

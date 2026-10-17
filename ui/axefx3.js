@@ -80,8 +80,10 @@ function controls(){
   for(const id of ['compareAudio','recordingFile','recordingStart','recordingLength'])el(id).disabled=busy;
   ampRefreshButton.disabled=busy||!state?.connected||!state?.amp_refresh_supported;
   el('target').disabled=busy||!state?.connected||!state?.navigation_supported;
-  el('connectDevice').textContent=state?.connected?'VERBONDEN':'VERBIND';
-  el('connectDevice').classList.toggle('linked',!!state?.connected);
+  const switchingDevice=el('deviceChoice').value==='fm9';
+  el('connectDevice').textContent=switchingDevice?'OPEN FM9':state?.connected?'VERBONDEN':'VERBIND';
+  el('connectDevice').classList.toggle('linked',!!state?.connected&&!switchingDevice);
+  el('connectDevice').title=switchingDevice?'Open de FM9-interface en geef eerst de FX3 MIDI-poort vrij.':state?.connected?`Axe-Fx III | ${state.firmware}`:'Verbind met de Fractal';
   el('navigationSelect').disabled=busy||!navigationPreview||!el('navigationMute').checked||(navigationPreview.kind==='preset'&&!el('navigationDiscard').checked);
   for(const button of el('sceneRack').querySelectorAll('button'))button.disabled=busy||!state?.navigation_supported;
   const chooseRoute=!!state?.route_options_supported;
@@ -103,7 +105,7 @@ function controls(){
   captureLabel.hidden=!state?.nam_selection_supported||(state?.route_options_supported&&el('buildRoute').value!=='nam');
   captureSlot.disabled=busy||!state?.nam_selection_supported;
   for(const id of ['refresh','generate','cabImport','prompt','scenes','wah','cabKind','cabFile','discard','variant','deviceChoice','connectDevice','newDesign','audioFile','audioStart','audioLength','namQuery','namFormat','namSearch','namLogin','namWithRequest','editRequest','toReview','backPlan','toConfirm','backReview','returnRequest']) el(id).disabled=busy;
-  el('connectDevice').disabled=busy||!!state?.connected;
+  el('connectDevice').disabled=busy||(!!state?.connected&&!switchingDevice);
   el('wahMode').disabled=busy||!el('wah').value;
   const fw33=state?.firmware==='33.00-beta.20261006';
   const awaitingRoute=chooseRoute&&!el('buildRoute').value&&!adjusting;
@@ -120,7 +122,7 @@ function controls(){
   el('generate').textContent=adjusting?'VOORSTEL VOOR AANPASSING':chooseRoute&&routeExploration&&!chosenRoute?'CHOOSE ROUTE':'GENERATE PLAN';
   el('requestNext').textContent=busy?'TC is bezig. Je verzoek blijft behouden; wacht op de uitkomst.':
     !state?.connected?'Verbind eerst de Fractal; er wordt niets automatisch verzonden.':
-    el('deviceChoice').value!=='axefx3'?'Klik VERBIND om naar de geselecteerde apparaatinterface te gaan.':
+    switchingDevice?'Klik OPEN FM9 om naar de geselecteerde apparaatinterface te gaan.':
     state.route_problem?state.route_problem:
     !fw33&&!state.cab_count?'Importeer eerst een beschikbare cabnamenlijst via CAB LIBRARY.':
     (serial||album)&&state.scene!==1?'Selecteer eerst scene 1 via de scenebalk. Niet-opgeslagen presetwijzigingen worden daardoor niet opgeslagen.':
@@ -154,13 +156,25 @@ function invalidate(){proposal=null;stage(0);el('confirmed').checked=el('muted')
   clearNamPreview();
   storePreview=null;el('storeMute').checked=el('storeFlash').checked=false;el('storeSummary').textContent='';
   el('requestPreview').textContent=el('prompt').value.slice(0,160)+(el('prompt').value.length>160?'...':'');controls();}
-async function api(name,body){
-  const r=await fetch('/api/axefx3/'+name,body===undefined?{headers:{'X-ToneCommand':'1'}}:{method:'POST',headers:{'Content-Type':'application/json','X-ToneCommand':'1'},body:JSON.stringify(body)});
-  const data=await r.json();
+async function api(name,body,prefix='/api/axefx3/'){
+  let r,data;
+  try{r=await fetch(prefix+name,body===undefined?{headers:{'X-ToneCommand':'1'}}:{method:'POST',headers:{'Content-Type':'application/json','X-ToneCommand':'1'},body:JSON.stringify(body)});}
+  catch(e){
+    if(state)state={...state,connected:false};
+    throw new Error('Geen antwoord van TC. Controleer de verbinding en gebruik RESCAN. Je verzoek blijft behouden. Controleer na een verzending eerst de apparaatstatus; niet automatisch opnieuw verzenden.');
+  }
+  try{data=await r.json();}catch(e){
+    if(state)state={...state,connected:false};
+    throw new Error('TC gaf een ongeldig antwoord. Gebruik RESCAN om de status te controleren. Je verzoek blijft behouden. Niet automatisch opnieuw verzenden.');
+  }
+  if(!data||typeof data!=='object'||Array.isArray(data)){
+    if(state)state={...state,connected:false};
+    throw new Error('TC gaf een ongeldig antwoord. Controleer de status met RESCAN; niet automatisch opnieuw verzenden.');
+  }
   if(!r.ok)throw new Error(typeof data.detail==='string'?data.detail:(data.error||'Verzoek geweigerd. Lees de status opnieuw.'));
   return data;
 }
-async function run(work){if(busy)return;busy=true;controls();try{await work();}catch(e){invalidate();note(e.message);}finally{busy=false;controls();}}
+async function run(work){if(busy)return;busy=true;el('workflowError').hidden=true;controls();try{await work();}catch(e){invalidate();el('workflowError').textContent=e.message;el('workflowError').hidden=false;note(e.message);}finally{busy=false;controls();}}
 function renderAmps(amps){
   el('ampCount').textContent=amps?`${amps.count} modellen beschikbaar voor de AMP/CAB-bouwer. De AI kiest uit deze volledige FW33-lijst. Dit verandert niets zonder review en SEND.`:'De volledige FW33-versterkerlijst vereist het ondersteunde MK2-profiel.';
   el('ampModels').replaceChildren();
@@ -371,15 +385,15 @@ el('storeCommit').onclick=()=>run(async()=>{
   const result=await api('store',{token,external_audio_muted:true,confirm_permanent_write:true});
   el('storeSummary').textContent=`Opgeslagen: preset ${result.preset} ${result.name}. Geen herlaad- of luistertest uitgevoerd.`;
 });
-el('deviceChoice').onchange=()=>{invalidate();note('Klik VERBIND om van apparaat te wisselen. Tot dan verandert de MIDI-verbinding niet.');};
+el('deviceChoice').onchange=()=>{invalidate();note('Bevestig je apparaatkeuze via de knop rechtsboven. Tot dan verandert de MIDI-verbinding niet.');};
 el('variant').onchange=()=>run(async()=>{
   invalidate();if(!el('variant').value)return;
   await api('profile',{variant:el('variant').value});await refresh();
 });
 el('connectDevice').onclick=()=>run(async()=>{
   const fm9=el('deviceChoice').value==='fm9';
-  const r=await fetch('/api/controllers/'+(fm9?'disconnect':'connect'),{method:'POST'});
-  if(!r.ok)throw new Error((await r.json()).detail||'Verbinding mislukt. Sluit Axe-Edit en andere TC-sessies.');
+  if(fm9&&(el('prompt').value||proposal)&&!confirm('FM9-interface openen? De verzoektekst wordt niet meegenomen. De Fractal wordt niet opgeslagen of herladen.'))return;
+  await api(fm9?'disconnect':'connect',{},'/api/controllers/');
   if(fm9){location.href='/';return;}await refresh();
 });
 el('newDesign').onclick=()=>run(async()=>{

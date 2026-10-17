@@ -58,6 +58,11 @@ desktopbreedtes en afzonderlijke NAM-installatie- en Store-toestemmingen.
 De gecombineerde regressiesuite slaagt met 160 tests. Dit vervangt de
 gebruikerstest of een nieuwe hardware- en luistertest niet.
 
+De aanvullende vier controles staan in het
+[UX-controleverslag](AFX3-UX-PREFLIGHT.md). Bij een netwerkfout of ongeldig
+antwoord verschijnt een apart meldingsvak. Gebruik RESCAN voor een nieuwe
+statuscontrole; verstuur een onbekend schrijfresultaat niet automatisch opnieuw.
+
 ## Voorbeeldverzoek
 
 Maak een preset met de naam Metallica albums, met een AMP/CAB-oplossing en acht
@@ -77,3 +82,7 @@ Noteer per probleem de stap, wat je verwachtte, wat er gebeurde en een screensho
 met de statusmelding. Vermeld TC-versie, presetnummer en scene. Deel geen sleutels
 of accountgegevens. Houd UX-feedback gescheiden van klankfeedback, zodat beide
 gericht kunnen worden opgelost voordat punten 4, 5 en 6 beginnen.
+
+Gebruik de vaste meldingsvelden in het
+[gebruikerslog voor GitHub](AFX3-GEBRUIKERSLOG.md). De status van de volledige
+gebruikerstest blijft open totdat de bevindingen zijn vastgelegd.

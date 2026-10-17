@@ -1,0 +1,169 @@
+# TC Axe-Fx III gebruikerslog
+
+Concept voor GitHub, bijgewerkt op 17 oktober 2026. Dit log beschrijft de
+gebruikersfuncties en bekende beperkingen van de FX3-integratie op basis van
+TC 1.5.15. De integratie is nog niet als publieke release gepubliceerd.
+
+De huidige FW33-schrijfondersteuning is getest op een Axe-Fx III MK2 met exact
+firmware `33.00-beta.20261006`, Windows, Python 3.12 en de mido MIDI-backend.
+Ondersteuning voor andere apparaten, firmwareversies of besturingssystemen volgt
+niet automatisch uit deze tests. Het afzonderlijke FW32.06-profiel behoudt zijn
+eigen grenzen.
+
+## Wijzigingen op 17 oktober 2026
+
+### Duidelijker een ontwerp beginnen
+
+- De interface gebruikt de gedeelde vormgeving van de oorspronkelijke TC.
+  REQUEST, PLAN, REVIEW, CONFIRM en SEND blijven afzonderlijke stappen.
+- Vul tekst of een audiolink in en klik GENERATE PLAN. Als routeonderzoek nodig
+  is, begint TC daarmee en vraagt daarna om jouw keuze voor AMP/CAB of NAM.
+- CHOOSE ROUTE brengt je naar de routekeuze. TC installeert geen NAM en bouwt
+  geen preset alleen omdat een route wordt aanbevolen.
+- Sceneaantal, bronsoort en controlleropties staan in een standaard ingeklapt
+  veld. Het gekozen sceneaantal blijft zichtbaar in de kop.
+- AMP LIBRARY, CAB LIBRARY en NAM / TONE3000 blijven rechts uitklapbaar.
+- Enter maakt een nieuwe regel; de knop start het verzoek. In- en uitklappen
+  van YOUR REQUEST behoudt de tekst.
+- NEW DESIGN begint een schoon ontwerp na bevestiging als er al werk staat.
+  Deze knop wist of herlaadt geen preset op de Fractal.
+- Uitleg bij de volgende stap maakt duidelijk waarom een actie niet beschikbaar
+  is. De verouderde tekst over uitsluitend NAM-slot 001 is verwijderd.
+- Netwerkfouten en ongeldige serverantwoorden verschijnen volledig leesbaar in
+  een apart meldingsvak. Het verzoek blijft behouden en oude verzendtoestemming
+  vervalt; er volgt geen automatische nieuwe schrijfpoging.
+- Bij selectie van FM9 wordt OPEN FM9 beschikbaar, ook als de FX3 verbonden is.
+  Bij aanwezige verzoektekst waarschuwt TC voordat je de pagina verlaat.
+
+### AMP en CAB ontwerpen binnen het geteste FW33 profiel
+
+- De AI kan kiezen uit de firmwaregebonden lijst met 336 versterkermodellen.
+  REFRESH AMP MODELS controleert de catalogus; onbekende nieuwe modellen worden
+  niet automatisch schrijfbaar.
+- De ingebouwde Factory-catalogus bevat 2048 namen. Importeer actuele namen van
+  je Usercabs om die als keuzemogelijkheid beschikbaar te maken. Namen importeren
+  installeert geen IR-audio en bewijst niet welke IR-inhoud op het apparaat staat.
+- De geteste AMP/CAB-bouwer ondersteunt 1 tot en met 8 scenes, maximaal vier
+  verschillende Amp/Cab-voicings op kanalen A-D en een mixer met vier IR-slots.
+  Acht scenes betekenen niet acht onafhankelijke ampkanalen.
+- De begrensde effectondersteuning omvat onder meer T808 Mod Drive, Modern VCA
+  Compressor en 10 Band Variable Q. Dit is geen algemene vrijgave van alle
+  effectmodellen, parameters of blokinstanties.
+- Bij ondersteunde timinginstellingen controleert en zet TC Delay/Chorus Tempo
+  op NONE voordat een letterlijke tijd of snelheid wordt geschreven. Dit geldt
+  binnen de geverifieerde AMP/CAB-bouwroute, niet voor alle routes en modellen.
+- Succesvol verzonden AMP/CAB-ontwerpen kunnen lokaal worden bewaard en na
+  controle worden hervat. BIJSTUREN NA LUISTERTEST maakt een nieuw voorstel
+  voor geselecteerde scenes; ook dat vereist opnieuw review en toestemming.
+
+### NAM en audiobronnen
+
+- Met een gekoppeld TONE3000-account kun je captures zoeken en een exact model
+  kiezen. Native installatie ondersteunt het gemeten MK2-profiel en de
+  ondersteunde A2-structuur; niet ieder aangeboden NAM-bestand is compatibel.
+- TC kan NAM-slots 001-256 inventariseren. Je kiest zelf een toegestane
+  installatiepositie en bevestigt permanent schrijven en eventueel overschrijven.
+  De capture installeren en die in een preset selecteren zijn aparte handelingen.
+- De NAM-bouwer begint vanuit een lege preset met één scene. Uitbreiden naar
+  twee scenes op de ondersteunde bestaande NAM-route is afzonderlijk begrensd.
+  De AMP/CAB-ondersteuning voor acht scenes geldt niet automatisch voor NAM.
+- Op MK1 met NAM-firmware gebruikt NAM de volledige User Cab Bank 2; op MK2
+  heeft NAM apart geheugen. MK1-installatie blijft geblokkeerd totdat de
+  [aparte MK1-testopdracht](AFX3-MK1-NAM-TEST.md) slaagt voor het betreffende profiel.
+- Een audiolink in het verzoek of een lokaal bestand kan als klankreferentie
+  dienen. Fragmenten tot 60 seconden worden lokaal gemeten. Dit is geen directe
+  AI-beluistering, gitaarisolatie of garantie op een identieke opnamesound.
+- De optionele vergelijking met een eigen opname toont beschrijvende
+  meetverschillen, geen automatische klankscore of volumeafregeling.
+
+## Veilig verzenden en opslaan
+
+Controleer de doelpreset en wijzigingen en demp externe audio voordat TC naar
+het apparaat schrijft of presets/scenes wisselt. TC heeft geen audiolimiter en
+biedt geen garantie tegen onverwachte luidheid of akoestische feedback.
+
+SEND wijzigt de preset in het werkgeheugen. Permanent opslaan gebeurt apart,
+met PREVIEW STORE en een eigen bevestiging voor de huidige toegestane positie.
+NAM-installatie schrijft wel permanent naar gedeeld modelgeheugen en heeft
+daarom een aparte bevestiging.
+
+Een verificatiefout stopt de uitvoering; gedeeltelijke wijzigingen kunnen
+achterblijven. Verzend bij een onbekend schrijfresultaat niet automatisch
+opnieuw en herlaad de preset niet als automatische herstelpoging. Luister pas
+na controle op laag fysiek volume. Sluit Axe-Edit wanneer TC de MIDI-poort
+moet gebruiken.
+
+## Bekende beperkingen
+
+- Algemene vrije ketenbouw en Send/Return-routes zijn nog niet vrijgegeven in
+  de normale planner. De huidige bouwers gebruiken begrensde, geteste routes.
+- Nieuwe FW33-controllerkoppelingen, alle overige effectmodellen en extra
+  blokinstanties zijn niet algemeen ondersteund. Globale pedaal- en MIDI
+  CC-toewijzingen blijven de verantwoordelijkheid van de gebruiker.
+- Een willekeurige bestaande preset kan nog niet automatisch als volledig
+  gecontroleerd TC-ontwerp worden overgenomen.
+- Algemene Save As naar een andere positie en automatische rollback zijn niet
+  beschikbaar als hersteloplossing.
+- Volledige gelijkschakeling met alle FM9-functies, bredere NAM-ondersteuning en
+  onafhankelijke tests op MK1 en andere platforms blijven vervolgwerk.
+
+De technische uitsplitsing staat in de
+[resterende acceptatiepunten](AFX3-REMAINING-ACCEPTANCE.md).
+
+## Testlog
+
+### Technische controles op 17 oktober 2026
+
+De gecombineerde regressiesuite voor de UX-voorbereiding slaagde met 160 tests.
+Een aanvullende run van de verplichte controles en UI-tests slaagde met
+58 tests. Deze suites overlappen en zijn geen 218 unieke tests.
+
+De Chrome-workflowtest met gesimuleerde API-antwoorden controleerde onder meer
+routekeuze, inputbehoud, focus, schermindeling, reset en afzonderlijke
+toestemmingen voor verzenden, NAM-installatie en opslaan. De bijgewerkte live
+interface is daarnaast alleen-lezen gecontroleerd; daarbij veranderden geen
+presetparameters of NAM-inhoud. Dit is geen nieuwe luistertest.
+
+### Volledige gebruikerstest
+
+Status: nog uit te voeren. De
+[UX-testvolgorde](AFX3-UX-USER-TEST.md) staat klaar. Er is nog geen uitslag van
+die volledige test geregistreerd.
+
+De aanvullende automatische controles op fouten, kortere desktopvensters,
+lange plannen, toetsenbordbediening en documentatie staan in het
+[controleverslag](AFX3-UX-PREFLIGHT.md). Deze controles vervangen de
+gebruikerstest niet.
+
+Na de laatste UX-correcties slaagt de gecombineerde simulatortest met 203 tests
+en de aanvullende verplichte/UI-run met 58 tests. Ook deze suites overlappen.
+De uitgebreide Chrome-test slaagt inclusief wegvallende verbinding tijdens
+SEND, tekstbehoud en het ontbreken van een automatische nieuwe schrijfpoging.
+
+## Een bevinding melden op GitHub
+
+Maak per probleem één melding en houd bedieningsproblemen en klankfeedback
+gescheiden. Gebruik voor nieuwe testresultaten dezelfde velden:
+
+```text
+Titel:
+Datum:
+TC-versie of commit:
+Apparaat en uitvoering:
+Exacte firmware:
+Besturingssysteem:
+Preset en scene:
+Bouwroute: AMP/CAB of NAM
+Categorie: bediening / verzending / opslaan / klank / controller
+Stappen om te herhalen:
+Verwacht resultaat:
+Werkelijk resultaat en exacte foutmelding:
+Heeft TC iets verzonden of opgeslagen?:
+Screenshot of gecontroleerd diagnoserapport:
+Status: nieuw / in onderzoek / opgelost / hertest geslaagd
+```
+
+Verwijder API-sleutels, tokens, accountgegevens en onnodige persoonlijke
+informatie voordat je iets deelt. Plaats geen volledige privepresetbanken,
+NAM-modelbestanden of ruwe protocolopnamen standaard in een openbaar issue.
+Aanvullende metingen kunnen via een afgesproken privelocatie worden gedeeld.

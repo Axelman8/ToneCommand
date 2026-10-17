@@ -4,6 +4,16 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Show FX3 workflow failures in a readable alert instead of only the clipped
+  footer. Network and invalid JSON responses disarm the old plan and mark the
+  link unconfirmed until a fresh status check; never retry a write. Enable
+  the existing FM9 handoff button when the device selection changes, with
+  draft-loss confirmation. Extend mocked Chrome preflight to short desktop
+  windows, long eight-scene plans, keyboard controls and delayed AI replies.
+  Keep the request pane scrollable when expanded controls exceed its height.
+  No protocol or storage-permission changes; physical user acceptance remains
+  separate. Add the user-facing log and preflight report for the planned PR.
+
 - Align the FX3 request entry with the upstream single primary action: GENERATE
   PLAN starts route exploration when needed, then explicitly requests the user's
   AMP/CAB or NAM choice without building or writing automatically. Collapse
