@@ -73,6 +73,9 @@ def device(monkeypatch):
         if item.action['kind']=='set_scene':
             activate(item.value)
         elif item.action['kind']=='set_channel':channel(item.effect_id,item.value)
+        elif item.action['kind']=='set_bypass':
+            d._test_blocks[item.effect_id]=replace(d._test_blocks[item.effect_id],bypassed=item.value)
+            scenes[scene[0]]=dict(d._test_blocks)
         else:
             eid=shared.decode14(*frame[8:10]);pid=shared.decode14(*frame[10:12])
             value=int(shared.decode_f32_septets(frame[12:17]));stride=len(d._test_bulk[eid])//4

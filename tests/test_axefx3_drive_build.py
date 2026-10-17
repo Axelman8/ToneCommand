@@ -105,3 +105,22 @@ def test_prototype_is_not_available_in_normal_release(monkeypatch):
     with pytest.raises(ValueError,match='awaits'):planning.compile_design(d.reg,source,list(planning.serial_build.ROUTE),8)
     with pytest.raises(ValueError,match='not released'):executor.prepare(d,plan['actions'],plan['required_route'],322)
     d._write.assert_not_called();d.set_param_display.assert_not_called()
+
+
+def test_drive_bypass_requires_captured_typed_frame_not_assumed_legacy_command(monkeypatch):
+    d=fixture(monkeypatch)
+    plan=planning.compile_design(d.reg,raw(),list(planning.serial_build.ROUTE),8)
+    resolved=[executor.resolve(d.reg,a) for a in plan['actions']]
+    item=next(i for i in resolved if i.action['kind']=='set_bypass' and i.effect_id==118)
+    typed=protocol.param_frame(118,7,1,opcode=9)
+    assumed=protocol.envelope(0x0a,[118,0,1])
+    with build.execution(d,resolved,True) as session:
+        session.item=item
+        session.frame=tuple(typed)
+        assert build.frame_allowed(d,typed)
+        assert not build.frame_allowed(d,assumed)
+        d._approved_frame=tuple(typed)
+        AxeFxIII._send(d,typed)
+        d._approved_frame=tuple(assumed)
+        with pytest.raises(PermissionError):AxeFxIII._send(d,assumed)
+    d._approved_frame=None

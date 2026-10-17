@@ -8,8 +8,8 @@ import time
 from fm9 import protocol as shared
 from . import fw33_profile,grid,protocol,serial_build,tone_review
 
-SHA256='4a82373231ad8775e68b6b5dd156f6faaa33f1c67ca9d802b5c7fcb68857341b'
-LAYOUTS={46:(37,12),50:(20,15)}
+SHA256='77741af17adb44fb266a1c0cf1900d7ef86e9d4ba5223f0913717d3e0e444082'
+LAYOUTS={46:(37,12),50:(20,15),118:(44,0)}
 
 
 def steps():
@@ -24,7 +24,6 @@ def steps():
 def frame_for(step):
     kind,eid,c,p,opcode,value=step
     if kind=='channel':return tuple(protocol.envelope(1,[22,0,eid,0,0,0,c,0,0,0,0,0,0,0,0]))
-    if kind=='bypass':return tuple(protocol.envelope(0x0a,[*shared.encode14(eid),int(value)]))
     return tuple(protocol.param_frame(eid,p,value,opcode=opcode))
 
 
@@ -47,7 +46,9 @@ def parameter(eid,p,value):
     elif eid==50:
         if p in range(10):lo,hi,scale,mult,tol=-12,12,'linear',1,.026
         elif p==11:lo,hi,scale,mult,tol=-80,20,'linear',1,.051
-        elif p==16:lo,hi,scale,mult,tol=.1,10,'linear',1,.011
+        # Independently read GEQ A/B at Q1 as32767: geometric midpoint,
+        # not the linear .1..10 law. Native .5/2/1 calibration is separate.
+        elif p==16:lo,hi,scale,mult,tol=.1,10,'log10',1,.011
         else:raise ValueError('Unmeasured EQ field')
     else:raise ValueError('Unmeasured numeric effect')
     shown=value*mult
@@ -97,6 +98,15 @@ class Probe:
             self.quiet();before=self.expected
             if kind!='channel' and next(b.channel for b in before['blocks'] if b.effect_id==eid)!=c:
                 raise PermissionError('Recorded effect channel context changed')
+            status=next(b for b in before['blocks'] if b.effect_id==eid)
+            if kind=='model' and status.bypassed is not True:
+                raise PermissionError('Effect must be bypassed before captured model change')
+            if kind=='bypass' and value==0:
+                stride,model=LAYOUTS[eid];v=before['bulk'][eid][stride*c:stride*(c+1)]
+                safe={118:lambda:v[0]==8 and 0<=v[3]<=round(.25*65534),
+                      46:lambda:v[12]==0 and v[6]==v[16]==0 and v[4]<=round(.2*65534),
+                      50:lambda:v[15]==4 and v[11]<=round(.68*65534) and all(x<=32767 for x in v[:10])}
+                if not safe[eid]():raise PermissionError('Captured engage requires explicitly quiet voiced effect')
             d._effects_calibration_permit=tuple(frame)
             try:d._write(list(frame))
             finally:d._effects_calibration_permit=None

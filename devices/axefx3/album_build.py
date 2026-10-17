@@ -155,7 +155,7 @@ def frame_allowed(dev,frame):
     if not active: return False
     item=session.item
     if item.action['kind']=='set_bypass' and item.effect_id==118:
-        return frame==protocol.envelope(0x0a,[118,0,int(item.value)])
+        return frame==protocol.param_frame(118,7,int(item.value),opcode=9)
     if item.action['kind']=='set_type':
         eid=item.effect_id
         ordinal=next(k for k,v in planning.MODELS.items() if v==item.value) if eid==58 else 8
@@ -220,10 +220,14 @@ class Session:
             if (self.expected['bulk'][118][44*c]!=8 or type(level) not in (int,float)
                     or not 0<=level<=2.5):
                 raise PermissionError('T808 Mod and explicit bounded final level required before engage')
-        frame=protocol.envelope(0x0a,[118,0,int(value)])
-        self.frame=tuple(frame)
-        try:return self.dev.set_bypass(118,value)
-        finally:self.frame=None
+        # FW33 Axe-Edit uses the captured typed bypass setter, not an
+        # assumed family-independent0x0a write. Status/full-state readback
+        # below and in run() remain independent of the write response.
+        self.write(protocol.param_frame(118,7,int(value),opcode=9))
+        for _ in range(5):
+            time.sleep(.15)
+            if self.dev.get_bypass(118) is value:return value
+        raise ValueError('Drive bypass status mismatch; no retry or rollback')
 
     def model(self,name):
         before=self.expected

@@ -11,7 +11,10 @@ from test_axefx3_album_build import device as fixture_device
 def device(monkeypatch):
     d=fixture_device(monkeypatch)
     d._test_blocks[58]=replace(d._test_blocks[58],bypassed=True)
+    for eid in (46,50,118):d._test_blocks[eid]=replace(d._test_blocks[eid],bypassed=True)
     d._test_bulk[50]=[0]*80;d._test_bulk[55]=[0]*132
+    for c in range(4):d._test_bulk[50][20*c+15]=4
+    d._test_bulk[118]=([8,0,32767,0,65534]+[0]*39)*4
     d._effects_calibration_permit=None
     d._test_shown={}
     d.read_display_text=lambda e,p:d._test_shown[e,p]
@@ -34,13 +37,25 @@ def apply(d,frame):
         d._test_bulk[eid][stride*c+p]=word;d._test_shown[eid,p]=str(shown)
 
 
-def test_closed_268_steps_preserve_unrelated_effects(monkeypatch):
+def test_closed_379_steps_preserve_unrelated_effects(monkeypatch):
     d=device(monkeypatch);before=deepcopy(d._test_bulk);p=probe.Probe(d)
     d._write=Mock(side_effect=lambda f:apply(d,f))
     for step in p.sequence:p.write(probe.frame_for(step))
-    assert p.index==268 and not p.failed and d.outp.send.call_count==268
+    assert p.index==379 and not p.failed and d.outp.send.call_count==379
     assert all(d._test_bulk[e]==v for e,v in before.items() if e not in (46,50))
     with pytest.raises(PermissionError):p.write(probe.frame_for(p.sequence[0]))
+
+
+def test_geq_q_uses_observed_geometric_midpoint():
+    word,shown,tolerance=probe.parameter(50,16,1.)
+    assert word==32767 and shown==1. and tolerance==.011
+
+
+def test_bypass_manifest_contains_only_captured_typed_commands():
+    bypass=[s for s in probe.steps() if s[0]=='bypass']
+    assert len(bypass)==24
+    assert {(s[1],s[3]) for s in bypass}=={(118,7),(46,9),(50,18)}
+    assert all(probe.frame_for(s)[5:8]==(1,9,0) for s in bypass)
 
 
 @pytest.mark.parametrize('fault',['target','variant','amp_active','modifier','grid','layout','level','later_channel'])

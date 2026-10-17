@@ -4,6 +4,17 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Complete remaining GEQ A-D numeric/zero captures and typed effect bypass
+  captures. Extend the closed developer calibration to379 exact recorded
+  steps. Correct GEQ Q normalization to its independently observed logarithmic
+  midpoint. The reviewed Drive prototype now uses its captured typed bypass
+  setter, not an assumed generic command. Drive remains release-gated until
+  normal SEND and independent editor acceptance are complete. No broad effect,
+  routing, permanent storage or physical-loudness claim follows.
+  Expanded native calibration passes379/379 with independent numeric/status
+  reads and unrelated-state preservation. It ends on muted test fixture322;
+  the separate post-native editor comparison and normal SEND are still pending.
+
 - Reconcile upstream1.5.15 shared rig placement/honesty, split FM3 port binding,
   diagnostics, simulator and Python packaging changes. Preserve input cleanup
   after output-open failure on both MIDI backends, FX3 integration seams and

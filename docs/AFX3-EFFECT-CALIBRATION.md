@@ -17,7 +17,8 @@ A reviewed T808 Mod prototype can represent four voices following Amp A-D and
 explicit per-scene activation. It has exact grammar/value/order checks and a
 bounded final LEVEL knob0..2.5, not dB or proven unity gain. It is deliberately
 disabled by `DRIVE_RELEASED=False`: normal planning and executor preparation
-reject it. Exact engage/bypass capture, normal SEND, independent editor checks
+reject it. Exact engage/bypass is now captured on A-D using typed parameter7,
+not an assumed generic0x0a command. Normal SEND, independent editor checks
 and user listening remain separate prerequisites. Synthetic tests opt into the
 prototype only with monkeypatching; the GUI has no release override.
 
@@ -34,8 +35,11 @@ an attenuation written later cannot protect an earlier model transition.
 ## Post-EQ
 
 All18 Graphic EQ model choices were captured. Ten-band variable-Q controls and
-zero bands were captured on A/B and partly C before interactive Windows access
-was lost. The first native EQ operation was refused before transmission because
+zero bands were initially captured on A/B and partly C before Windows access
+was lost. The owner restored access; C/D and typed bypass transitions were
+subsequently captured, with final A-D bands0dB, level-12dB and Q1. The Q law
+uses its observed geometric midpoint, not linear normalization. The first
+earlier native EQ operation was refused before transmission because
 the current channel was C while the capture started on A. The shared calibration
 now checks every family's initial context before ANY mutation. No EQ write was
 sent in that native pass; no automatic channel correction, retry or rollback
@@ -43,7 +47,7 @@ was attempted. PEQ and other effects are not promoted by these partial captures.
 
 ## Recorded developer calibration
 
-The developer-only replay binds an immutable closed268-step manifest to quiet
+The developer-only replay binds an immutable closed379-step manifest to quiet
 preset322, exact firmware/chassis/grid, all inactive modifiers, fresh complete
 state and exact current channel. A failed or unknown result consumes the
 operation. It does not expose a general raw setter, model permission or AI
@@ -52,3 +56,13 @@ action. Neither calibration nor readback measures audible tone or loudness.
 Resume requires an accessible, continuously connected Windows desktop for the
 remaining independent Axe-Edit comparisons. No firmware, driver, IR/NAM memory,
 global settings or permanent preset Store was changed in this checkpoint.
+
+The expanded native pass completed379/379 with independent numeric/status and
+full-state preservation checks, including GEQ Q .5/2/1 and all24 typed bypass
+transitions. It ended on322/scene1 with Amp, Drive, Compressor and GEQ bypassed,
+all on A, Output-18dB. The MIDI connection closed normally; TC did not Store.
+The owner will save the test fixture manually, which is not a TC Store proof.
+
+The owner requested ending today's session. The post-native independent editor
+comparison and normal AI/review/SEND acceptance remain pending; no new release
+flag was enabled. A complete developer replay is not normal planner acceptance.
