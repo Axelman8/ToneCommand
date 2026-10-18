@@ -3,7 +3,7 @@ import json
 from typing import Annotated, Literal
 
 from pydantic import Field
-from . import planning, fw33_profile, serial_build,album_build,amp_inventory,effect_voicing
+from . import planning, fw33_profile, serial_build,album_build,amp_inventory,effect_voicing,design_dialogue
 
 
 class Comparison(planning.Shape):
@@ -61,9 +61,15 @@ def compare(ask,prompt,reg,audio_reference=None,*,request_scope=''):
     caps=capabilities(reg)
     reference=json.dumps(dict(device='Axe-Fx III',firmware=reg.firmware,routes=caps,
         measurements=audio_reference,write_authorized=False),ensure_ascii=False)
+    def validate(raw):
+        proposal, clarification=design_dialogue.unwrap(raw)
+        return dict(clarification=clarification) if clarification else Comparison.model_validate(proposal).model_dump()
+    schema=design_dialogue.schema(Comparison.model_json_schema())
     result=ask(prompt,'Read-only strategy exploration; nothing selected or sent',reference,
-        system=SYSTEM+request_scope,shape=json.dumps(Comparison.model_json_schema()),
-        schema=Comparison.model_json_schema(),validate=lambda raw:Comparison.model_validate(raw).model_dump())
+        system=SYSTEM+request_scope+'\n'+design_dialogue.SYSTEM,shape=json.dumps(schema),
+        schema=schema,validate=validate)
+    if result.get('clarification'):
+        return dict(clarification=result['clarification'],readonly=True,hardware_written=False)
     comparison=Comparison.model_validate({key:result[key] for key in Comparison.model_fields})
     return dict(comparison=comparison.model_dump(),routes=caps,readonly=True,hardware_written=False,
                 backend=result.get('backend'),model=result.get('model'),

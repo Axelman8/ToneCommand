@@ -183,7 +183,8 @@ def test_eight_scenes_use_normal_review_send_in_simulation(api, dev, design):
     data = response.json()
     assert len(data['scenes']) == 8 and data['scene_channels']['DISTORT'] == [0, 0, 1, 1, 2, 2, 3, 3]
     assert 'Exactly 8 scenes' in ask.call_args.args[0]
-    assert json.loads(ask.call_args.kwargs['shape'])['properties']['scenes']['maxItems'] == 8
+    proposal=json.loads(ask.call_args.kwargs['shape'])['properties']['proposal']['anyOf'][0]
+    assert proposal['properties']['scenes']['maxItems'] == 8
     sent = client.post('/api/axefx3/send', json=dict(token=data['token'], target_confirmed=True, external_audio_muted=True))
     assert sent.status_code == 200 and sent.json()['ok'], sent.text
     assert dev.set_scene.call_args_list[-1].args == (8,)

@@ -14,6 +14,7 @@ const path=require('node:path');
     let currentPreset=325,currentScene=1,navigationRequest=null;
     let albumCounts=[8];
     let intakeReady=false,planNeedsClarification=false;const intakes=[];
+    let aiDialogueReady=false,staleDialogue=false;const dialogueTurns=[];
     let audioV2Ready=false;
     const serialRoute=['Input 1','Wah 1','Drive 1','Amp 1','Cab 1','Chorus 1','Compressor 1','Delay 1','Enhancer 1','Filter 1','Flanger 1','GEQ 1','PEQ 2','Output 1'];
     const navigationSelections=[];
@@ -100,6 +101,7 @@ const path=require('node:path');
         if(multiSceneReady){result.multiscene_planning_supported=!fw33;result.request_scene_limit=8;}
         if(routeOptionsReady)result.route_options_supported=true;
         if(intakeReady)result.request_intake_supported=true;
+        if(aiDialogueReady)result.ai_clarification_supported=true;
         if(navigationReady){result.navigation_supported=true;result.scene_names=Array.from({length:8},(_,i)=>[i+1,i?'Solo':'Rhythm']);}
         if(fw33)result.route=namRoute?['Input 1','NAM 1','Cab 1','Delay 1','Chorus 1','Reverb 1','Output 1']:[];
         if(serialReady){result.route=serialRoute;result.route_blocks=result.route.map((label,i)=>({label,channel:'A',bypassed:[1,2,6,8,9,10,11,12].includes(i)}));}
@@ -114,6 +116,7 @@ const path=require('node:path');
         if(body.mode!=='auto'&&answer.pitch_meaning==='pitch'&&!answer.accepted_omissions?.includes('pitch'))questions.push({id:'pitch',kind:'omission',text:'Pitchverhoging niet geverifieerd. Uitstellen?'});
         if(body.mode==='nam'&&count>2)questions.push({id:'route_scenes',kind:'scenes',text:'Kies AMP/CAB voor vier scenes, of bewust minder scenes.'});
         result={ready:!questions.length,scenes:count,questions,approved_omissions:answer.accepted_omissions||[],readonly:true,hardware_written:false};
+        if(!/Steve vai/i.test(body.prompt))result={ready:true,scenes:/4 scenes/.test(body.prompt)?4:body.scenes,questions:[],readonly:true,hardware_written:false};
       }
       if(name==='options'){
         explorations.push(req.postDataJSON());
@@ -215,6 +218,21 @@ const path=require('node:path');
         result={hardware_written:false,differences:{rms_db:0,peak_db:0,crest_db:0,centroid_hz:0,
           band_energy:[{band:'250-600 Hz',delta_fraction:0,relative_db:0}]},
           note:'<img src=x onerror=alert(1)> Geen bewijs van klankmatch of luidheid.'};
+      }
+      if(aiDialogueReady&&(name==='options'||name==='plan')){
+        const body=req.postDataJSON();dialogueTurns.push({phase:name,...body});
+        const options=name==='options',id=options?'width':'role';
+        const question={id,text:options?'Bedoel je stereobreedte, voller of harder?':'Is de klank voor ritme of solo?',suggestions:options?['Stereobreedte','Voller','Harder']:['Ritme','Solo']};
+        const pending=options?'ai-question-options-ticket':'ai-question-plan-ticket';
+        const history=[{message:'De breedte vraagt verduidelijking.',questions:[{id:'width',text:'Welke breedte?'}],answers:[{id:'width',text:'<img src=x onerror=alert(1)> Breder stereo, niet harder'}]}];
+        if(!body.answers?.length){
+          result={needs_clarification:true,hardware_written:false,dialogue_token:pending,dialogue_history:options?[]:history,
+            intake:{ready:false,scenes:4,message:'TC vraagt alleen wat nog onduidelijk is.',questions:[{...question,kind:'answer'}]}};
+        }else{
+          result.dialogue_token=options?'ai-options-ready-ticket':'ai-design-ready-ticket';
+          result.dialogue_history=options?history:[...history,{message:'Rol bepalen.',questions:[question],answers:body.answers}];
+        }
+        if(staleDialogue){status=409;result={detail:{code:'dialogue_stale',message:'Het gesprek is verlopen. Klik opnieuw; je verzoek blijft behouden.'}};}
       }
       await route.fulfill({status,contentType:'application/json',body:JSON.stringify(result)});
     });
@@ -822,7 +840,49 @@ const path=require('node:path');
     assert(!await page.isChecked('[data-intake="wah_controller"]'));
     assert.equal(sends.length,beforeIntake.sends);assert.equal(stores.length,beforeIntake.stores);assert.equal(installs.length,beforeIntake.installs);
     assert.equal(errors.length,0);
-    planNeedsClarification=false;await page.fill('#prompt',longDraft);
+    planNeedsClarification=false;
+    // General AI conversation: questions before route advice and during design.
+    page.once('dialog',dialog=>dialog.accept());await page.click('#newDesign');await page.locator('#refresh:not([disabled])').waitFor();
+    aiDialogueReady=true;await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    const generalPrompt='Meer volume in de breedte voor een gitaarpreset met 4 scenes.';
+    await page.fill('#prompt',generalPrompt);const beforeDialogue={sends:sends.length,stores:stores.length,installs:installs.length};
+    await page.click('#engage');await page.locator('#refresh:not([disabled])').waitFor();
+    assert(await page.locator('[data-ai-answer="width"]').isVisible());assert.equal(await page.inputValue('[data-ai-answer="width"]'),'');
+    assert.equal(await page.inputValue('#prompt'),generalPrompt);assert(await page.locator('#apply').isDisabled());
+    const optionsBeforeAnswer=explorations.length;
+    await page.locator('#requestQuestions > button').click();await page.locator('#refresh:not([disabled])').waitFor();
+    assert.equal(explorations.length,optionsBeforeAnswer);
+    await page.fill('[data-ai-answer="width"]','Breder stereo');await page.locator('[data-ai-answer="width"]').press('Enter');
+    assert.equal(await page.inputValue('[data-ai-answer="width"]'),'Breder stereo\n');assert.equal(explorations.length,optionsBeforeAnswer);
+    const freeAnswer='<img src=x onerror=alert(1)> Breder stereo, niet harder';
+    await page.fill('[data-ai-answer="width"]',freeAnswer);await page.locator('#requestQuestions > button').click();await page.locator('#refresh:not([disabled])').waitFor();
+    assert.deepEqual(dialogueTurns.at(-1).answers,[{id:'width',text:freeAnswer}]);assert.equal(dialogueTurns.at(-1).dialogue_token,'ai-question-options-ticket');
+    assert(await page.locator('#dialogueHistory').isVisible());assert.match(await page.textContent('#dialogueHistory'),/Breder stereo/);
+    assert.equal(await page.locator('#dialogueHistory img').count(),0);
+    await page.selectOption('#buildRoute','amp');await page.click('#engage');await page.locator('#refresh:not([disabled])').waitFor();
+    assert.equal(dialogueTurns.at(-1).dialogue_token,'ai-options-ready-ticket');assert.deepEqual(dialogueTurns.at(-1).answers,[]);
+    assert(await page.locator('[data-ai-answer="role"]').isVisible());assert.equal(await page.inputValue('[data-ai-answer="role"]'),'');
+    if(process.env.TC_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.TC_SCREENSHOT_DIR,'ux-ai-question-and-history.png')});
+    await page.locator('#requestQuestions button').filter({hasText:/^Solo$/}).click();
+    assert.equal(await page.inputValue('[data-ai-answer="role"]'),'Solo');
+    await page.locator('#requestQuestions > button').click();await page.locator('#refresh:not([disabled])').waitFor();
+    assert.deepEqual(dialogueTurns.at(-1).answers,[{id:'role',text:'Solo'}]);assert.equal(dialogueTurns.at(-1).dialogue_token,'ai-question-plan-ticket');
+    assert(await page.locator('#pane-plan').isVisible());assert.equal(await page.locator('#sceneRows tr').count(),4);
+    await request();assert.match(await page.textContent('#dialogueHistory'),/Solo/);assert.equal(await page.inputValue('#prompt'),generalPrompt);
+    assert.equal(sends.length,beforeDialogue.sends);assert.equal(stores.length,beforeDialogue.stores);assert.equal(installs.length,beforeDialogue.installs);
+    if(process.env.TC_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.TC_SCREENSHOT_DIR,'ux-ai-design-conversation.png')});
+    await page.fill('#prompt',generalPrompt+' Nieuwe versie.');
+    await page.click('#engage');await page.locator('#refresh:not([disabled])').waitFor();
+    assert.equal(dialogueTurns.at(-1).dialogue_token,null);assert.deepEqual(dialogueTurns.at(-1).answers,[]);
+    assert.equal(await page.inputValue('[data-ai-answer="width"]'),'');
+    await page.fill('[data-ai-answer="width"]','Bewaar dit antwoord');staleDialogue=true;
+    const beforeStale=dialogueTurns.length;
+    await page.locator('#requestQuestions > button').click();await page.locator('#refresh:not([disabled])').waitFor();
+    assert.match(await page.textContent('#workflowError'),/gesprek is verlopen/);assert.match(await page.textContent('#dialogueHistory'),/Bewaar dit antwoord/);
+    assert.equal(dialogueTurns.length,beforeStale+1);assert.equal(await page.inputValue('#prompt'),generalPrompt+' Nieuwe versie.');
+    staleDialogue=false;await page.click('#engage');await page.locator('#refresh:not([disabled])').waitFor();
+    assert.equal(dialogueTurns.at(-1).dialogue_token,null);assert.deepEqual(dialogueTurns.at(-1).answers,[]);
+    aiDialogueReady=false;await page.fill('#prompt',longDraft);
     await page.selectOption('#deviceChoice','fm9');
     page.once('dialog',dialog=>dialog.dismiss());await page.click('#connectDevice');
     await page.locator('#connectDevice:not([disabled])').waitFor();

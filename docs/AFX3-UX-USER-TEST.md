@@ -27,6 +27,10 @@ op laag fysiek volume. NAM-installatie en presetopslag zijn aparte toestemmingen
    Als TC EVEN AFSTEMMEN toont, beantwoord dan de concrete vraag en gebruik
    VERDER MET MIJN ANTWOORDEN. Een uitgesteld onderdeel mag niet alsnog als
    uitgevoerd of gegarandeerd in het voorstel staan.
+   Bij TONECOMMAND HEEFT EEN VRAAG vul je het lege antwoordveld in en klik je
+   VERSTUUR ANTWOORD. Test dat Enter alleen een nieuwe regel maakt en dat je
+   antwoord in DESIGN CONVERSATION terugkomt. Een vervolgvraag moet aansluiten
+   op wat je al hebt verteld.
 3. Laat TC de routes onderzoeken. Kies zelf AMP/CAB of NAM als TC daarom vraagt.
    Er mag nog niets op de Fractal of in NAM-geheugen worden geschreven.
 4. Controleer het gewenste sceneaantal in de ontwerpopties en maak het voorstel.

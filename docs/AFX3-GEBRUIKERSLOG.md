@@ -12,6 +12,33 @@ eigen grenzen.
 
 ## Wijzigingen op 18 oktober 2026
 
+### Ontwerpen in gesprek met de AI
+
+De geselecteerde AI kan tijdens routeonderzoek en planbouw zelf een gerichte
+vraag stellen over elke muzikale onduidelijkheid, tegenstrijdige wens of
+ontbrekende mogelijkheid. Dit is niet beperkt tot de vaste wah- en scenevragen.
+Zoals bij de FM9 is het uitgangspunt: eerst de wens verduidelijken, daarna het
+voorstel. De FX3-uitvoering houdt haar eigen apparaatcontroles.
+
+Onder TONECOMMAND HEEFT EEN VRAAG staat een leeg antwoordveld. Typ je antwoord
+of kies een suggestie en klik VERSTUUR ANTWOORD. Een suggestie invullen verzendt
+niets; Enter maakt een nieuwe regel. Eerdere vragen en antwoorden blijven
+zichtbaar in DESIGN CONVERSATION en gaan mee naar het volgende ontwerp.
+
+TC vraagt een ding tegelijk en krijgt instructies om duidelijke wensen zelf uit
+te werken. Het gesprek is dus geen verplichte vragenlijst. De AI kiest gewone
+amp-, cab- en effectinstellingen zelfstandig uit de beschikbare mogelijkheden.
+Als een controle het ontwerp afwijst, mag dezelfde AI eenmalig een vraag over
+een uitvoerbaar alternatief stellen. Een foutieve of mislukte AI-reactie kan
+nog steeds tot een foutmelding leiden; er volgt geen automatische verzending.
+
+Antwoorden horen bij het oorspronkelijke verzoek, apparaat en doelpreset.
+Wijziging van die context maakt het gesprek ongeldig. Het gesprek blijft
+tijdelijk in de lopende TC-sessie en is geen permanente gespreksopslag. Na
+vijftien minuten verloopt de gesprekscode; na acht vraagrondes vraagt TC om een
+nieuw verzoek met de gemaakte keuzes. Geen enkel antwoord geeft toestemming
+voor onbewezen bediening, SEND, presetopslag of NAM-installatie.
+
 ### Het verzoek afstemmen voor de planbouw
 
 TC herkent expliciete sceneaantallen in Nederlands en Engels, zoals `4 scenes`

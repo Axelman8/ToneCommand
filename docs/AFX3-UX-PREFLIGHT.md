@@ -93,3 +93,24 @@ De eigenaar beoordeelt vervolgens of de workflow begrijpelijk is en het
 muzikale resultaat voldoet. Registreer dat resultaat pas na de daadwerkelijke
 test in het gebruikerslog. Wijzig de testversie niet tussentijds zonder dit
 uitdrukkelijk af te spreken.
+
+## Algemene AI vragen en antwoorden
+
+De extra browsertest gebruikt een vraag over breedte en een vervolgvraag over
+ritme of solo. Vrije antwoorden, suggesties zonder automatische verzending,
+Enter als nieuwe regel, leeg antwoordveld, behoud van het oorspronkelijke
+verzoek en leesbare gesprekshistorie worden gecontroleerd. HTML-achtige
+antwoordtekst blijft gewone tekst. Een gewijzigd verzoek neemt geen oude
+gesprekscode of antwoorden mee.
+
+De API-tests controleren dat vragen geen acties of SEND-token bevatten, dat
+antwoorden alleen bij de bijbehorende servervragen worden geaccepteerd en dat
+een gewijzigde presetstatus het gesprek stopt. Een afgewezen ontwerp kan een
+AI-vervolgvraag opleveren, maar wordt niet uitgevoerd. De apparaatcompiler,
+uitvoeringscontrole en afzonderlijke opslagtoestemming blijven verplicht.
+
+De gecombineerde regressierun slaagt met 392 tests. De gerichte dialoogtests
+slagen met 24 tests, inclusief vervolgvraag, verlopen of verwisseld gesprek,
+afgewezen ontwerp en gesprekscode die niet als SEND-token kan worden gebruikt.
+Deze runs overlappen. De Chrome-test slaagt ook voor het behouden van een
+antwoord als concept bij een verlopen gesprek, zonder automatische herhaling.

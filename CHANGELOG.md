@@ -4,6 +4,13 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Let the selected AI ask general musical clarification questions during FX3
+  route exploration and design, not only predefined intake questions. Keep
+  server-owned, device/request-bound answer history, free-text answers and
+  one question at a time. Clear requests still build without routine questions.
+  A refused design gets at most one same-backend question-recovery call, never
+  a write retry or capability override. Preserve all review and storage gates.
+
 - Add read-only FX3 request clarification before AI planning: recognize explicit
   Dutch/English scene counts, distinguish bright wah filtering from pitch
   transposition and require explicit deferral of unsupported requirements.
