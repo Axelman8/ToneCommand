@@ -117,12 +117,33 @@ def test_raw_frames_have_no_fw33_permission_outside_exact_operation(rig):
         with pytest.raises((PermissionError,KeyError,ValueError)):fw33.check_frame(rig,frame)
 
 
-def test_fw33_readonly_wah_target_does_not_release_scalar_or_volume_setter():
+def test_native_allocation_settles_independent_reads_without_repeating_write(rig,monkeypatch):
+    rig._state['modifiers'][1]['words']=[0]*25
+    reads=[]
+    def snapshot(dev,**kw):
+        state=deepcopy(dev._state);reads.append(state)
+        if len(reads)==2:state['modifiers'][1]['words'][2]=0
+        return state
+    monkeypatch.setattr(tone_review,'snapshot',snapshot)
+    result=migrated.Operation(rig,94).write(old.allocation_frame(94))
+    assert result['modifiers'][1]['words']==old.default_words(94)
+    assert len(reads)==3 and rig._write.call_count==1
+
+
+def test_native_free_record_may_retain_an_old_parameter_ordinal(rig):
+    rig._state['modifiers'][0]['words']=[0]*25
+    rig._state['modifiers'][0]['words'][9]=103
+    rig._state['modifiers'][1]['words']=[0]*25
+    expected=migrated.expected_modifiers(rig._state,old.allocation_frame(94),94)
+    assert expected[0]==old.default_words(94) and expected[1]==[0]*25
+
+
+def test_fw33_wah_scalar_is_migrated_volume_remains_separate():
     reg=Registry(migrated.fw33_profile.KEY);reg.hardware_variant='mk2'
     observed=modifiers.observed_target(reg,old.default_words(94))
     assert observed['parameter']=='WAH_CONTROL'
-    assert modifiers.observed_target(reg,old.default_words(102)) is None
-    with pytest.raises((KeyError,ValueError)):reg.spec('WAH',5)
+    assert modifiers.observed_target(reg,old.default_words(102))['parameter']=='VOLUME_CONTROL'
+    assert reg.spec('WAH',5).name=='WAH_CONTROL'
     reg.hardware_variant='mk1'
     assert modifiers.observed_target(reg,old.default_words(94)) is None
 

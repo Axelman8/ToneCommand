@@ -21,9 +21,11 @@ def test_read_and_review_do_not_write(rig):
     dev._write.assert_not_called()
 
 
-def test_fw33_existing_wah_can_be_reviewed_without_scalar_or_volume_permission(rig):
+def test_fw33_existing_wah_can_be_reviewed_with_volume_release_disabled(rig,monkeypatch):
     from devices.axefx3.registry import Registry
     from devices.axefx3 import fw33_profile
+    from devices.axefx3 import pedal_fw33
+    monkeypatch.setattr(pedal_fw33,'VOLUME_RELEASED',False)
     dev,slots,_=rig
     dev.reg=Registry(fw33_profile.KEY);dev.reg.hardware_variant='mk2'
     dev.firmware_label.return_value=fw33_profile.KEY
@@ -35,7 +37,7 @@ def test_fw33_existing_wah_can_be_reviewed_without_scalar_or_volume_permission(r
     proposal=Reviews().prepare(dev,dict(effect_id=95,source=13,auto_engage='Off'))
     assert proposal['after_source']=='External 2' and not proposal['new_binding']
     dev._write.assert_not_called()
-    with pytest.raises((KeyError,ValueError)):dev.reg.spec('WAH',5)
+    assert dev.reg.spec('WAH',5).name=='WAH_CONTROL'
     with pytest.raises(ValueError,match='Volume'):
         Reviews().prepare(dev,dict(effect_id=102,source=13,auto_engage='Off'))
 

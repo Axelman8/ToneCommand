@@ -11,13 +11,13 @@ unchanged. MK2 hardware does not prove MK1 or other firmware compatibility.
 | 2 | Full Factory cab catalog and selection | Integrated 2048 names; fixed native replay and actual AI/normal SEND pass within measured FW33/MK2 route. |
 | 3 | Full User banks and separate FullRes | Correct FW33 addressing and whole-bank MK1 protection; normal User1/2 SEND and independent editor pass. FullRes names/restrictions separate, no occupied FullRes audition claimed. |
 | 4 | Four-slot cab mixer and stereo | All four slots and A-D: captured/native mode, selector, level/pan, actual339-action SEND and independent eight-scene editor checks pass. |
-| 5 | Drive, compressor and post-EQ | T808 Mod, Modern VCA Compressor and10 Band Variable Q A-D released within the measured route. Actual selected-AI536-action normal SEND and independent16-effect/eight-scene editor comparison pass, following379-step calibration. Exact grammar, typed bypass, manual compressor modes and cut-only EQ remain enforced. Other Drive/Comp/EQ models and PEQ remain separate. |
+| 5 | Drive, compressor and post-EQ | T808 Mod, Modern VCA Compressor and10 Band Variable Q A-D released within the measured route. Actual selected-AI536-action normal SEND and independent16-effect/eight-scene editor comparison pass, following379-step calibration. Exact grammar, typed bypass, manual compressor modes and cut-only EQ remain enforced. Other models and PEQ planner insertion remain separate; PEQ1/A numeric setters are independently migrated. |
 | 6 | Additional effects and model selection | First-instance configurable effect coverage needs measured expansion. |
 | 7 | Additional block instances/channels | Native layouts and preservation need measurement per supported family. |
 | 8 | Free route construction | Developer graph evidence exists; normal route planner/executor not generally enabled. Send/Return separately guarded. |
 | 9 | One to eight scenes | Released on the measured fixed AMP/CAB route after native prefix1..8 normal SEND with complete full-state/outside-scene checks and separate post-batch eight-scene editor comparison. Compiler/grammar/history/Store/UI agree on the count. This does not prove empty-grid construction for every count or general routing. Narrow serial/NAM paths remain separate. |
-| 10 | Controllers/modifiers | Wah1/2 External1/2 and Off/Fast Pos pass native allocation/reassignment, full-state preservation, independent editor comparison and normal controller review/SEND on FW33/MK2. Tone-planner integration, Volume and other targets remain separate. Global CC maps remain user-owned. See the firmware migration inventory. |
-| 11 | Tempo sync and exact zero | Seven core Amp knobs A-D plus four model-bound Delay/Chorus scalar zeros pass72 captured/native literals, actual333-action normal SEND and independent editor comparison. Reviewed AMP/CAB builds automatically verify/set Tempo NONE before literal timing. Other enum/zero domains remain unmeasured; global BPM is not changed. |
+| 10 | Controllers/modifiers | Wah1/2 External1/2 and Off/Fast Pos are accepted in the separate controller workspace. Cry Babe/Wah1 shared-A voicing, scene bypass and controller binding now pass normal four-scene AMP/CAB review/SEND and independent editor comparison. Volume/Pan1 full-range/Off controller review/SEND is independently accepted too, but the fixed tone-planner route does not insert Volume. Global CC maps remain user-owned. |
+| 11 | Tempo sync and exact zero | The earlier72-literal Amp/Delay/Chorus acceptance is retained. Sixteen further editor literals and normal full-state checks retain the approved Wah, Amp/Output Level and Reverb Mix zero variants. Reviewed AMP/CAB builds verify/set Tempo NONE before literal timing. New enum domains and global BPM remain separate. |
 | 12 | Persistent designs and existing-preset refinement | Successful AMP/CAB designs and requested counts1..8 persist privately. Cold resume verifies every requested scene; independent native eight-scene full-state acceptance passes. Arbitrary third-party preset adoption remains unsupported. |
 | 13 | Multi-capture/multiscene NAM | Native install and narrow builds exist. Broader selection/build support pending. |
 | 14 | Audio segments, isolation and comparison | Explicit windows up to60 seconds and channel-power-v2 local analysis pass realChrome anti-phase/alias tests. Optional local recording comparison reports descriptive numerical differences only. Sanitized reference metrics survive verified history resume. Guitar isolation, musical alignment, direct unit recording and sound matching remain pending. |
@@ -62,11 +62,13 @@ again. New post-native editor acceptance requires a restored interactive session
 An inaccessible session is not a hardware failure or permission to bypass
 Windows security; new release flags remain disabled until actually verified.
 
-The2026-10-18 session was accessible again. Wah1/2 controller migration now
-passes native allocation/reassignment, full-state preservation, fresh editor
-comparison and the normal registered controller review/SEND. The remaining
-functional gaps are tracked in [firmware migration](AFX3-FIRMWARE-MIGRATION.md);
-this checkpoint does not release unrelated effects or tone-planner wiring.
+The2026-10-18 session was accessible again. All75 approved FW32.06 parameter
+definitions are retained in FW33, plus8 additions, behind explicit captured
+encoding corrections. Wah tone-planner integration, Volume controller migration
+and inherited scalar-zero variants passed their separate acceptance checks.
+The remaining workflow gaps are tracked in
+[firmware migration](AFX3-FIRMWARE-MIGRATION.md); complete parameter names do
+not imply complete model, instance, channel, topology or raw-restore support.
 
 ## History and audio acceptance boundaries
 

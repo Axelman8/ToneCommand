@@ -48,10 +48,12 @@ def test_report_counts_actual_definitions_and_never_promotes_writes():
     reg=Registry(fw33_profile.KEY)
     before=deepcopy(reg.definitions)
     result=parity.report(reg)
-    assert result['retained_parameters']==62
+    assert result['retained_parameters']==75
     assert len(result['added_parameters'])==8
-    assert len(result['pending_parameters'])==13
+    assert len(result['pending_parameters'])==0
     assert result['automatically_enables_writes'] is False
+    assert not result['functionality_complete']
+    assert any(r['function']=='flexible_serial_insertion' and r['status']=='pending' for r in result['operation_migrations'])
     assert result['wah_in_fw33_tone_planner'] is False
     assert reg.definitions==before
     assert not result['wah_controller_workspace']

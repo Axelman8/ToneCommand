@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 import server
-from devices.axefx3 import fw33_profile, request_intake as intake, scene_intent
+from devices.axefx3 import fw33_profile, request_intake as intake, scene_intent,wah_voicing
 from tests.test_axefx3_album_build import device
 from tests.test_axefx3_scene_counts import short_design
 
@@ -89,6 +89,9 @@ def test_resolution_is_strict_not_an_arbitrary_instruction_channel(payload):
 
 @pytest.fixture
 def workspace(monkeypatch):
+    # Historical unavailable-capability path stays tested independently of
+    # the newly accepted FW33 Wah builder.
+    monkeypatch.setattr(wah_voicing,'RELEASED',False)
     dev = device(monkeypatch)
     monkeypatch.setattr(server, '_context', server.DeviceContext('axefx3', dev.reg, dev, 'Axe-Fx III'))
     monkeypatch.setattr(server, '_gig_mode', {'on': False})

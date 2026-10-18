@@ -5,7 +5,7 @@ import re
 from typing import Annotated, Literal
 from pydantic import Field, StrictBool, StrictInt, model_validator
 from . import planning, serial_build, route_guard, executor, scene_intent, amp_inventory, fw33_profile
-from . import cab_inventory,effect_voicing
+from . import cab_inventory,effect_voicing,wah_voicing
 
 MODELS = amp_inventory.roster(fw33_profile.KEY)
 AmpName = Literal[tuple(MODELS.values())]
@@ -43,6 +43,7 @@ class Role(planning.Shape):
     drive: StrictBool=False
     compressor: StrictBool=False
     geq: StrictBool=False
+    wah: StrictBool=False
 
 
 class Drive(planning.Shape):
@@ -125,6 +126,7 @@ class Design(planning.Shape, scene_intent.IntentDesign):
     albums: Annotated[list[Album], Field(min_length=4, max_length=4)]
     delay: Delay
     chorus: Chorus
+    wah: wah_voicing.Voice | None=None
     scene_count: Annotated[StrictInt,Field(ge=1,le=8)]=8
     scene_layout: Annotated[list[SceneLayout], Field(min_length=1, max_length=8)] | None = None
 
@@ -172,7 +174,12 @@ voices, also following Amp A-D. If false, omit that voicing and set every relate
 scene flag false; disclose a required-but-blocked feature. Compressor supports
 Modern VCA only, automatic makeup/timing OFF, threshold<=0dB and level<=0dB.
 GEQ supports10 Band Variable Q only, all10 gains<=0dB and level<=0dB, not PEQ.
-No wah/controller, reverb, NAM, IR installation or arbitrary grid layout.
+When wah_executable is true, optional wah voices Cry Babe on shared channel A.
+Each scene_layout wah flag determines its explicit bypass. The selected user
+controller is server-owned, never invent an External or global MIDI CC. Fast
+Pos Auto Engage may subsequently override a scene's bypass as the pedal moves.
+A high wah filter is NOT pitch transposition. When false, omit wah voicing
+and keep scene wah flags false. No reverb, NAM, IR installation or arbitrary grid layout.
 Other reserve blocks stay bypassed on the fixed captured14-block route.
 Choose a cab object with exactly
 four IR slots, bank/slot, mode(normal/mute/solo), level_db and pan(-100L..100R).
@@ -198,17 +205,18 @@ def reference(reg):
         tempo_none_executable=fw33_profile.TEMPO_NONE_RELEASED,
         effect_exact_zero_executable=fw33_profile.FX_ZERO_RELEASED,
         compressor_executable=effect_voicing.COMPRESSOR_RELEASED,geq_executable=effect_voicing.GEQ_RELEASED,
+        wah_executable=wah_voicing.RELEASED,
         drive_notice='When false, omit Drive voicing and keep every scene drive flag false. A requested Drive remains an explicit unsupported requirement, not a silent substitution.',
         models=list(MODELS.values()),
         cabs=[[c['bank'],c['slot'],c['name']] for c in cab_inventory.choices(reg,include_fullres=True)],
         cab_format='Each entry is [wire bank, one-based slot, name]. FullRes bank6 only IR3/4. Names do not prove audible match.',
-        controls={f:reg.definitions[f] for f in ('DISTORT','OUTPUT','DELAY','CHORUS','CABINET','FUZZ','COMP','GEQ')},
+        controls={f:reg.definitions[f] for f in ('DISTORT','OUTPUT','DELAY','CHORUS','CABINET','FUZZ','COMP','GEQ','WAH')},
         route=route_guard.labels(serial_build.ROUTE,reg), output_db=-18,
         shared_effect_channels='Delay/Chorus A; optional T808 Mod, Modern VCA and10 Band Variable Q A-D follow Amp channel',
         reserve_effects_bypassed='All except explicitly voiced and requested released Drive/Compressor/GEQ profiles'))
 
 
-def actions_for(reg, design, existing):
+def actions_for(reg, design, existing, controller=None):
     actions = []
     def emit(kind,eid=None,**kw):
         if eid is None: actions.append(dict(kind=kind,**kw)); return
@@ -267,6 +275,13 @@ def actions_for(reg, design, existing):
             for name,value in effect_voicing.parameters(family,voice):param(eid,name,value)
         emit('set_channel',eid,value=0)
         param(58,'DISTORT_LEVEL',design.albums[0].amp.level)
+    if design.wah is not None:
+        # Already bypassed reserve Wah, quiet Amp A before any model reset.
+        param(58,'DISTORT_LEVEL',-18.)
+        param(94,'WAH_LEVEL',-12.)
+        emit('set_type',94,type_name=design.wah.model)
+        for name,value in wah_voicing.parameters(design.wah):param(94,name,value)
+        param(58,'DISTORT_LEVEL',design.albums[0].amp.level)
     for eid,family,values in (
         (70,'DELAY',dict(TIME=design.delay.time_ms,FEED=design.delay.feedback,MIX=design.delay.mix,LEVEL=0)),
         (78,'CHORUS',dict(RATE=design.chorus.rate_hz,DEPTH=design.chorus.depth,MIX=design.chorus.mix,LEVEL=0))):
@@ -289,10 +304,12 @@ def actions_for(reg, design, existing):
             if any(getattr(a,key) is not None for a in design.albums):
                 eid=effect_voicing.MODELS[family][0]
                 emit('set_channel',eid,value=item['amp_channel']);bypass(eid,not item.get(key,False))
+        if design.wah is not None:bypass(94,not item.get('wah',False))
         bypass(58,False); bypass(62,False)
         bypass(70,not item['delay']); bypass(78,not item['chorus'])
         emit('rename_scene',value=number,type_name=item['name'])
     emit('rename_preset',type_name=design.name)
+    if controller is not None:emit('bind_controller',94,**controller)
     # Explicit final survey: select only, do NOT rewrite mappings while checking.
     for number in range(1,design.scene_count+1): emit('set_scene',value=number)
     return actions
@@ -305,7 +322,7 @@ def layout(design):
             for c,album in enumerate(design['albums']) for role in (album['lead'],album['solo'])][:design.get('scene_count',8)]
 
 
-def compile_design(reg,raw,current_route,scene_count):
+def compile_design(reg,raw,current_route,scene_count,wah_source=None,wah_auto_engage='Fast Pos'):
     if type(scene_count) is not int or scene_count not in fw33_profile.ALBUM_SCENE_COUNTS:
         raise ValueError('This scene count awaits independent normal SEND/editor acceptance')
     if not isinstance(raw,dict):raise ValueError('A structured scene design is required')
@@ -313,6 +330,11 @@ def compile_design(reg,raw,current_route,scene_count):
     if design.scene_count!=scene_count:
         raise ValueError('AI scene count differs from the explicitly requested scene count')
     assignments=layout(design.model_dump())
+    selected_controller=wah_voicing.controller(wah_source,wah_auto_engage)
+    if (design.wah is not None or selected_controller) and not wah_voicing.RELEASED:
+        raise ValueError('Inherited Wah planner awaits normal SEND/editor acceptance')
+    if (any(item.get('wah') for item in assignments) or selected_controller) and design.wah is None:
+        raise ValueError('Active Wah/controller requires explicit filter voicing')
     if not fw33_profile.AMP_ZERO_RELEASED and any(getattr(a.amp,key)==0 for a in design.albums for key in KNOBS[:-1]):
         raise ValueError('Exact-zero Amp knobs await independent normal SEND/editor acceptance')
     if not fw33_profile.FX_ZERO_RELEASED and any(v==0 for v in
@@ -336,12 +358,12 @@ def compile_design(reg,raw,current_route,scene_count):
         raise ValueError('Measured album AMP/CAB mode requires exact FW33/MK2')
     if current_route and tuple(current_route)!=serial_build.ROUTE:
         raise ValueError('Album build cannot replace or splice another route')
-    actions=actions_for(reg,design,bool(current_route))
+    actions=actions_for(reg,design,bool(current_route),selected_controller)
     for a in actions: executor.resolve(reg,a)
     names=[item['name'] for item in assignments]
     return scene_intent.attach(dict(mode='album',name=executor.preset_name(design.name),summary=design.summary,
         design=design.model_dump(),scenes=names,actions=actions,
-        required_route=route_guard.labels(serial_build.ROUTE,reg),controller=None,
+        required_route=route_guard.labels(serial_build.ROUTE,reg),controller=selected_controller,
         cab_choices=[(dict(channel='ABCD'[c],side='IR mixer',
             name=' + '.join(cab_inventory.selection(reg,ir.bank,ir.slot-1,i) for i,ir in enumerate(cab_voice(a.cab).irs,1) if ir.mode!='mute'),
             irs=[dict(**ir.model_dump(),ir=i,name=cab_inventory.selection(reg,ir.bank,ir.slot-1,i))
@@ -353,7 +375,8 @@ def compile_design(reg,raw,current_route,scene_count):
             **{key:'ABCD'[item['amp_channel']] for key in ('compressor','geq') if any(getattr(a,key) is not None for a in design.albums)}) for i,item in enumerate(assignments)],
         warnings=['Maximaal vier ampvoicings en vier cabkanalen A-D; zie de expliciete scene-indeling. Delay/Chorus delen A.',
             f'{len(MODELS)} FW33-ampmodellen, 2048 Factory-cabs en geimporteerde niet-lege Usercabs. Alleen vrijgegeven effectprofielen mogen worden ingericht.',
-            'Gemeten vaste14-blokkenketen. Alleen expliciet ingerichte en vrijgegeven T808 Mod, Modern VCA en 10 Band Variable Q mogen actief; overige reserve-effecten blijven bypassed. Geen nieuwe controllers.',
+            'Gemeten vaste14-blokkenketen. Alleen expliciet ingerichte vrijgegeven effecten mogen actief; overige reserve-effecten blijven bypassed.',
+            'Wah gebruikt gedeeld kanaal A. Fast Pos kan de scenebypass door pedaalbeweging veranderen. Globale CC-toewijzing en fysieke sweep zijn niet bewezen.',
             'Expliciete vier-IR-mix met level/pan/mute/solo.' if expanded_cabs(design) else 'Compatibiliteitsontwerp: alleen IR1 in de mix; IR2-4 blijven gemute.',
             'Cabselectie installeert geen IRs. Mixerstatus bewijst geen hoorbare output of veilige fysieke luidheid.',
             'Output -18dB; voorlopige scenevolumes. Externe mute is verplicht, geen limiter.',

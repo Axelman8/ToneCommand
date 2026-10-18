@@ -205,6 +205,10 @@ def build(dev,required_route,actions):
     session = getattr(dev,'_serial_session',None)
     if not isinstance(session,Session) or grid.snapshot(dev.read_grid()):
         raise PermissionError('Serial foundation requires a reviewed session and empty grid')
+    album=any(a.get('kind')=='set_type' for a in actions)
+    if album:
+        from . import album_build
+        album_build.validate_actions(dev.reg,actions,False)
     baseline = state(dev)
     for frame,before,after in row_fixture.steps()[:41]:
         prior = state(dev)
@@ -222,10 +226,38 @@ def build(dev,required_route,actions):
             for action in actions:
                 item = executor.resolve(dev.reg,action)
                 if item.spec is not None:
-                    error = fw33.domain_error(dev,item.spec,0)
+                    error = (construction_domain_error(dev,item.spec) if album and
+                        item.family in ('CABINET','FUZZ','COMP','GEQ') else fw33.domain_error(dev,item.spec,0))
                     if error: raise ValueError(error)
                     if item.spec.tempo_param_id is not None: require_tempo(dev,item.spec)
     route_guard.check_route(dev,dev.reg,required_route,complete=True)
     if any(now[k] != baseline[k] for k in ('modifiers','scene_names','preset')):
         raise ValueError('Baseline changed during serial construction')
     return SetResult(True,'Measured14-block serial chain independently verified; no Store',[],list(ROUTE))
+
+
+def construction_domain_error(dev,spec):
+    """Read-only layout check before future reviewed model/mixer writes.
+
+    Does not authorize a frame, create an album session or waive runtime
+    model/channel/parameter checks. No model or mixer is written here.
+    """
+    session=getattr(dev,'_serial_session',None)
+    if (not isinstance(session,Session) or session.dev is not dev or session.failed
+            or session.index!=28 or session.target!=getattr(dev,'_edit_target',None)
+            or not supported(dev.reg) or grid.snapshot(dev.read_grid())!=row_fixture.steps()[27][2]
+            or dev.get_channel(spec.effect_id)!=0):
+        return 'Read-only construction check requires the exact placed/disconnected foundation on A'
+    eid={'CABINET':62,'FUZZ':118,'COMP':46,'GEQ':50}.get(spec.family)
+    if eid is None or eid!=spec.effect_id or spec.instance!=1:
+        return 'Unmeasured future construction parameter'
+    words=dev.bulk_read(eid)
+    dev.status_dump()
+    if (dev._channels.get(eid)!=4 or not isinstance(words,list)
+            or len(words)!=4*fw33_profile.STRIDES[spec.family]):
+        return 'Complete four-channel future-control layout required'
+    if spec.family=='CABINET':
+        from .album_build import cab_layout
+        try:cab_layout(words,expanded=True)
+        except ValueError as exc:return str(exc)
+    return None

@@ -3,7 +3,7 @@ import json
 from typing import Annotated, Literal
 
 from pydantic import Field
-from . import planning, fw33_profile, serial_build,album_build,amp_inventory,effect_voicing,design_dialogue
+from . import planning, fw33_profile, serial_build,album_build,amp_inventory,effect_voicing,design_dialogue,wah_voicing
 
 
 class Comparison(planning.Shape):
@@ -26,8 +26,9 @@ def capabilities(reg):
         ('Modern VCA Compressor',effect_voicing.COMPRESSOR_RELEASED),('10 Band Variable Q',effect_voicing.GEQ_RELEASED)) if ready]
     drive_note=('Gemeten A-D-effectvoicings: '+', '.join(available)+'. Overige modellen blijven geblokkeerd.'
                 if available else 'Nieuwe Drive/Compressor/post-EQ-voicing wacht op volledige onafhankelijke acceptatie.')
+    drive_note+=(' Wah Cry Babe op gedeeld A met External1/2 en Off/Fast Pos.' if wah_voicing.RELEASED else ' Nieuwe Wah-plannerkoppelingen wachten op acceptatie.')
     return [dict(mode='amp',label=f'AMP / CAB: {count_text} scenes met klankdoelen' if album else 'AMP / CAB + pedals',enabled=amp or album,
-        reason=(f'FW33: vaste14-blokkenketen, beschikbare sceneaantallen {count_text} met maximaal vier ampvoicings en vier cabkanalen A-D. Expliciete scene-indeling, geen verplichte rhythm/solo-paren. Alle {len(amp_inventory.roster(firmware))} Amp1-modellen, 2048 Factory-cabs en beschikbare geimporteerde Usernamen, met expliciete vier-IR-mix. Delay/Chorus delen A; Output -18dB en niet-ingerichte reserveblokken bypassed. {drive_note} Geen nieuwe controllers.' if album else
+        reason=(f'FW33: vaste14-blokkenketen, beschikbare sceneaantallen {count_text} met maximaal vier ampvoicings en vier cabkanalen A-D. Expliciete scene-indeling, geen verplichte rhythm/solo-paren. Alle {len(amp_inventory.roster(firmware))} Amp1-modellen, 2048 Factory-cabs en beschikbare geimporteerde Usernamen, met expliciete vier-IR-mix. Delay/Chorus delen A; Output -18dB en niet-ingerichte reserveblokken bypassed. {drive_note}' if album else
                 'Geverifieerde amp/cab-keuze en beschikbare effecten; volledige route wordt bij review gecontroleerd.' if amp else
                 'FW33 amp/cab-modelselectie, routing en extra pedals moeten nog onafhankelijk worden gemeten.' if firmware==fw33_profile.KEY else
                 'Geverifieerde firmware, ampmodellen en een geimporteerde cabnamenlijst zijn nodig.'),

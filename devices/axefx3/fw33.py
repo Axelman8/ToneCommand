@@ -35,11 +35,12 @@ def runtime_write_error(dev):
 
 def check_frame(dev, frame):
     fn, payload = frame[5], frame[6:-2]
-    from . import amp_probe,cab_probe,album_build,effect_probe,effects_calibration,zero_tempo_calibration,tempo_control,pedal_fw33
+    from . import amp_probe,cab_probe,album_build,effect_probe,effects_calibration,zero_tempo_calibration,tempo_control,pedal_fw33,inherited_controls_probe
     if (amp_probe.allowed(dev, frame) or cab_probe.allowed(dev,frame)
             or album_build.frame_allowed(dev,frame) or effect_probe.allowed(dev,frame)
             or effects_calibration.allowed(dev,frame) or zero_tempo_calibration.allowed(dev,frame)
-            or tempo_control.allowed(dev,frame) or pedal_fw33.allowed(dev,frame)):
+            or tempo_control.allowed(dev,frame) or pedal_fw33.allowed(dev,frame)
+            or inherited_controls_probe.allowed(dev,frame)):
         return
     if fn != 1:
         if fn == 0x0c and payload != [127] and payload not in ([0],[1]):
@@ -132,6 +133,10 @@ def domain_error(dev, spec, channel):
         if (spec.family=='COMP' and spec.name not in profile.effect_controls.AUTO_OFF
                 and (words[base+6]!=0 or words[base+16]!=0)):
             return 'Compressor manual modes must be independently OFF before manual voicing'
+    if spec.family=='PEQ' and words[15:20]!=[0]*5:
+        return 'Inherited PEQ controls require the independently measured filter layout'
+    if spec.family=='PITCH' and words[0]!=0:
+        return 'Inherited Pitch Level requires the independently measured Dual Detune model'
     if spec.family == 'NAM':
         try:
             nam_selector.capture(dev, nam_selector.slots(words)[channel])

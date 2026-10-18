@@ -14,7 +14,7 @@ from . import planning, route_guard, tone_review, profile, tone_search, referenc
 from .controller_ui import Confirmation
 from . import album_build,album_planning,runtime,scene_intent,amp_inventory,amp_refresh
 from . import cab_inventory,cab_mix,design_history,cab_metadata
-from . import audio_measurements, request_intake, design_dialogue
+from . import audio_measurements, request_intake, design_dialogue,wah_voicing
 from .audio_measurements import Measurements
 
 AnnotatedSceneNumber = Annotated[StrictInt, Field(ge=1,le=8)]
@@ -166,6 +166,7 @@ def register(app, host):
                             ai_clarification_supported=True,
                             serial_build_supported=serial_build.supported(dev.reg),
                             album_build_supported=album_build.supported(dev.reg),
+                            wah_planning_supported=album_build.supported(dev.reg) and wah_voicing.RELEASED,
                             album_scene_counts=sorted(fw33_profile.ALBUM_SCENE_COUNTS) if album_build.supported(dev.reg) else [],
                             amp_refresh_supported=True,
                             amp_inventory=amp_inventory.report(dev.reg) if album_build.supported(dev.reg) else None,
@@ -345,6 +346,7 @@ def register(app, host):
                 if dev.current_preset()[0] != body.expected_preset or dev.firmware_label() != dev.reg.firmware:
                     raise ValueError('Target or firmware changed; refresh first.')
                 intake_mode=('nam' if dev.reg.firmware==fw33_profile.KEY else 'amp') if body.mode=='auto' else body.mode
+                body=body.model_copy(update=dict(wah_source=request_intake.explicit_wah_source(body.prompt,body.wah_source)))
                 intake=request_intake.analyze(body.prompt,dev.reg,intake_mode,body.scenes,body.resolution,
                                               refining=bool(body.refine_token),wah_source=body.wah_source)
                 if not intake['ready']:
@@ -357,7 +359,7 @@ def register(app, host):
                 serial_mode = body.mode == 'serial'
                 album_mode = body.mode=='amp' and dev.reg.firmware==fw33_profile.KEY
                 if album_mode and (not album_build.supported(dev.reg) or body.scenes not in fw33_profile.ALBUM_SCENE_COUNTS
-                        or body.wah_source or body.nam_slot is not None or body.source_kind!='tone'):
+                        or (body.wah_source and not wah_voicing.RELEASED) or body.nam_slot is not None or body.source_kind!='tone'):
                     raise ValueError('Measured FW33 AMP/CAB route: released scene counts only, four voices, no NAM/controller or rig translation')
                 if (album_mode and album_planning.user_cab_requested(body.prompt)
                         and not any(c['bank'] in (2,3) for c in album_planning.cab_inventory.choices(dev.reg))):
@@ -377,7 +379,9 @@ def register(app, host):
                     raise ValueError('Target preset changed. Refresh before planning.')
                 previous = reviews.refinement(dev,body.refine_token,initial) if body.refine_token else None
                 route = route_guard.serial_route(initial['grid'],initial['blocks'],dev.reg)
-                if (serial_mode or album_mode) and (initial['scene'] != 1 or any(e['active'] for e in initial['modifiers'])
+                modifiers_ok=(wah_voicing.modifiers_allowed(initial['modifiers']) if album_mode else
+                    not any(e['active'] for e in initial['modifiers']))
+                if (serial_mode or album_mode) and (initial['scene'] != 1 or not modifiers_ok
                         or (route and (tuple(route) != serial_build.ROUTE
                             or serial_build.grid.snapshot(initial['grid']) != serial_build.expected_grid()))):
                     raise ValueError('Select scene1 on an empty preset or exact measured row1 chain without active modifiers; nothing sent')
@@ -434,7 +438,13 @@ def register(app, host):
                 context += rig_source.brief(source, compiled)
             def validate_plan(raw):
                 if album_mode:
-                    plan=album_planning.compile_design(dev.reg,raw,route,body.scenes)
+                    # Blank means preserve an independently read existing
+                    # binding, not reset it to the form's default Fast Pos.
+                    prior_controller=(wah_voicing.existing_controller(initial['modifiers'])
+                        if raw.get('wah') and not body.wah_source else None)
+                    wah_binding_source=body.wah_source or (prior_controller['source'] if prior_controller else None)
+                    wah_mode=body.wah_auto_engage if body.wah_source else prior_controller['auto_engage'] if prior_controller else None
+                    plan=album_planning.compile_design(dev.reg,raw,route,body.scenes,wah_binding_source,wah_mode)
                 elif serial_mode:
                     plan = serial_planning.compile_design(dev.reg,raw,route,body.scenes)
                 elif nam_mode:

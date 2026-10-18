@@ -47,7 +47,7 @@ def resolve(reg, action):
         raise ValueError("Unsupported action; uploads, stores and global writes are not enabled")
     a = dict(action)
     kind = a["kind"]
-    if reg.firmware == fw33_profile.KEY and kind not in (fw33_profile.BUILD_KINDS - {'store'}) | {'set_type','set_cab'}:
+    if reg.firmware == fw33_profile.KEY and kind not in (fw33_profile.BUILD_KINDS - {'store'}) | {'set_type','set_cab','bind_controller'}:
         raise ValueError('Action is outside the measured FW33 numeric/NAM profile')
     result = Resolved(a)
     if kind == "rename_preset":
@@ -71,6 +71,9 @@ def resolve(reg, action):
             result.value = nam_slots.number(a.get('value'))
             return result
         if kind == "bind_controller":
+            if reg.firmware==fw33_profile.KEY:
+                from . import wah_voicing
+                if not wah_voicing.RELEASED or eid!=94:raise ValueError('Only the released Wah1 musical controller is supported')
             source = {"External 1":12, "External 2":13}.get(a.get("source"))
             mode = a.get("auto_engage")
             pedal_control.validate(eid, source, mode)
@@ -91,9 +94,10 @@ def resolve(reg, action):
             result.value = a["value"]
         elif kind == "set_type":
             if reg.firmware==fw33_profile.KEY:
-                from . import album_planning
+                from . import album_planning,wah_voicing
                 if not ((family=='DISTORT' and eid==58 and a.get('type_name') in album_planning.MODELS.values())
                         or (family=='FUZZ' and eid==118 and a.get('type_name')=='T808 Mod')
+                        or (family=='WAH' and eid==94 and a.get('type_name')=='Cry Babe' and wah_voicing.RELEASED)
                         or (family in fw33_profile.effect_controls.MODELS and
                             (eid,a.get('type_name'))==(fw33_profile.effect_controls.MODELS[family][0],fw33_profile.effect_controls.MODELS[family][4]))):
                     raise ValueError('Only explicitly measured FW33 first-instance models')
@@ -265,6 +269,9 @@ def execute(dev, actions, required_route, *, expected_preset, external_audio_mut
                         if album and kind=='set_bypass' and eid==118:
                             got=album.drive_bypass(item.value)
                             return SetResult(got is item.value,'Drive state independently read back',None,got)
+                        if album and kind=='set_bypass' and eid==94 and album.wah:
+                            got=album.wah_bypass(item.value)
+                            return SetResult(got is item.value,'Wah state independently read back',None,got)
                         if album and kind=='set_bypass' and eid in (46,50):
                             got=album_build.reviewed_effects.typed_bypass(album,eid,item.value)
                             return SetResult(got is item.value,'Typed auxiliary state; full independent verification follows',None,got)

@@ -71,6 +71,9 @@ def scenes(plan):
                 voice=amp.get('drive') or dict(model='T808 Mod',gain=0.,tone=5.,level=0.,mix=100.)
                 result[-1]['effects']['drive']={**voice,'active':item.get('drive',False)}
                 result[-1]['channels']['drive']=item['amp_channel']
+            if d.get('wah') is not None:
+                result[-1]['effects']['wah']={**d['wah'],'active':item.get('wah',False)}
+                result[-1]['channels']['wah']=0
             for key,family in (('compressor','COMP'),('geq','GEQ')):
                 if any(a.get(key) is not None for a in d['albums']):
                     from . import effect_voicing

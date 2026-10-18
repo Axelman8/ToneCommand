@@ -104,10 +104,12 @@ class Reviews:
             proof=record['proof']
             if digest(initial)!=proof['scene_fingerprints'].get(str(initial['scene'])):
                 raise ValueError('Device settings or imported cab names differ from saved design; nothing resumed')
-            from . import album_planning,navigation
+            from . import album_planning,navigation,wah_voicing
             route=route_guard.serial_route(initial['grid'],initial['blocks'],dev.reg)
             count=record['plan']['design'].get('scene_count',8)
-            plan=album_planning.compile_design(dev.reg,record['plan']['design'],route,count)
+            controller=wah_voicing.existing_controller(initial['modifiers']) if record['plan']['design'].get('wah') else None
+            plan=album_planning.compile_design(dev.reg,record['plan']['design'],route,count,
+                controller['source'] if controller else None,controller['auto_engage'] if controller else None)
             if record['version']==2:
                 plan['reference_measurements']=deepcopy(record['plan']['reference_measurements'])
             self.clear();self.last_sent=None

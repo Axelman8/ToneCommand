@@ -91,7 +91,7 @@ def preflight(dev, effect_id, source, auto_engage=None):
     if dev.reg.firmware != '32.06':
         from . import pedal_fw33
         if not pedal_fw33.supported(dev,effect_id):
-            raise ValueError('FW33 supports measured Wah1/2 Control only; Volume has not been migrated')
+            raise ValueError('Requested Wah/Volume binding is outside the measured FW33 hardware profile')
     slots = entries(dev)
     matches = [e for e in slots if (e["effect_id"], e["param_id"]) == (effect_id, TARGETS[effect_id])]
     if len(matches) > 1 or (matches and not matches[0]["active"]):

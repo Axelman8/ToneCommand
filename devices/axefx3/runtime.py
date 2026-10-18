@@ -17,6 +17,8 @@ FILES = ('server.py', 'fm9/planner.py', 'fm9/protocol.py', 'fm9/device.py',
          'devices/axefx3/data/fw33_drive_probe.json',
          'devices/axefx3/data/fw33_effect_calibration.json',
          'devices/axefx3/data/fw33_zero_tempo_calibration.json',
+         'devices/axefx3/data/fw33_inherited_controls.json',
+         'devices/axefx3/data/fw33_legacy_zeros.json',
          'devices/axefx3/data/fw33_effect_models.json') + tuple(
     'devices/axefx3/' + path.name
     for path in sorted(Path(__file__).resolve().parent.glob('*.py')))

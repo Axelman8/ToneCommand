@@ -12,6 +12,34 @@ eigen grenzen.
 
 ## Wijzigingen op 18 oktober 2026
 
+### Bestaande functies behouden bij firmware updates
+
+Het FW33-profiel bouwt voort op alle75 goedgekeurde FW32.06-parameters en voegt
+acht parameters toe. De ontbrekende wah Control, elf PEQ-bedieningen en Pitch
+Level zijn overgenomen met de gemeten FW33-aansturing. Ook eerder geteste
+nulwaarden blijven beschikbaar; dat geeft geen toestemming om de veilige
+bouwvolumes te verhogen. Regressietests bewaken dat nieuwe profielen geen
+oude parameters stilzwijgend verliezen.
+
+Bij een AMP/CAB-ontwerp kan TC nu Cry Babe op gedeeld kanaal A uitwerken,
+per scene aan/uit zetten en aan External1 of2 met Off/Fast Pos koppelen. Kies
+dit onder ONTWERPOPTIES of benoem een eenduidige External-keuze in je verzoek.
+Een bestaande koppeling blijft behouden. Fast Pos kan bij pedaalbeweging ook
+een scene met wah uit overrulen; kies Off als alleen scenes het effect moeten
+schakelen. Een hoge wah-filterstand is geen echte pitchverhoging.
+
+Onder CONTROLLERS kan Volume/Pan1 nu ook op FW33/MK2 aan External1 of2 worden
+gekoppeld. Hiervoor zijn Type Volume,0dB op alle kanalen, de volledige
+standaardcurve en Auto Engage Off vereist. De globale MIDI/CC-koppeling op je
+apparaat wordt niet gewijzigd. De vaste AMP/CAB-bouwroute plaatst nog geen
+Volume-blok.
+
+Niet elke oude bouwmogelijkheid is hiermee al naar FW33 gebracht. Extra
+effectmodellen, blokinstanties/kanalen, flexibele ketens, PEQ/Pitch-inpassing,
+Reverb en meerdere Delay-voicings in AMP/CAB, en exact raw Undo staan apart
+in het [migratieoverzicht](AFX3-FIRMWARE-MIGRATION.md). Een nieuwe, onbekende
+firmware blijft alleen-lezen totdat de gewijzigde communicatie is gecontroleerd.
+
 ### Ontwerpen in gesprek met de AI
 
 De geselecteerde AI kan tijdens routeonderzoek en planbouw zelf een gerichte

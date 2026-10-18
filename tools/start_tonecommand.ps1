@@ -16,6 +16,8 @@ $tcFiles = @('server.py','fm9/planner.py','fm9/protocol.py','fm9/device.py',
     'devices/axefx3/data/fw33_cab_models.json','devices/axefx3/data/fw33_cab_probe.json',
     'devices/axefx3/data/fw33_drive_probe.json','devices/axefx3/data/fw33_effect_calibration.json',
     'devices/axefx3/data/fw33_zero_tempo_calibration.json',
+    'devices/axefx3/data/fw33_inherited_controls.json',
+    'devices/axefx3/data/fw33_legacy_zeros.json',
     'devices/axefx3/data/fw33_effect_models.json') + @(
     Get-ChildItem -LiteralPath (Join-Path $tcSource 'devices\axefx3') -File -Filter '*.py' |
         ForEach-Object { 'devices/axefx3/' + $_.Name })

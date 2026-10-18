@@ -4,16 +4,24 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
-- Preserve FW32.06 migration coverage explicitly: inventory all75 legacy
-  parameter definitions, the13 outstanding FW33 definitions, eight migrated
-  encoders and extra-instance restrictions. Add regression contracts so new
-  profiles cannot silently discard a legacy function or enable old encodings.
-  Release Wah1/2 External1/2 and Auto Engage Off/Fast Pos in the controller
-  workspace on exact FW33/MK2 after native creation/reassignment, full-state
-  preservation and independent Axe-Edit checks. Reuse the FW32 pedal engine
-  behind a separate single-write FW33 boundary. Normal controller review/SEND
-  passes and refuses token replay. No global CC, curve, Store, Volume, pitch
-  or automatic FW33 tone-planner controller integration is enabled.
+- Make firmware catalogs additive: FW33 retains all75 approved FW32.06
+  parameter definitions plus eight additions. Migrate the13 missing controls
+  using captured encoders, normal setters, independent display/full-state
+  readback and Axe-Edit comparison. Retain nine explicit encoder corrections
+  and all approved scalar-zero variants. Integrate Cry Babe/shared-A voicing,
+  scene bypass and External1/2 Off/Fast Pos into normal FW33 AMP/CAB planning,
+  review/SEND, refinement and design resume. A201-action hardware build and
+  actual selected-AI277-action normal SEND passed with four-scene proofs and
+  independent editor checks. Fix empty-grid preflight for future Cab mixer
+  writes without releasing their live SET guard. Fix native free-slot
+  comparison when an unused modifier retains
+  a parameter ordinal. Reuse the old pedal engine for separately reviewed
+  Wah1/2 and Volume/Pan1, requiring the full-range Volume curve, Type Volume,
+  all-channel0dB Level and Auto Engage Off. Preserve source/curve/global CCs
+  unless explicitly reviewed. Add a read-only migration report separating
+  parameter completeness from remaining models, instances, channels, flexible
+  routing and raw restore. Unknown firmware remains read-only; no generic
+  graph, pitch-transposition, global, NAM-memory or Store permission is added.
 
 - Let the selected AI ask general musical clarification questions during FX3
   route exploration and design, not only predefined intake questions. Keep

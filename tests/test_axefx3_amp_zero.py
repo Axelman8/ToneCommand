@@ -42,7 +42,8 @@ def test_zero_setters_are_exact_typed_knob_frames_not_normalized_enums(monkeypat
         spec=d.reg.find_param('DISTORT',name)
         assert protocol.set_parameter(d.reg,spec,0.)==protocol.param_frame(58,spec.param_id,0.,opcode=9)
     for name in ('DISTORT_LEVEL',):
-        with pytest.raises(ValueError):protocol.set_parameter(d.reg,d.reg.find_param('DISTORT',name),0.)
+        spec=d.reg.find_param('DISTORT',name)
+        assert protocol.set_parameter(d.reg,spec,0.)==protocol.param_frame(58,spec.param_id,0.,opcode=9)
 
 
 @pytest.mark.parametrize('field,value',[('gain',-.01),('bass',True),('level',0.),('level',-11.9)])

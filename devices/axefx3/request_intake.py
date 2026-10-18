@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
-from . import fw33_profile
+from . import fw33_profile,wah_voicing
 
 
 class Resolution(BaseModel):
@@ -23,6 +23,14 @@ WORDS = dict(zip('een one twee two drie three vier four vijf five zes six zeven 
 
 def normalized(text):
     return ''.join(c for c in unicodedata.normalize('NFKD', text.casefold()) if not unicodedata.combining(c))
+
+
+def explicit_wah_source(prompt,selected=None):
+    if selected is not None:return selected
+    text=normalized(prompt)
+    if not _positive(text,r'\bwah\b'):return None
+    choices=set(re.findall(r'\bexternal\s*([12])\b',text))
+    return 'External '+next(iter(choices)) if len(choices)==1 else None
 
 
 def scene_counts(prompt):
@@ -63,7 +71,8 @@ def analyze(prompt, reg, mode, scenes, resolution=None, *, refining=False, wah_s
     # auto is route exploration, not permission to drop requirements. Recheck
     # against the actual selected route before any design call.
     if mode != 'auto':
-        if fw33 and (wah or controller):
+        supported_wah=(mode=='amp' and wah_voicing.RELEASED and getattr(reg,'hardware_variant',None)=='mk2')
+        if fw33 and (wah or controller) and not supported_wah:
             missing.append('wah_controller')
         if actual_pitch:
             missing.append('pitch')

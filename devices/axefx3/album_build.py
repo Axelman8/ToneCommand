@@ -8,7 +8,7 @@ from dataclasses import replace
 import time
 from fm9.device import SetResult
 from fm9 import protocol as shared
-from . import album_planning as planning, fw33_profile, serial_build, protocol, grid, tone_review,reviewed_effects
+from . import album_planning as planning, fw33_profile, serial_build, protocol, grid, tone_review,reviewed_effects,wah_voicing
 from .controller_review import digest
 
 
@@ -80,7 +80,26 @@ def validate_actions(reg,actions,existing):
     if any(a.get('block') in ('COMP','GEQ') and a['kind']=='set_param' for a in actions):
         first_scene=next((i for i,a in enumerate(actions) if a['kind']=='set_scene'),len(actions))
         reviewed_effects.reconstruct(base,actions,first_scene,planning)
-    expected=planning.actions_for(reg,base,existing)
+    wah_values={a.get('param'):a.get('value') for a in actions[:next((i for i,a in enumerate(actions) if a['kind']=='set_scene'),len(actions))]
+        if a.get('block')=='WAH' and a['kind']=='set_param'}
+    controller=None
+    bindings=[a for a in actions if a['kind']=='bind_controller']
+    if wah_values:
+        if not wah_voicing.RELEASED:raise ValueError('Wah planner not released')
+        base.wah=wah_voicing.Voice.model_validate({key:wah_values.get(name) for key,name in wah_voicing.FIELDS.items()})
+        mapping=planning.layout(base.model_dump());scene=0
+        for a in actions:
+            if a['kind']=='set_scene':scene=a['value']
+            if scene and a['kind']=='set_bypass' and a.get('block')=='WAH':
+                if type(a.get('bypassed')) is not bool or type(scene) is not int or scene not in range(1,count+1):
+                    raise ValueError('Invalid Wah scene mapping')
+                mapping[scene-1]['wah']=not a['bypassed']
+        base.scene_layout=[planning.SceneLayout.model_validate(item) for item in mapping]
+    if bindings:
+        if len(bindings)!=1 or base.wah is None:raise ValueError('One explicitly voiced Wah binding required')
+        controller=wah_voicing.controller(bindings[0].get('source'),bindings[0].get('auto_engage'))
+        if controller is None:raise ValueError('Explicit controller source required')
+    expected=planning.actions_for(reg,base,existing,controller)
     if len(actions)!=len(expected): raise ValueError('Incomplete or extra album actions')
     role_flags={j for i,a in enumerate(expected) if a['kind']=='rename_scene' for j in (i-2,i-1)}
     # Same measured A-D selectors; only musical assignment is generalized.
@@ -104,7 +123,9 @@ def validate_actions(reg,actions,existing):
         if kind=='set_param':
             quiet_stage=(template['param']=='DISTORT_LEVEL' and
                 (expected[index+1]['kind']=='set_type' or (expected[index+1]['kind']=='set_channel'
-                    and expected[index+1].get('block') in ('FUZZ','COMP','GEQ'))))
+                    and expected[index+1].get('block') in ('FUZZ','COMP','GEQ'))
+                    or expected[index+1].get('param')=='WAH_LEVEL'))
+            quiet_stage=quiet_stage or (template['param']=='WAH_LEVEL' and expected[index+1]['kind']=='set_type')
             if template['param']!='OUTPUT_LEVEL' and not (
                     quiet_stage):
                 allowed={'value'}
@@ -118,7 +139,8 @@ def validate_actions(reg,actions,existing):
                 raise ValueError('Exact-zero effect controls are not released')
         if kind=='set_type':
             names=(planning.MODELS.values() if template['block']=='DISTORT' else
-                (reviewed_effects.model(template['block'])[4],) if template['block'] in ('COMP','GEQ') else ('T808 Mod',))
+                (reviewed_effects.model(template['block'])[4],) if template['block'] in ('COMP','GEQ') else
+                ('Cry Babe',) if template['block']=='WAH' else ('T808 Mod',))
             if actual['type_name'] not in names: raise ValueError('Unmeasured album model')
             allowed={'type_name'}
         if kind=='set_cab':
@@ -151,7 +173,11 @@ def prepare(dev,resolved,expected,actual):
     now=tone_review.snapshot(dev,include_nam=False)
     if now['scene']!=1 or (grid.snapshot(now['grid']) and grid.snapshot(now['grid'])!=serial_build.expected_grid()):
         raise ValueError('Album build begins on scene1 of empty or exact measured row1')
-    if any(m['active'] for m in now['modifiers']): raise ValueError('Album build never clears active modifiers')
+    if not wah_voicing.modifiers_allowed(now['modifiers']): raise ValueError('Album build preserves only independently assessed Wah1 modifiers')
+    if any(i.action['kind']=='bind_controller' for i in resolved) and actual:
+        from . import pedal_control
+        for item in resolved:
+            if item.action['kind']=='bind_controller':pedal_control.preflight(dev,item.effect_id,*item.value)
     if actual:
         if any(b.channel!=0 or b.channels_supported!=4 for b in now['blocks'] if b.effect_id in expected):
             raise ValueError('Existing album foundation must begin on channel A')
@@ -175,15 +201,15 @@ def frame_allowed(dev,frame):
         and session.frame==tuple(frame) and session.item is not None)
     if not active: return False
     item=session.item
-    if item.action['kind']=='set_bypass' and item.effect_id in (118,46,50):
-        return frame==protocol.param_frame(item.effect_id,{118:7,46:9,50:18}[item.effect_id],int(item.value),opcode=9)
+    if item.action['kind']=='set_bypass' and item.effect_id in (118,46,50,94):
+        return frame==protocol.param_frame(item.effect_id,{118:7,46:9,50:18,94:12}[item.effect_id],int(item.value),opcode=9)
     if item.action['kind']=='set_type':
         eid=item.effect_id
         if eid in (46,50):
             _,_,selector,ordinal,name=reviewed_effects.model(item.family)
             return item.value==name and frame==protocol.param_frame(eid,selector,ordinal,opcode=9)
-        ordinal=next(k for k,v in planning.MODELS.items() if v==item.value) if eid==58 else 8
-        return eid in (58,118) and frame==protocol.param_frame(eid,0,ordinal,opcode=9)
+        ordinal=next(k for k,v in planning.MODELS.items() if v==item.value) if eid==58 else 2 if eid==94 else 8
+        return eid in (58,118,94) and frame==protocol.param_frame(eid,0,ordinal,opcode=9)
     if item.action['kind']=='set_cab':
         bank,ordinal,side=item.value
         slot=int(side[2:])-1 if side.startswith('ir') else 0
@@ -213,6 +239,7 @@ class Session:
         self.scene_count=sum(i.action['kind']=='rename_scene' for i in resolved)
         self.expected=tone_review.snapshot(dev,include_nam=False)
         self.expanded=any(i.family=='CABINET' and i.spec for i in resolved)
+        self.wah=any(i.family=='WAH' and i.spec for i in resolved)
         cab_layout(self.expected['bulk'].get(62),expanded=self.expanded)
         dev._album_session=self
 
@@ -254,6 +281,18 @@ class Session:
             if self.dev.get_bypass(118) is value:return value
         raise ValueError('Drive bypass status mismatch; no retry or rollback')
 
+    def wah_bypass(self,value):
+        if self.dev.get_channel(94)!=0:raise PermissionError('Wah requires independently measured channel A')
+        if not value:
+            level=self.dev.get_param_display(self.dev.reg.find_param('WAH','WAH_LEVEL'))
+            if self.expected['bulk'][94][0]!=2 or type(level) not in (int,float) or level>0:
+                raise PermissionError('Cry Babe and nonpositive final Wah level required')
+        self.write(protocol.param_frame(94,12,int(value),opcode=9))
+        for _ in range(5):
+            time.sleep(.15)
+            if self.dev.get_bypass(94) is value:return value
+        raise ValueError('Wah bypass status mismatch; no retry')
+
     def model(self,name):
         before=self.expected
         eid=self.item.effect_id;stride=fw33_profile.STRIDES[self.item.family]
@@ -261,7 +300,7 @@ class Session:
         base=stride*channel
         selector=0
         if eid in (46,50):_,_,selector,ordinal,_=reviewed_effects.model(self.item.family)
-        else:ordinal=next(k for k,v in planning.MODELS.items() if v==name) if eid==58 else 8
+        else:ordinal=next(k for k,v in planning.MODELS.items() if v==name) if eid==58 else 2 if eid==94 else 8
         if before['bulk'][eid][base+selector]==ordinal: return SetResult(True,'Model retained without reset',name,name)
         level=self.dev.get_param_display(self.dev.reg.find_param('DISTORT','DISTORT_LEVEL'))
         if (self.dev.get_bypass(58) is not True or self.dev.get_bypass(eid) is not True
@@ -339,6 +378,21 @@ class Session:
                     if self.index>=len(self.resolved)-self.scene_count:
                         if len(self.scene_states)!=self.scene_count: return False
                         wanted['blocks']=self.scene_states[item.value]
+                        if self.wah_auto(now):
+                            wanted['blocks']=[replace(b,bypassed=next(x.bypassed for x in now['blocks'] if x.effect_id==94)) if b.effect_id==94 else b for b in wanted['blocks']]
+                elif kind=='bind_controller':
+                    from . import pedal_control
+                    wanted_words=[m['words'].copy() for m in before['modifiers']]
+                    found=[i for i,w in enumerate(wanted_words) if w[8:10]==[94,5]]
+                    if found:slot=found[0]
+                    else:
+                        slot=next(i for i,w in enumerate(wanted_words) if w[0]==w[8]==0)
+                        wanted_words[slot]=pedal_control.default_words(94)
+                    wanted_words[slot][0]=item.value[0]
+                    if item.value[1] is not None:wanted_words[slot][10]=pedal_control.MODES[item.value[1]]
+                    if [m['words'] for m in now['modifiers']]!=wanted_words:return False
+                    wanted['modifiers']=now['modifiers']
+                    wanted['blocks']=[replace(b,bypassed=next(x.bypassed for x in now['blocks'] if x.effect_id==94)) if b.effect_id==94 else b for b in before['blocks']]
                 elif kind=='rename_preset': wanted['preset']=(before['preset'][0],item.value)
                 elif kind=='rename_scene':
                     wanted['scene_names']=list(before['scene_names'])
@@ -349,11 +403,17 @@ class Session:
                 raise PermissionError('Output attenuation changed; retain external mute')
             self.expected=now;self.index+=1
             if kind=='rename_scene': self.scene_states[item.value]=list(now['blocks'])
+            if kind=='bind_controller' or (kind=='set_scene' and self.index>len(self.resolved)-self.scene_count):
+                self.scene_states[now['scene']]=list(now['blocks'])
             return result
         except BaseException:
             self.failed=True
             raise
         finally: self.item=None;self.frame=None
+
+    def wah_auto(self,state):
+        return any(m['active'] and m['words'][8:10]==[94,5] and m['words'][0] in (12,13)
+            and m['words'][10]==6 for m in state['modifiers'])
 
     def proof(self):
         if self.failed or self.index!=len(self.resolved) or len(self.scene_states)!=self.scene_count:

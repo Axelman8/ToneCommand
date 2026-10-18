@@ -62,9 +62,9 @@ def test_exact_identity_required_and_fm9_untouched():
     assert protocol.envelope(8,[])[4]==16
 
 
-def test_exact_70_controls_no_legacy_model_setters_or_extra_instance():
+def test_exact_83_controls_no_legacy_model_setters_or_extra_instance():
     reg=Registry(profile.KEY)
-    assert len(reg.params)==70 and profile.CONTROL_COUNT==70 and not reg.selectable_amp_models()
+    assert len(reg.params)==83 and profile.CONTROL_COUNT==83 and not reg.selectable_amp_models()
     assert reg.resolve_block('NAM')==('NAM',206)
     assert reg.family_of_effect_id(78)==('CHORUS',1)
     with pytest.raises(ValueError):reg.resolve_block('NAM',2)

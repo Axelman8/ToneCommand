@@ -107,7 +107,7 @@ def observed_target(reg, words):
 
     In Volume/Pan 1, PID 0 is Volume, NOT a model selector. Naming that
     observed target never adds a writable spec or authorizes an allocation.
-    Volume remains FW32.06-only; the FW33 migration covers Wah1/2 only.
+    Volume has a separate full-range, Type Volume,0dB acceptance boundary.
     Mode labels alone are not SET evidence. Off/Fast Pos have a separate
     bounded setter capture and replay; physical bypass remains unverified.
     """
@@ -119,7 +119,9 @@ def observed_target(reg, words):
     target = (words[8], words[9])
     name = {(94, 5): "WAH_CONTROL", (95, 5): "WAH_CONTROL",
             (102, 0): "VOLUME_CONTROL"}.get(target)
-    if modern and target not in ((94,5),(95,5)):
+    modern_targets={(94,5),(95,5)}
+    if pedal_fw33.VOLUME_RELEASED:modern_targets.add((102,0))
+    if modern and target not in modern_targets:
         return None
     if name is None:
         return None

@@ -115,7 +115,10 @@ class AxeFxIII:
                 raise PermissionError("Raw writes must pass the verified Axe-Fx III action path")
             if fn == 1:
                 from . import album_build
-                if album_build.frame_allowed(self,frame):
+                from . import inherited_controls_probe
+                if inherited_controls_probe.allowed(self,frame):
+                    pass  # Exact immutable developer fixture, never a generic SET.
+                elif album_build.frame_allowed(self,frame):
                     pass  # Exact active reviewed operation, plus approved frame above.
                 elif (self.reg.firmware=='33.00-beta.20261006'
                         and getattr(self,'_fw33_tempo_permit',None)==tuple(frame)):

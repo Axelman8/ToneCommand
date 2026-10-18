@@ -222,8 +222,9 @@ function controls(){
   el('namSlot').disabled=busy||!namSlots;
   el('namInstallPrepare').disabled=busy||!namSelection?.model||!namAccount?.installation_supported||!state?.connected||!namSlots||!el('namSlot').value;
   el('namInstallCommit').disabled=busy||!namPreview||!el('namInstallMute').checked||!el('namInstallFlash').checked||!el('namInstallOverwrite').checked;
-  el('wah').disabled=busy||fw33; if(fw33)el('wah').value='';
-  el('wahMode').disabled=busy||fw33||!el('wah').value;
+  const wahSupported=!fw33||(album&&state?.wah_planning_supported);
+  el('wah').disabled=busy||!wahSupported||adjusting; if(!wahSupported)el('wah').value='';
+  el('wahMode').disabled=busy||!wahSupported||adjusting||!el('wah').value;
   el('storePrepare').disabled=busy||!fw33||!state?.connected;
   el('storeCommit').disabled=busy||!storePreview||!el('storeMute').checked||!el('storeFlash').checked;
   el('send').disabled=busy||currentStage!==3||el('deviceChoice').value!=='axefx3'||!proposal||!el('confirmed').checked||!el('muted').checked;
@@ -233,9 +234,10 @@ function controls(){
     el('wahMode').value==='Off'?'Off: het pedaal stuurt de Wah-filterstand, maar schakelt de Wah niet automatisch aan of uit.':
     'Bestaande Auto Engage-modus blijft behouden. Bij een nieuwe koppeling gebruikt het apparaat zijn standaard; controleer het gedrag.';
   if(!fw33&&state?.multiscene_planning_supported)el('controllerHint').textContent+=' Tot acht scenes, maximaal vier verschillende instellingen per blok. Gelijke instellingen delen kanalen; bypass en uitgangsniveau kunnen solo en ritme onderscheiden.';
+  if(album&&state?.wah_planning_supported)el('controllerHint').textContent=`FW33 AMP/CAB: ${albumCountText} scenes; Wah Cry Babe op gedeeld A met External 1 of 2. Fast Pos kan de scenebypass door pedaalbeweging veranderen; Off gebruikt aan/uit via scenes. Globale CC-mapping blijft op je apparaat.`;
   if(fw33&&state?.firmware_migration?.wah_controller_workspace){
     el('controllerHint').textContent=el('controllerHint').textContent.replace('Nieuwe controllerkoppelingen zijn voor dit profiel nog niet geverifieerd.','Deze NAM-bouwroute maakt geen nieuwe controllerkoppelingen.');
-    el('controllerHint').textContent+=' Wah 1/2 kan op FW33 wel afzonderlijk aan External 1/2 worden gekoppeld via CONTROLLERS onderaan. De bovenstaande ontwerpkeuze is nog niet aangesloten op deze FW33-bouwroute; Volume en pitch zijn hiermee niet vrijgegeven.';
+    el('controllerHint').textContent+=state?.wah_planning_supported&&album?' Wah 1/2 kan ook afzonderlijk via CONTROLLERS worden gekoppeld. Echte pitchverhoging is een andere functie.':' Wah 1/2 kan afzonderlijk via CONTROLLERS worden gekoppeld. Deze bouwroute maakt die koppeling niet zelf.';
   }
 }
 function invalidate(){proposal=null;stage(0);el('confirmed').checked=el('muted').checked=false;
@@ -779,7 +781,7 @@ function showDesign(plan){
   const design=plan.design, controller=plan.controller;
   if(plan.mode==='album'){
     el('toneChoice').textContent='Maximaal vier ampvoicings en vier cabkanalen A-D, expliciete indeling per scene; Output A -18dB.';
-    el('controllerChoice').textContent='Alleen expliciet ingerichte effecten actief; overige reserveblokken bypassed. Geen nieuwe controllers of NAM.';
+    el('controllerChoice').textContent=controller?.source?`Wah A: ${controller.source} | Auto Engage: ${controller.auto_engage||'behouden'}. Globale CC-mapping niet gewijzigd.`:'Alleen ingerichte effecten actief; bestaande Wah-koppeling wordt behouden. Geen NAM.';
     el('planWarnings').replaceChildren();for(const warning of plan.warnings||[]){const li=document.createElement('li');li.textContent=warning;el('planWarnings').append(li);}
     el('sceneTable').hidden=false;el('sceneRows').replaceChildren();
     const layout=design.scene_layout||design.albums.flatMap((a,c)=>[a.lead,a.solo].map(role=>({...role,amp_channel:c,cab_channel:c})));
@@ -790,7 +792,8 @@ function showDesign(plan){
       const comp=album.compressor,eq=album.geq;
       const auxiliary=[drive,comp?`Compressor: ${role.compressor?'aan':'uit'} / ${'ABCD'[role.amp_channel]} | ${comp.model}, threshold ${comp.threshold}dB, ratio ${comp.ratio}, attack ${comp.attack_ms}ms, release ${comp.release_ms}ms, mix ${comp.mix}%, level ${comp.level}dB, auto OFF`:'Compressor: uit (geen voicing)',
         eq?`GEQ: ${role.geq?'aan':'uit'} / ${'ABCD'[role.amp_channel]} | ${eq.model}, banden ${eq.gains.join('/')}dB, Q ${eq.q}, level ${eq.level}dB`:'GEQ: uit (geen voicing)'].join('\n');
-      for(const value of [`${index+1}. ${role.name} / ${'ABCD'[role.amp_channel]}`,`${album.amp_model} | gain ${album.amp.gain} | EQ ${album.amp.bass}/${album.amp.mid}/${album.amp.treble} | ${album.amp.level}dB`,'Uit',role.chorus?`${design.chorus.rate_hz}Hz / ${design.chorus.mix}% (A)`:'Uit',role.delay?`${design.delay.time_ms}ms / ${design.delay.feedback}% / ${design.delay.mix}% (A)`:'Uit','Niet in route',`${auxiliary}\n${cabDescription(cab)} | Output A -18dB`]){const td=document.createElement('td');td.textContent=value;row.append(td);}
+      const wah=design.wah?`${role.wah?'Aan':'Uit'} | ${design.wah.model} (A), ${design.wah.frequency_min}-${design.wah.frequency_max}Hz`:'Uit';
+      for(const value of [`${index+1}. ${role.name} / ${'ABCD'[role.amp_channel]}`,`${album.amp_model} | gain ${album.amp.gain} | EQ ${album.amp.bass}/${album.amp.mid}/${album.amp.treble} | ${album.amp.level}dB`,wah,role.chorus?`${design.chorus.rate_hz}Hz / ${design.chorus.mix}% (A)`:'Uit',role.delay?`${design.delay.time_ms}ms / ${design.delay.feedback}% / ${design.delay.mix}% (A)`:'Uit','Niet in route',`${auxiliary}\n${cabDescription(cab)} | Output A -18dB`]){const td=document.createElement('td');td.textContent=value;row.append(td);}
       el('sceneRows').append(row);
     }return;
   }

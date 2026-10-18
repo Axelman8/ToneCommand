@@ -358,6 +358,12 @@ The bounded Windows/MK2 NAM path includes account search, separately confirmed
 native installation, reviewed edit-buffer builds and separately confirmed
 same-slot Store. No Axe-Edit automation is required by that path.
 
+The exact FW33/MK2 AMP/CAB path also supports reviewed scene designs and
+Cry Babe/Wah1 controller binding. Its additive parameter catalog retains all75
+approved FW32.06 definitions plus eight additions. Parameter coverage is not
+blanket model, channel, routing or Undo support: see the
+[firmware inheritance contract and remaining workflows](docs/AFX3-FIRMWARE-MIGRATION.md).
+
 The integrated source must pass its own hardware regression before deployment;
 historical good-sounding presets do not certify a refactored adapter. See
 [compatibility and remaining limits](docs/FW33-COMPATIBILITY.md) and
