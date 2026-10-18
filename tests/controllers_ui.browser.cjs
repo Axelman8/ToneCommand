@@ -1,7 +1,9 @@
-// Run against a local SIM server. API mocks never open MIDI or send to hardware.
+// Local shipped assets and mocked APIs. No server, MIDI or hardware writes.
 // TC_PLAYWRIGHT_MODULE can point to an existing Playwright installation.
 const {chromium} = require(process.env.TC_PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 (async () => {
   const browser = await chromium.launch({headless:true,
@@ -43,6 +45,15 @@ const assert = require('node:assert/strict');
         }
       }
       await route.fulfill({status,contentType:'application/json',body:JSON.stringify(result)});
+    });
+    await page.route('**/*',async route=>{
+      const pathname=new URL(route.request().url()).pathname;
+      if(pathname.startsWith('/api/controllers/'))return route.fallback();
+      const names={'/controllers':'controllers.html','/controllers.js':'controllers.js','/logo.png':'logo.png'};
+      const name=names[pathname];
+      if(!name)return route.fulfill({status:404,body:''});
+      return route.fulfill({contentType:name.endsWith('.js')?'text/javascript':name.endsWith('.png')?'image/png':'text/html',
+        body:fs.readFileSync(path.join(__dirname,'../ui',name))});
     });
     await page.goto((process.env.TC_TEST_URL || 'http://127.0.0.1:8911')+'/controllers');
     await page.locator('#connect:not([disabled])').waitFor();
@@ -87,6 +98,13 @@ const assert = require('node:assert/strict');
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
     if(process.env.TC_SCREENSHOT) await page.screenshot({path:process.env.TC_SCREENSHOT,fullPage:true});
     assert.deepEqual(errors,[]);
+    // The migrated FW33 wah remains usable while unmeasured Volume is blocked.
+    state.firmware='33.00-beta.20261006';
+    state.targets[1].writable=false;state.targets[1].reason='Volume has not been migrated';
+    await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    assert(await page.locator('#source-95').isEnabled());
+    assert(await page.locator('#source-102').isDisabled());
+    assert.match(await page.locator('#rows').textContent(),/Volume has not been migrated/);
     await page.click('#disconnect');await page.locator('#connect:not([disabled])').waitFor();
     assert.equal(sends.length,2);
     console.log('PASS: controller UI selection, review invalidation, confirmations, send, failure, XSS, mobile, disconnect. Hardware writes: 0.');

@@ -1,6 +1,6 @@
 # FX3 adapter FW33/NAM port
 
-## Current acceptance, 2026-10-17
+## Current acceptance, 2026-10-18
 
 The sections below record successive historical checkpoints, not a single
 current feature list. Current support includes336 amps,2048 Factory cabs,
@@ -10,8 +10,12 @@ measured Amp/effect scalar zeros and automatic verified Tempo NONE on reviewed
 AMP/CAB timing pass native, normal SEND and independent editor acceptance.
 See [zero/timing scope](AFX3-ZERO-TEMPO.md), the
 [seventeen-item ledger](AFX3-COMPLETION-BACKLOG.md) and
-[remaining work](AFX3-REMAINING-ACCEPTANCE.md). This does not enable arbitrary
-graphs, controllers, every effect model or other firmware/chassis/platforms.
+[remaining work](AFX3-REMAINING-ACCEPTANCE.md). Wah1/2 source binding and
+Off/Fast Pos Auto Engage now also pass native and independent editor checks
+through the separate controller workspace. See the
+[firmware migration inventory](AFX3-FIRMWARE-MIGRATION.md) for retained legacy
+functions and outstanding planner integration. This does not enable arbitrary
+graphs, other controller targets, every effect model or other firmware/chassis/platforms.
 
 ## Earlier port baseline
 

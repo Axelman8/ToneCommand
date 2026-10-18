@@ -4,6 +4,17 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Preserve FW32.06 migration coverage explicitly: inventory all75 legacy
+  parameter definitions, the13 outstanding FW33 definitions, eight migrated
+  encoders and extra-instance restrictions. Add regression contracts so new
+  profiles cannot silently discard a legacy function or enable old encodings.
+  Release Wah1/2 External1/2 and Auto Engage Off/Fast Pos in the controller
+  workspace on exact FW33/MK2 after native creation/reassignment, full-state
+  preservation and independent Axe-Edit checks. Reuse the FW32 pedal engine
+  behind a separate single-write FW33 boundary. Normal controller review/SEND
+  passes and refuses token replay. No global CC, curve, Store, Volume, pitch
+  or automatic FW33 tone-planner controller integration is enabled.
+
 - Let the selected AI ask general musical clarification questions during FX3
   route exploration and design, not only predefined intake questions. Keep
   server-owned, device/request-bound answer history, free-text answers and

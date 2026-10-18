@@ -43,7 +43,9 @@ def default_words(effect_id):
 
 def entries(dev):
     if dev.reg.firmware != "32.06" or dev.firmware_label() != "32.06":
-        raise ValueError("Pedal operations require captured firmware 32.06")
+        from . import pedal_fw33
+        if not pedal_fw33.supported(dev,94):
+            raise ValueError("Pedal operations require an independently verified firmware/device profile")
     result = modifiers.inspect(dev)
     owners = set()
     for e in result:
@@ -86,6 +88,10 @@ def context(dev, target, slots):
 
 def preflight(dev, effect_id, source, auto_engage=None):
     validate(effect_id, source, auto_engage)
+    if dev.reg.firmware != '32.06':
+        from . import pedal_fw33
+        if not pedal_fw33.supported(dev,effect_id):
+            raise ValueError('FW33 supports measured Wah1/2 Control only; Volume has not been migrated')
     slots = entries(dev)
     matches = [e for e in slots if (e["effect_id"], e["param_id"]) == (effect_id, TARGETS[effect_id])]
     if len(matches) > 1 or (matches and not matches[0]["active"]):
@@ -100,9 +106,15 @@ def preflight(dev, effect_id, source, auto_engage=None):
 
 def bind(dev, effect_id, source, auto_engage=None):
     slots, before_context, slot = preflight(dev, effect_id, source, auto_engage)
+    def write(frame):
+        if dev.reg.firmware == '32.06':
+            dev._write(frame)
+        else:
+            from .pedal_fw33 import Operation
+            Operation(dev,effect_id).write(frame)
     wanted = [e["words"].copy() for e in slots]
     if slot is None:
-        dev._write(allocation_frame(effect_id))
+        write(allocation_frame(effect_id))
         for _ in range(4):
             time.sleep(.15)
             after = modifiers.inspect(dev)
@@ -129,7 +141,7 @@ def bind(dev, effect_id, source, auto_engage=None):
             continue
         frame = modifiers.source_frame(slot, value) if pid == 0 else auto_frame(slot, value)
         previous = [w.copy() for w in wanted]
-        dev._write(frame)
+        write(frame)
         wanted[slot - 1][pid] = value
         matched = False
         for _ in range(4):

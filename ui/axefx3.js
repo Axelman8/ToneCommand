@@ -233,6 +233,10 @@ function controls(){
     el('wahMode').value==='Off'?'Off: het pedaal stuurt de Wah-filterstand, maar schakelt de Wah niet automatisch aan of uit.':
     'Bestaande Auto Engage-modus blijft behouden. Bij een nieuwe koppeling gebruikt het apparaat zijn standaard; controleer het gedrag.';
   if(!fw33&&state?.multiscene_planning_supported)el('controllerHint').textContent+=' Tot acht scenes, maximaal vier verschillende instellingen per blok. Gelijke instellingen delen kanalen; bypass en uitgangsniveau kunnen solo en ritme onderscheiden.';
+  if(fw33&&state?.firmware_migration?.wah_controller_workspace){
+    el('controllerHint').textContent=el('controllerHint').textContent.replace('Nieuwe controllerkoppelingen zijn voor dit profiel nog niet geverifieerd.','Deze NAM-bouwroute maakt geen nieuwe controllerkoppelingen.');
+    el('controllerHint').textContent+=' Wah 1/2 kan op FW33 wel afzonderlijk aan External 1/2 worden gekoppeld via CONTROLLERS onderaan. De bovenstaande ontwerpkeuze is nog niet aangesloten op deze FW33-bouwroute; Volume en pitch zijn hiermee niet vrijgegeven.';
+  }
 }
 function invalidate(){proposal=null;stage(0);el('confirmed').checked=el('muted').checked=false;
   el('rigReport').hidden=true;

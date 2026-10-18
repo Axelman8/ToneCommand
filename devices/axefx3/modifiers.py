@@ -103,18 +103,24 @@ def curve_usable(words):
 
 
 def observed_target(reg, words):
-    """Read-only labels independently paired with Axe-Edit on FW 32.06.
+    """Read-only labels paired with Axe-Edit on FW32.06 and exact FW33/MK2.
 
     In Volume/Pan 1, PID 0 is Volume, NOT a model selector. Naming that
     observed target never adds a writable spec or authorizes an allocation.
+    Volume remains FW32.06-only; the FW33 migration covers Wah1/2 only.
     Mode labels alone are not SET evidence. Off/Fast Pos have a separate
     bounded setter capture and replay; physical bypass remains unverified.
     """
-    if reg.firmware != "32.06" or len(words) != 25:
+    from . import fw33_profile,pedal_fw33
+    modern = (reg.firmware == fw33_profile.KEY and pedal_fw33.RELEASED
+              and getattr(reg,'hardware_variant',None) == 'mk2')
+    if (reg.firmware != "32.06" and not modern) or len(words) != 25:
         return None
     target = (words[8], words[9])
     name = {(94, 5): "WAH_CONTROL", (95, 5): "WAH_CONTROL",
             (102, 0): "VOLUME_CONTROL"}.get(target)
+    if modern and target not in ((94,5),(95,5)):
+        return None
     if name is None:
         return None
     modes = {0: "Off", 6: "Fast Pos"} if name == "WAH_CONTROL" else {0: "Off"}
@@ -142,6 +148,9 @@ def inspect(dev):
         active = source != 0
         assessed = bool(spec is not None and not audio_safety.modifier_error(spec))
         observed = observed_target(dev.reg, words)
+        # The separately measured FW33 modifier target does not imply a
+        # scalar Control setter or an arbitrary controller parameter.
+        assessed = assessed or bool(observed and observed['parameter']=='WAH_CONTROL')
         entries.append({"slot": slot, "source": source,
                         "source_name": SOURCE_NAMES.get(source, f"Source {source}"),
                         "effect_id": eid, "param_id": pid, "active": active,

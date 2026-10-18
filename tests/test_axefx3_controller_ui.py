@@ -21,6 +21,25 @@ def test_read_and_review_do_not_write(rig):
     dev._write.assert_not_called()
 
 
+def test_fw33_existing_wah_can_be_reviewed_without_scalar_or_volume_permission(rig):
+    from devices.axefx3.registry import Registry
+    from devices.axefx3 import fw33_profile
+    dev,slots,_=rig
+    dev.reg=Registry(fw33_profile.KEY);dev.reg.hardware_variant='mk2'
+    dev.firmware_label.return_value=fw33_profile.KEY
+    slots[0]=[0]*25
+    dev.status_dump.return_value=[b for b in dev.status_dump() if b.effect_id==95]
+    state=inspect(dev)
+    assert len(state['targets'])==1 and state['targets'][0]['writable']
+    assert state['targets'][0]['auto_engage']=='Fast Pos'
+    proposal=Reviews().prepare(dev,dict(effect_id=95,source=13,auto_engage='Off'))
+    assert proposal['after_source']=='External 2' and not proposal['new_binding']
+    dev._write.assert_not_called()
+    with pytest.raises((KeyError,ValueError)):dev.reg.spec('WAH',5)
+    with pytest.raises(ValueError,match='Volume'):
+        Reviews().prepare(dev,dict(effect_id=102,source=13,auto_engage='Off'))
+
+
 def test_ticket_executes_once_and_readback_is_reported(rig):
     dev, slots, _ = rig
     reviews = Reviews()

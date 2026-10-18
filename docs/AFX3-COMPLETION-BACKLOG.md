@@ -16,7 +16,7 @@ unchanged. MK2 hardware does not prove MK1 or other firmware compatibility.
 | 7 | Additional block instances/channels | Native layouts and preservation need measurement per supported family. |
 | 8 | Free route construction | Developer graph evidence exists; normal route planner/executor not generally enabled. Send/Return separately guarded. |
 | 9 | One to eight scenes | Released on the measured fixed AMP/CAB route after native prefix1..8 normal SEND with complete full-state/outside-scene checks and separate post-batch eight-scene editor comparison. Compiler/grammar/history/Store/UI agree on the count. This does not prove empty-grid construction for every count or general routing. Narrow serial/NAM paths remain separate. |
-| 10 | Controllers/modifiers | FW33 new bindings and preservation need independent evidence. Global CC maps remain user-owned. |
+| 10 | Controllers/modifiers | Wah1/2 External1/2 and Off/Fast Pos pass native allocation/reassignment, full-state preservation, independent editor comparison and normal controller review/SEND on FW33/MK2. Tone-planner integration, Volume and other targets remain separate. Global CC maps remain user-owned. See the firmware migration inventory. |
 | 11 | Tempo sync and exact zero | Seven core Amp knobs A-D plus four model-bound Delay/Chorus scalar zeros pass72 captured/native literals, actual333-action normal SEND and independent editor comparison. Reviewed AMP/CAB builds automatically verify/set Tempo NONE before literal timing. Other enum/zero domains remain unmeasured; global BPM is not changed. |
 | 12 | Persistent designs and existing-preset refinement | Successful AMP/CAB designs and requested counts1..8 persist privately. Cold resume verifies every requested scene; independent native eight-scene full-state acceptance passes. Arbitrary third-party preset adoption remains unsupported. |
 | 13 | Multi-capture/multiscene NAM | Native install and narrow builds exist. Broader selection/build support pending. |
@@ -61,6 +61,12 @@ current autonomous continuation, foreground/screenshot access became unavailable
 again. New post-native editor acceptance requires a restored interactive session.
 An inaccessible session is not a hardware failure or permission to bypass
 Windows security; new release flags remain disabled until actually verified.
+
+The2026-10-18 session was accessible again. Wah1/2 controller migration now
+passes native allocation/reassignment, full-state preservation, fresh editor
+comparison and the normal registered controller review/SEND. The remaining
+functional gaps are tracked in [firmware migration](AFX3-FIRMWARE-MIGRATION.md);
+this checkpoint does not release unrelated effects or tone-planner wiring.
 
 ## History and audio acceptance boundaries
 

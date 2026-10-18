@@ -147,7 +147,7 @@ def register(app, host):
             try:
                 dev = selected()
                 policy = profile.memory_policy(dev.reg.firmware, getattr(dev.reg, 'hardware_variant', None))
-                from . import fw33
+                from . import fw33,firmware_parity
                 runtime_error=fw33.runtime_write_error(dev)
                 if runtime_error:policy={**policy,'write_supported':False}
                 nam_profile_missing = dev.reg.firmware == fw33_profile.KEY and policy['variant'] != 'mk2'
@@ -159,6 +159,7 @@ def register(app, host):
                                 scene=dev.current_scene(), cab_count=len(dev.reg.cab_catalog.names),
                                 route_problem=runtime_error or ('Choose MK2 for the measured FW33 NAM profile; MK1 NAM is not verified.' if nam_profile_missing else 'Firmware not verified for writes. Search/import are available; preset planning and sending are blocked.'))
                 return dict(connected=True, workspace=workspace, profile=policy,audio_analysis_version=2,
+                            firmware_migration=firmware_parity.report(dev.reg),
                             navigation_supported=navigation.supported(dev),
                             route_options_supported=True,
                             request_intake_supported=True,
