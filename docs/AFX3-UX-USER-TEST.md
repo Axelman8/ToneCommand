@@ -24,6 +24,9 @@ op laag fysiek volume. NAM-installatie en presetopslag zijn aparte toestemmingen
    niet veranderen.
 2. Schrijf een verzoek zonder audiolink. Controleer dat Enter een nieuwe regel
    maakt en dat de primaire knop de volgende stap duidelijk aangeeft.
+   Als TC EVEN AFSTEMMEN toont, beantwoord dan de concrete vraag en gebruik
+   VERDER MET MIJN ANTWOORDEN. Een uitgesteld onderdeel mag niet alsnog als
+   uitgevoerd of gegarandeerd in het voorstel staan.
 3. Laat TC de routes onderzoeken. Kies zelf AMP/CAB of NAM als TC daarom vraagt.
    Er mag nog niets op de Fractal of in NAM-geheugen worden geschreven.
 4. Controleer het gewenste sceneaantal in de ontwerpopties en maak het voorstel.
@@ -73,8 +76,9 @@ Kies beschikbare versterkers en passende cabs; gebruik geschikte Usercabs als
 die in de actuele bibliotheek staan. Voeg alleen nuttige effecten toe. Verander
 geen globale pedaaltoewijzingen. Maak eerst een voorstel; sla nog niets op.
 
-Stel Scenes op 8 zodra de AMP/CAB-route is gekozen. De interface vertaalt een
-sceneaantal in de verzoektekst niet automatisch naar die expliciete keuze.
+Controleer dat TC acht scenes uit het verzoek overneemt. Je kunt bewust een
+ander aantal kiezen in ONTWERPOPTIES. Een beperktere route mag de vraag om acht
+scenes niet zonder jouw keuze reduceren.
 
 ## Feedback om te bewaren
 

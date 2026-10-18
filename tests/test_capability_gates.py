@@ -307,6 +307,7 @@ def _table(sim) -> list[dict]:
         ("POST", "/api/axefx3/cabs", {}, {"kind":"user","text":"U1.0001 Test"}, None),
         ("POST", "/api/axefx3/plan", {}, {"prompt":"test preset","expected_preset":324,"scenes":4}, None),
         ("POST", "/api/axefx3/options", {}, {"prompt":"test preset","expected_preset":324}, None),
+        ("POST", "/api/axefx3/intake", {}, {"prompt":"test preset","expected_preset":324,"scenes":4}, None),
         ("GET", "/api/axefx3/navigation/presets", {}, None, None),
         ("POST", "/api/axefx3/navigation/prepare", {}, {"kind":"scene","value":1,"expected_preset":324,"expected_scene":1}, None),
         ("POST", "/api/axefx3/navigation/select", {}, {"token":"fake-navigation-ticket"}, None),

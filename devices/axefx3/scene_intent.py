@@ -43,6 +43,13 @@ goal's required_features. An unsupported requirement cannot silently disappear.
 '''
 
 
+class MissingFeature(ValueError):
+    """A musical requirement failed validation, not an AI connection failure."""
+    def __init__(self, scene, feature):
+        self.scene, self.feature = scene, feature
+        super().__init__(f'Scene {scene}: vereist {feature}, maar dit is niet geverifieerd in het ontwerp. Geen onbewezen bediening of stilzwijgende vervanging.')
+
+
 def _key(value):
     return json.dumps(value, sort_keys=True, allow_nan=False, separators=(',', ':'))
 
@@ -140,7 +147,7 @@ def assess(plan, *, require=False):
                 reverb=active('reverb'),wah_controller=bool(plan.get('controller') and
                 plan['controller'].get('source')) and active('wah'),pitch=False)
             if not realized[feature]:
-                raise ValueError(f'Scene {goal.scene}: vereist {feature}, maar dit is niet geverifieerd in het ontwerp. Geen onbewezen bediening of stilzwijgende vervanging.')
+                raise MissingFeature(goal.scene, feature)
         if len(set(goal.distinct_from)) != len(goal.distinct_from):
             raise ValueError('Een scenevergelijking mag niet dubbel voorkomen.')
         if goal.distinction == 'shared' and goal.distinct_from:

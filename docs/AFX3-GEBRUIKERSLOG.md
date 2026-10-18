@@ -1,6 +1,6 @@
 # TC Axe-Fx III gebruikerslog
 
-Concept voor GitHub, bijgewerkt op 17 oktober 2026. Dit log beschrijft de
+Concept voor GitHub, bijgewerkt op 18 oktober 2026. Dit log beschrijft de
 gebruikersfuncties en bekende beperkingen van de FX3-integratie op basis van
 TC 1.5.15. De integratie is nog niet als publieke release gepubliceerd.
 
@@ -9,6 +9,30 @@ firmware `33.00-beta.20261006`, Windows, Python 3.12 en de mido MIDI-backend.
 Ondersteuning voor andere apparaten, firmwareversies of besturingssystemen volgt
 niet automatisch uit deze tests. Het afzonderlijke FW32.06-profiel behoudt zijn
 eigen grenzen.
+
+## Wijzigingen op 18 oktober 2026
+
+### Het verzoek afstemmen voor de planbouw
+
+TC herkent expliciete sceneaantallen in Nederlands en Engels, zoals `4 scenes`
+of `vier scènes`. Controleer het overgenomen aantal in ONTWERPOPTIES. Bij
+tegenstrijdige aantallen vraagt TC om een expliciete keuze. Een route die
+minder scenes ondersteunt, mag het gevraagde aantal niet stilzwijgend verlagen.
+
+Bij een verzoek om een wah met hoge pitch vraagt TC of je een hogere,
+helderdere filterstand bedoelt of echte verhoging van de gespeelde toonhoogte.
+Dat zijn verschillende effecten. Antwoord onder EVEN AFSTEMMEN en klik
+VERDER MET MIJN ANTWOORDEN.
+
+Als de gekozen bouwroute een verplicht onderdeel niet ondersteunt, kun je
+expliciet kiezen om alleen het ondersteunde deel te laten ontwerpen. Uitgestelde
+onderdelen blijven zichtbaar als NIET uitgevoerd in het voorstel. Zonder die
+keuze bouwt TC geen gedeeltelijk ontwerp. Nieuwe FW33-wahbediening,
+controllerkoppelingen en pitchverhoging worden hierdoor niet vrijgegeven.
+
+Een ontwerp dat niet door de vereistencontrole komt, geeft een ontwerpbericht
+zonder verzendbaar plan, niet de misleidende melding dat de AI-verbinding stuk
+is. Het oorspronkelijke verzoek blijft behouden. Deze intake verzendt niets.
 
 ## Wijzigingen op 17 oktober 2026
 

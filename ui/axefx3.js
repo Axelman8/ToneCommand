@@ -11,6 +11,47 @@ let currentStage=0;
 let routeExploration=null;
 let navigationPreview=null,presetLibrary=[];
 let refineContext=null,adjusting=false;
+let intakeResolution={},intakeSceneCount=null;
+const intakePanel=document.createElement('section');intakePanel.id='requestQuestions';intakePanel.hidden=true;
+intakePanel.setAttribute('aria-label','Verduidelijk je verzoek');
+el('routeOptionsPanel').before(intakePanel);
+function resetIntake(){intakeResolution={};intakeSceneCount=null;intakePanel.replaceChildren();intakePanel.hidden=true;}
+function showIntake(result){
+  intakeSceneCount=result.scenes;el('scenes').value=String(result.scenes);
+  intakePanel.replaceChildren();intakePanel.hidden=result.ready;
+  if(result.ready)return;
+  stage(0);proposal=null;
+  const title=document.createElement('h2');title.textContent='EVEN AFSTEMMEN VOORDAT TC HET PLAN MAAKT';intakePanel.append(title);
+  for(const question of result.questions){
+    const row=document.createElement('label');row.className='intake-question';row.append(document.createTextNode(question.text+' '));
+    if(question.kind==='choice'){
+      const select=document.createElement('select');select.dataset.intake=question.id;select.append(new Option('Kies wat je bedoelt',''));
+      for(const option of question.options)select.append(new Option(option.label,option.value));
+      select.value=intakeResolution[question.id]||'';
+      select.onchange=()=>{intakeResolution[question.id]=select.value||null;invalidate();};row.append(select);
+    }else if(question.kind==='omission'){
+      const input=document.createElement('input');input.type='checkbox';input.dataset.intake=question.id;
+      input.checked=(intakeResolution.accepted_omissions||[]).includes(question.id);
+      input.onchange=()=>{const chosen=new Set(intakeResolution.accepted_omissions||[]);input.checked?chosen.add(question.id):chosen.delete(question.id);
+        intakeResolution.accepted_omissions=[...chosen];invalidate();};
+      row.prepend(input);row.append(document.createTextNode(' Ja, dit onderdeel uitstellen.'));
+    }else if(question.kind==='scenes'){
+      const select=document.createElement('select');select.dataset.intake='scene_count';select.append(new Option('Kies expliciet het sceneaantal',''));
+      for(let n=1;n<=8;n++)select.append(new Option(String(n),String(n)));
+      select.onchange=()=>{if(!select.value)return;el('scenes').value=select.value;intakeSceneCount=Number(select.value);intakeResolution.scene_count_override=true;invalidate();};row.append(select);
+    }
+    intakePanel.append(row);
+  }
+  const hint=document.createElement('p');hint.textContent='Je oorspronkelijke verzoek blijft behouden. Zonder jouw keuze wordt geen onvolledig plan gemaakt. Er wordt niets verzonden.';intakePanel.append(hint);
+  const next=document.createElement('button');next.type='button';next.textContent='VERDER MET MIJN ANTWOORDEN';next.onclick=()=>el('generate').click();intakePanel.append(next);
+  intakePanel.scrollIntoView({block:'nearest'});note('TC wacht op je keuze bij EVEN AFSTEMMEN. Daarna maakt TC alleen een voorstel.');
+}
+async function ensureIntake(mode){
+  if(!state?.request_intake_supported)return true;
+  const result=await api('intake',{prompt:el('prompt').value,expected_preset:state.preset,mode,scenes:Number(el('scenes').value),
+    resolution:intakeResolution,refining:adjusting,wah_source:el('wah').value||null});
+  showIntake(result);return result.ready;
+}
 const ampRefreshButton=document.createElement('button');ampRefreshButton.id='ampRefresh';ampRefreshButton.textContent='REFRESH AMP MODELS';
 const ampRefreshStatus=document.createElement('p');ampRefreshStatus.id='ampRefreshStatus';ampRefreshStatus.setAttribute('role','status');
 const ampChanges=document.createElement('ul');ampChanges.id='ampChanges';ampChanges.style.maxHeight='200px';ampChanges.style.overflow='auto';ampChanges.hidden=true;
@@ -28,6 +69,7 @@ function clearAudioComparison(){el('comparisonResults').replaceChildren();el('co
 for(const id of ['recordingFile','recordingStart','recordingLength'])el(id).addEventListener('input',clearAudioComparison);
 function enterRefinement(){
   if(!refineContext)return;
+  resetIntake();
   adjusting=true;invalidate();el('buildRoute').value=refineContext.mode;
   el('scenes').value=String(refineContext.count);el('prompt').value='';
   adjustPanel.replaceChildren();const legend=document.createElement('legend');legend.textContent='Welke scenes bijsturen? Andere scene-instellingen blijven beschermd.';adjustPanel.append(legend);
@@ -54,7 +96,7 @@ const modeLabel=document.createElement('label');modeLabel.textContent='Rigvertal
 const rigMode=document.createElement('select');rigMode.id='rigMode';
 rigMode.append(new Option('Dichtstbijzijnde benadering','closest'),new Option('Getrouwe routing (weigert beperkingen)','faithful'),new Option('Vereenvoudigde live-rig','simplified'));
 modeLabel.append(rigMode);modeLabel.hidden=true;sourceLabel.after(modeLabel);
-sourceKind.onchange=()=>{modeLabel.hidden=sourceKind.value!=='rig';audioReference=null;invalidate();
+sourceKind.onchange=()=>{resetIntake();modeLabel.hidden=sourceKind.value!=='rig';audioReference=null;invalidate();
   clearRouteExploration();controls();
   el('audioStatus').textContent=sourceKind.value==='rig'?'Apparatuuruitleg wordt gelezen, geen spraakmeting als gitaarklank.':'Een link wordt als klankvoorbeeld lokaal gemeten.';};
 rigMode.onchange=invalidate;
@@ -112,14 +154,17 @@ function controls(){
   const ampAvailable=awaitingRoute&&!!state?.album_build_supported;
   const maxScenes=album||ampAvailable?Math.max(...albumCounts):serial?1:fw33?(state.route?.length?2:1):state?.multiscene_planning_supported?8:4;
   for(const option of el('scenes').options)option.disabled=album||ampAvailable?!albumCounts.includes(Number(option.value)):Number(option.value)>maxScenes;
-  if((album||ampAvailable)&&!albumCounts.includes(Number(el('scenes').value)))el('scenes').value=String(albumCounts[0]);
-  if(Number(el('scenes').value)>maxScenes)el('scenes').value=String(maxScenes);
+  if(intakeSceneCount===null){
+    if((album||ampAvailable)&&!albumCounts.includes(Number(el('scenes').value)))el('scenes').value=String(albumCounts[0]);
+    if(Number(el('scenes').value)>maxScenes)el('scenes').value=String(maxScenes);
+  }
   el('requestOptionsSummary').textContent=`ONTWERPOPTIES: ${el('scenes').value} SCENE(S), BRON EN CONTROLLERS`;
   el('generate').disabled=busy||el('deviceChoice').value!=='axefx3'||!state?.connected||!!state.route_problem||(!fw33&&!state.cab_count);
   if((serial||album)&&state?.scene!==1)el('generate').disabled=true;
   const chosenRoute=routeExploration?.routes.find(r=>r.mode===el('buildRoute').value);
   if(chooseRoute&&!adjusting&&chosenRoute&&!chosenRoute.enabled)el('generate').disabled=true;
   el('generate').textContent=adjusting?'VOORSTEL VOOR AANPASSING':chooseRoute&&routeExploration&&!chosenRoute?'CHOOSE ROUTE':'GENERATE PLAN';
+  if(!intakePanel.hidden)el('generate').textContent='VERDER MET MIJN ANTWOORDEN';
   el('requestNext').textContent=busy?'TC is bezig. Je verzoek blijft behouden; wacht op de uitkomst.':
     !state?.connected?'Verbind eerst de Fractal; er wordt niets automatisch verzonden.':
     switchingDevice?'Klik OPEN FM9 om naar de geselecteerde apparaatinterface te gaan.':
@@ -134,6 +179,7 @@ function controls(){
   if(adjusting){el('scenes').disabled=true;el('wah').disabled=true;el('wahMode').disabled=true;sourceKind.disabled=true;captureSlot.disabled=true;}
   refineButton.hidden=!refineContext;refineButton.disabled=busy;
   for(const input of adjustPanel.querySelectorAll('input'))input.disabled=busy;
+  for(const input of intakePanel.querySelectorAll('input,select,button'))input.disabled=busy;
   for(const id of ['namSaveKey','namDisconnect','namSuggest','namKey'])el(id).disabled=busy;
   el('namSlotsRefresh').disabled=busy||!namAccount?.installation_supported||!state?.connected;
   el('namSlot').disabled=busy||!namSlots;
@@ -248,6 +294,7 @@ ampRefreshButton.onclick=async()=>{
   finally{busy=false;controls();}
 };
 async function refresh(){
+  resetIntake();
   const priorState=state,priorRoute=el('buildRoute').value,priorScenes=el('scenes').value;
   navigationPreview=null;el('navigationDialog').close();
   clearRouteExploration();invalidate();clearNamSlots();state=null;state=await api('state');
@@ -336,17 +383,21 @@ el('navigationSelect').onclick=()=>run(async()=>{
   el('navigationDialog').close();await refresh();note(`${result.kind==='preset'?'Preset':'Scene'} geselecteerd en van de Fractal teruggelezen. Niets opgeslagen.`);
 });
 for(const id of ['prompt','scenes','wah','wahMode'])el(id).addEventListener('input',invalidate);
-el('prompt').addEventListener('input',()=>{clearRouteExploration();controls();});
+el('prompt').addEventListener('input',()=>{resetIntake();clearRouteExploration();controls();});
+el('scenes').addEventListener('change',()=>{intakeResolution.scene_count_override=true;intakeSceneCount=Number(el('scenes').value);});
 el('audioFile').addEventListener('input',()=>{clearRouteExploration();controls();});
-el('buildRoute').onchange=()=>{invalidate();const choice=routeExploration?.routes.find(r=>r.mode===el('buildRoute').value);
+el('buildRoute').onchange=()=>{intakeResolution.accepted_omissions=[];intakePanel.hidden=true;invalidate();const choice=routeExploration?.routes.find(r=>r.mode===el('buildRoute').value);
   el('routeReason').textContent=choice?choice.reason:'Kies zelf NAM of AMP/CAB.';controls();};
 async function exploreRequestRoutes(){
   if(!el('prompt').value.trim())throw new Error('Beschrijf eerst de gewenste sound of voeg een link toe.');
+  if(!await ensureIntake('auto'))return;
   clearRouteExploration();invalidate();await api('discard',{});
   note('TC onderzoekt je verzoek en de beschikbare bouwroutes. Er wordt niets naar de Fractal gestuurd...');
   if(sourceKind.value==='rig'&&el('audioFile').files.length)throw new Error('Rig-uitleg gebruikt tekst of een YouTube-link. Verwijder het klankbestand of kies klankvoorbeeld.');
   audioReference=sourceKind.value==='rig'?null:await analyseRequestAudio();
-  const result=await api('options',{prompt:el('prompt').value,expected_preset:state.preset,audio_reference:audioReference,source_kind:sourceKind.value});
+  const result=await api('options',{prompt:el('prompt').value,expected_preset:state.preset,audio_reference:audioReference,source_kind:sourceKind.value,
+    ...(state.request_intake_supported?{resolution:intakeResolution,scenes:Number(el('scenes').value)}:{})});
+  if(result.needs_clarification){showIntake(result.intake);return;}
   routeExploration=result;el('routeOptionsPanel').open=true;
   el('routeReason').textContent=`Advies: ${result.comparison.recommended==='amp'?'AMP/CAB':result.comparison.recommended==='nam'?'NAM':'beide routes mogelijk'}. Kies zelf je bouwroute; hieronder zie je wat nu uitvoerbaar is.`;
   for(const route of result.routes){const p=document.createElement('p');
@@ -399,6 +450,7 @@ el('connectDevice').onclick=()=>run(async()=>{
 el('newDesign').onclick=()=>run(async()=>{
   if((el('prompt').value||proposal)&&!confirm('Nieuw ontwerp beginnen? Het verzoek en voorstel worden gewist, niet de Fractal.'))return;
   await api('discard',{});invalidate();el('prompt').value='';audioReference=null;el('audioFile').value='';
+  resetIntake();
   el('audioStart').value='0';el('audioLength').value='60';audioReferenceKey='';
   el('recordingFile').value='';clearAudioComparison();
   el('historyTarget').checked=el('historyMute').checked=false;
@@ -759,6 +811,7 @@ el('generate').onclick=()=>run(async()=>{
       note('Kies een uitvoerbare bouwroute. Er is nog geen voorstel gemaakt of iets verzonden.');return;
     }
   }
+  if(!await ensureIntake(el('buildRoute').value||'auto'))return;
   invalidate();el('result').hidden=true;
   note('AI werkt het voorstel uit. Er wordt nog niets naar de Fractal gestuurd...');
   stage(1);
@@ -772,8 +825,10 @@ el('generate').onclick=()=>run(async()=>{
     ...(state.route_options_supported?{mode:el('buildRoute').value}:{}),
     nam_query:el('namWithRequest').checked?(el('namQuery').value||null):null,
     ...(adjusting?{refine_token:refineContext.token,adjust_scenes:adjustTargets}:{}),
+    ...(state.request_intake_supported?{resolution:intakeResolution}:{}),
     ...(state.nam_selection_supported&&(!state.route_options_supported||el('buildRoute').value==='nam')?{nam_slot:captureSlot.value?Number(captureSlot.value):null}:{}),
     ...(state.source_support?.rig_reader?{source_kind:sourceKind.value,rig_mode:rigMode.value}:{})});
+  if(proposal.needs_clarification){const clarification=proposal.intake;proposal=null;showIntake(clarification);return;}
   el('conversation').textContent=proposal.summary;el('conversationPanel').hidden=false;
   el('emptyConversation').hidden=true;
   if(proposal.capture_search)showCaptures(proposal.capture_search);

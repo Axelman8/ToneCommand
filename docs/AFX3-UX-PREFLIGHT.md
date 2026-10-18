@@ -69,6 +69,26 @@ voor deze UX-controle uitgevoerd. De live interface wordt na de normale
 herstart alleen-lezen gecontroleerd op bronversie, bediening en weergave.
 Simulator- en browsertests verruimen geen apparaatmogelijkheden of veiligheidsgrenzen.
 
+## Verzoekverduidelijking op 18 oktober 2026
+
+Het Steve Vai-verzoek met vier scenes, hoge wah-pitch en External 2 is een extra
+regressie in de Chrome-test. TC neemt vier scenes over, vraagt eerst naar wah
+versus echte pitch en vraagt na de routekeuze of het niet-ondersteunde onderdeel
+mag worden uitgesteld. Zonder antwoord volgen geen planacties. Een bewuste
+uitstelkeuze wordt zichtbaar in de planwaarschuwingen. Tekstwijzigingen wissen
+oude antwoorden. Een geweigerd ontwerp keert terug naar het verzoek zonder
+SEND-token of automatische schrijfpoging.
+
+Deze controles gebruiken gesimuleerde AI- en apparaatantwoorden. De intake-API
+wordt afzonderlijk getest op actuele doelcontrole, strikte antwoorden, geen
+AI-aanroep voor vereiste verduidelijking en ongewijzigde schrijfbeveiligingen.
+
+De uitgebreide regressierun slaagt met 367 tests. De gerichte intake-,
+scene-intentie- en routetests slagen met 74 tests, inclusief een onleesbare
+doelpreset. Deze runs overlappen. De uitgebreide Chrome-test slaagt inclusief
+bewuste sceneaantalwijziging, wisselen tussen AMP/CAB en NAM en het wissen van
+oude uitstelkeuzes bij een routewissel. De vraagweergave is visueel gecontroleerd.
+
 De eigenaar beoordeelt vervolgens of de workflow begrijpelijk is en het
 muzikale resultaat voldoet. Registreer dat resultaat pas na de daadwerkelijke
 test in het gebruikerslog. Wijzig de testversie niet tussentijds zonder dit

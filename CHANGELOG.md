@@ -4,6 +4,13 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Add read-only FX3 request clarification before AI planning: recognize explicit
+  Dutch/English scene counts, distinguish bright wah filtering from pitch
+  transposition and require explicit deferral of unsupported requirements.
+  Keep the original request, show omissions in review and report failed musical
+  validation as a design problem, not a Codex connection error. No new hardware
+  capabilities, automatic SEND, NAM installation or Store authorization.
+
 - Show FX3 workflow failures in a readable alert instead of only the clipped
   footer. Network and invalid JSON responses disarm the old plan and mark the
   link unconfirmed until a fresh status check; never retry a write. Enable

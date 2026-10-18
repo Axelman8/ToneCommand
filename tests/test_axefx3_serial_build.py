@@ -242,7 +242,12 @@ def test_http_incompatible_serial_options_are_rejected_before_ai(http,field,valu
     client,d,ask=http
     body=dict(prompt='test serial',expected_preset=322,scenes=1,mode='serial')
     body[field]=value
-    assert client.post('/api/axefx3/plan',json=body).status_code==409
+    response=client.post('/api/axefx3/plan',json=body)
+    if field in ('scenes','wah_source'):
+        assert response.status_code==200 and response.json()['needs_clarification']
+        assert 'token' not in response.json() and 'actions' not in response.json()
+    else:
+        assert response.status_code==409
     ask.assert_not_called();d._write.assert_not_called();d.read_nam_slot.assert_not_called()
 
 

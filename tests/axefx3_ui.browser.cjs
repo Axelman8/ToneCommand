@@ -13,6 +13,7 @@ const path=require('node:path');
     let audioFetches=0,sourceBackendReady=true,routeOptionsReady=false,navigationReady=false,serialReady=false,multiSceneReady=false,albumReady=false;
     let currentPreset=325,currentScene=1,navigationRequest=null;
     let albumCounts=[8];
+    let intakeReady=false,planNeedsClarification=false;const intakes=[];
     let audioV2Ready=false;
     const serialRoute=['Input 1','Wah 1','Drive 1','Amp 1','Cab 1','Chorus 1','Compressor 1','Delay 1','Enhancer 1','Filter 1','Flanger 1','GEQ 1','PEQ 2','Output 1'];
     const navigationSelections=[];
@@ -98,10 +99,21 @@ const path=require('node:path');
           result.cab_mix={supported:true,channel:0,slots:[{slot:1,bank:3,ordinal:1023,status:'IN MIX',level_db:-6.1,pan:-70},{slot:2,bank:1,ordinal:515,status:'MUTED',level_db:-6.1,pan:70}]};}
         if(multiSceneReady){result.multiscene_planning_supported=!fw33;result.request_scene_limit=8;}
         if(routeOptionsReady)result.route_options_supported=true;
+        if(intakeReady)result.request_intake_supported=true;
         if(navigationReady){result.navigation_supported=true;result.scene_names=Array.from({length:8},(_,i)=>[i+1,i?'Solo':'Rhythm']);}
         if(fw33)result.route=namRoute?['Input 1','NAM 1','Cab 1','Delay 1','Chorus 1','Reverb 1','Output 1']:[];
         if(serialReady){result.route=serialRoute;result.route_blocks=result.route.map((label,i)=>({label,channel:'A',bypassed:[1,2,6,8,9,10,11,12].includes(i)}));}
         if(failRead){status=409;result={detail:'Read failed'};}
+      }
+      if(name==='intake'){
+        const body=req.postDataJSON();intakes.push(body);
+        const answer=body.resolution||{},questions=[];
+        const count=answer.scene_count_override?body.scenes:4;
+        if(!answer.pitch_meaning)questions.push({id:'pitch_meaning',kind:'choice',text:'Hogere wah-filterstand of echte pitchverhoging?',options:[{value:'filter',label:'Hogere wah-filterstand'},{value:'pitch',label:'Echte pitchverhoging'}]});
+        if(body.mode!=='auto'&&!answer.accepted_omissions?.includes('wah_controller'))questions.push({id:'wah_controller',kind:'omission',text:'External 2 met Auto Engage is niet geverifieerd. Dit onderdeel uitstellen?'});
+        if(body.mode!=='auto'&&answer.pitch_meaning==='pitch'&&!answer.accepted_omissions?.includes('pitch'))questions.push({id:'pitch',kind:'omission',text:'Pitchverhoging niet geverifieerd. Uitstellen?'});
+        if(body.mode==='nam'&&count>2)questions.push({id:'route_scenes',kind:'scenes',text:'Kies AMP/CAB voor vier scenes, of bewust minder scenes.'});
+        result={ready:!questions.length,scenes:count,questions,approved_omissions:answer.accepted_omissions||[],readonly:true,hardware_written:false};
       }
       if(name==='options'){
         explorations.push(req.postDataJSON());
@@ -174,6 +186,10 @@ const path=require('node:path');
         if(!failPlan)result.scene_intent={goals:result.scenes.map((name,i)=>({scene:i+1,target:'<img src=x> Requested tone',role:name,realization:'Settings follow the requested sound.'})),audible_match_verified:false};
         if(largePlan){result.summary='Een uitgebreid voorstel met uitleg per album, scene en beschikbaar effect. '.repeat(100);
           result.actions=Array.from({length:200},(_,i)=>({kind:'set_param',param:'DISTORT_MID',value:5,reason:`Controleer wijziging ${i+1}`}));}
+        if(intakeReady){result.scenes=result.scenes.slice(0,req.postDataJSON().scenes);
+          if(result.design.scene_layout)result.design.scene_layout=result.design.scene_layout.slice(0,req.postDataJSON().scenes);
+          result.warnings.push('Expliciet uitgesteld, NIET uitgevoerd: wah-controller en Auto Engage.');}
+        if(planNeedsClarification)result={needs_clarification:true,hardware_written:false,intake:{ready:false,scenes:4,questions:[{id:'design_requirement',kind:'message',text:'Ontwerp niet uitvoerbaar, geen AI-verbindingsfout.'}]}};
       }
       if(name==='send'){
         sends.push(req.postDataJSON());
@@ -762,6 +778,51 @@ const path=require('node:path');
     if(process.env.TC_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.TC_SCREENSHOT_DIR,'ux-send-connection-error-1180x720.png')});
     assert.equal(requestAttempts.filter(r=>r.path.endsWith('/send')).length,sendAttemptsBefore+1);
     assert.equal(stores.length,attemptsBefore.stores);assert.equal(installs.length,attemptsBefore.installs);
+    // Exact user regression: text count, ambiguity, explicit omission, no writes.
+    failedTransport='';intakeReady=true;largePlan=false;fw33=true;albumReady=true;albumCounts=[1,2,3,4,5,6,7,8];currentScene=1;
+    await page.setViewportSize({width:1440,height:900});
+    await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    const vai='Steve vai for the love of god. graag 4 scenes waarbij het liedje volledig kan worden doorlopen. gebruik de juiste AMP / CAB combinatie en ook de wah zou een high pitch moeten geven als ik toe down doe. wah moet auto engaged worden op external 2.';
+    await page.locator('#requestPanel').evaluate(e=>e.open=true);await page.fill('#prompt',vai);
+    const beforeIntake={plans:plans.length,explorations:explorations.length,sends:sends.length,stores:stores.length,installs:installs.length};
+    await page.click('#engage');await page.locator('#refresh:not([disabled])').waitFor();
+    assert(await page.locator('#requestQuestions').isVisible());assert.equal(await page.inputValue('#scenes'),'4');
+    assert.equal(explorations.length,beforeIntake.explorations);assert.equal(plans.length,beforeIntake.plans);
+    await page.selectOption('[data-intake="pitch_meaning"]','filter');
+    await page.locator('#requestQuestions button').click();await page.locator('#refresh:not([disabled])').waitFor();
+    assert.equal(explorations.length,beforeIntake.explorations+1);assert.equal(plans.length,beforeIntake.plans);
+    assert.equal(explorations.at(-1).resolution.pitch_meaning,'filter');assert.equal(explorations.at(-1).scenes,4);
+    await page.selectOption('#buildRoute','amp');await page.click('#engage');await page.locator('#refresh:not([disabled])').waitFor();
+    assert(await page.locator('[data-intake="wah_controller"]').isVisible());assert.equal(plans.length,beforeIntake.plans);
+    if(process.env.TC_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.TC_SCREENSHOT_DIR,'ux-request-clarification.png')});
+    // No checkbox means no partial plan; repeated click cannot bypass consent.
+    await page.locator('#requestQuestions button').click();await page.locator('#refresh:not([disabled])').waitFor();
+    assert.equal(plans.length,beforeIntake.plans);assert.equal(await page.inputValue('#prompt'),vai);
+    await page.check('[data-intake="wah_controller"]');await page.locator('#requestQuestions button').click();
+    await page.locator('#reviewbtn:not([disabled])').waitFor();
+    assert.equal(plans.at(-1).scenes,4);assert.deepEqual(plans.at(-1).resolution.accepted_omissions,['wah_controller']);
+    assert.equal(await page.locator('#sceneRows tr').count(),4);assert.match(await page.textContent('#planWarnings'),/NIET uitgevoerd/);
+    await request();await page.fill('#prompt',vai+' Extra sustain.');await page.click('#engage');await page.locator('#refresh:not([disabled])').waitFor();
+    assert.equal(await page.inputValue('[data-intake="pitch_meaning"]'),'');assert.deepEqual(intakes.at(-1).resolution,{});
+    await page.selectOption('[data-intake="pitch_meaning"]','pitch');await page.locator('#requestQuestions button').click();await page.locator('#refresh:not([disabled])').waitFor();
+    await page.selectOption('#buildRoute','amp');await page.click('#engage');await page.locator('#refresh:not([disabled])').waitFor();
+    assert(await page.locator('[data-intake="pitch"]').isVisible());assert(await page.locator('[data-intake="wah_controller"]').isVisible());
+    await page.check('[data-intake="pitch"]');await page.check('[data-intake="wah_controller"]');
+    planNeedsClarification=true;await page.locator('#requestQuestions button').click();await page.locator('#refresh:not([disabled])').waitFor();
+    assert(await page.locator('#requestQuestions').isVisible());assert.match(await page.textContent('#requestQuestions'),/geen AI-verbindingsfout/);
+    assert(await page.locator('#apply').isDisabled());assert(await page.locator('#workflowError').isHidden());
+    await page.selectOption('#buildRoute','nam');await page.click('#engage');await page.locator('#refresh:not([disabled])').waitFor();
+    assert.equal(await page.inputValue('#scenes'),'4');assert(await page.locator('[data-intake="scene_count"]').isVisible());
+    assert(!await page.isChecked('[data-intake="wah_controller"]'));
+    await page.selectOption('[data-intake="scene_count"]','2');
+    await page.check('[data-intake="wah_controller"]');await page.check('[data-intake="pitch"]');
+    await page.locator('#requestQuestions button').click();await page.locator('#refresh:not([disabled])').waitFor();
+    assert.equal(intakes.at(-1).scenes,2);assert.equal(intakes.at(-1).resolution.scene_count_override,true);
+    await page.selectOption('#buildRoute','amp');await page.click('#engage');await page.locator('#refresh:not([disabled])').waitFor();
+    assert(!await page.isChecked('[data-intake="wah_controller"]'));
+    assert.equal(sends.length,beforeIntake.sends);assert.equal(stores.length,beforeIntake.stores);assert.equal(installs.length,beforeIntake.installs);
+    assert.equal(errors.length,0);
+    planNeedsClarification=false;await page.fill('#prompt',longDraft);
     await page.selectOption('#deviceChoice','fm9');
     page.once('dialog',dialog=>dialog.dismiss());await page.click('#connectDevice');
     await page.locator('#connectDevice:not([disabled])').waitFor();

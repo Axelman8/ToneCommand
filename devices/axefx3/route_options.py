@@ -57,12 +57,12 @@ song title rather than a sentence describing its sound.
 Return only the comparison schema. Use the user's language.'''
 
 
-def compare(ask,prompt,reg,audio_reference=None):
+def compare(ask,prompt,reg,audio_reference=None,*,request_scope=''):
     caps=capabilities(reg)
     reference=json.dumps(dict(device='Axe-Fx III',firmware=reg.firmware,routes=caps,
         measurements=audio_reference,write_authorized=False),ensure_ascii=False)
     result=ask(prompt,'Read-only strategy exploration; nothing selected or sent',reference,
-        system=SYSTEM,shape=json.dumps(Comparison.model_json_schema()),
+        system=SYSTEM+request_scope,shape=json.dumps(Comparison.model_json_schema()),
         schema=Comparison.model_json_schema(),validate=lambda raw:Comparison.model_validate(raw).model_dump())
     comparison=Comparison.model_validate({key:result[key] for key in Comparison.model_fields})
     return dict(comparison=comparison.model_dump(),routes=caps,readonly=True,hardware_written=False,
