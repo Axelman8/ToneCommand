@@ -42,6 +42,26 @@ firmware blijft alleen-lezen totdat de gewijzigde communicatie is gecontroleerd.
 
 ### Ontwerpen in gesprek met de AI
 
+Bij een ondersteund AMP/CAB-ontwerp krijgt de AI expliciet de beschikbare
+wah-controllerkeuzes en de uitgelezen bestaande koppeling mee. De AI levert de
+wah-klank en scene-instellingen; TC voegt de gekozen External-koppeling toe.
+Een ontbrekend controller-veld in het AI-ontwerp is dus geen ontbrekende
+apparaatfunctie. Voordat een wah-verduidelijkingsvraag verschijnt, controleert
+dezelfde AI die vraag eenmaal opnieuw tegen deze mogelijkheden en je eerdere
+antwoorden. Een echte onduidelijkheid kan nog steeds een vraag opleveren.
+
+Een afgewezen wah-ontwerp mag dezelfde AI eerst eenmaal zelf corrigeren binnen
+de bestaande controles. Een eventuele vervolgvraag krijgt ook je eerdere
+keuze voor wah-filter of echte pitch mee; die keuze hoeft niet opnieuw gemaakt
+te worden. Dit herstel betreft alleen het voorstel, nooit een herhaalde
+schrijfactie naar het apparaat.
+
+Een eenduidig tekstverzoek zoals "wah op External 2, automatisch inschakelen"
+wordt gebruikt als je geen aparte controllerkeuze hebt gemaakt. Een expliciete
+keuze onder ONTWERPOPTIES gaat voor. "Behouden" schakelt Auto Engage niet in:
+zonder bestaande koppeling krijgt een nieuwe native koppeling standaard Off.
+Kies Fast Pos als je automatisch inschakelen door pedaalbeweging wilt.
+
 De geselecteerde AI kan tijdens routeonderzoek en planbouw zelf een gerichte
 vraag stellen over elke muzikale onduidelijkheid, tegenstrijdige wens of
 ontbrekende mogelijkheid. Dit is niet beperkt tot de vaste wah- en scenevragen.

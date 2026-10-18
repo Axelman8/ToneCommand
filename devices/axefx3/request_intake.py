@@ -33,6 +33,19 @@ def explicit_wah_source(prompt,selected=None):
     return 'External '+next(iter(choices)) if len(choices)==1 else None
 
 
+def explicit_wah_auto_engage(prompt):
+    """Infer only an unambiguous text request, never override a form choice."""
+    text=normalized(prompt)
+    clauses=re.split(r'[.;!?\n]',text)
+    marker=r'\b(?:auto\s*-?\s*engag\w*|automatisch\s+inschakel\w*|automatically\s+engag\w*)\b'
+    matches=[c for c in clauses if re.search(marker,c)]
+    if len(matches)!=1:return None
+    clause=matches[0]
+    if re.search(r'\b(?:behoud\w*|preserv\w*|keep|niet|not|geen|zonder|without|no|off|uit|nooit|never|disabl\w*|uitschakel\w*|uitgeschakeld|slow|med|medium|speed)\b',clause):
+        return None
+    return 'Fast Pos'
+
+
 def scene_counts(prompt):
     text = normalized(prompt)
     number = r'(-?\d{1,3}|' + '|'.join(WORDS) + r')'

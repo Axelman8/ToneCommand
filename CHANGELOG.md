@@ -4,6 +4,18 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Give the FX3 AI explicit server-owned wah binding capabilities and current
+  modifier evidence. Distinguish a supported External1/2 binding from fields
+  intentionally absent from the musical schema. Resolve an unambiguous textual
+  Auto Engage request when no form choice was made, without overriding an
+  explicit preserve choice. Explain native Off when preserving a new binding.
+  Self-check a wah clarification once with the same selected backend before
+  presenting it. Correct a compiler-rejected wah design once before requesting
+  user help, retaining resolved scope, genuine ambiguities and recorded answers
+  in the last-resort clarification too. Correct
+  the stale GUI hint that denied all new AMP/CAB controllers. No new hardware
+  writes, models, global mapping, automatic SEND or Store are authorized.
+
 - Make firmware catalogs additive: FW33 retains all75 approved FW32.06
   parameter definitions plus eight additions. Migrate the13 missing controls
   using captured encoders, normal setters, independent display/full-state

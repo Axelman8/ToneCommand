@@ -178,6 +178,12 @@ When wah_executable is true, optional wah voices Cry Babe on shared channel A.
 Each scene_layout wah flag determines its explicit bypass. The selected user
 controller is server-owned, never invent an External or global MIDI CC. Fast
 Pos Auto Engage may subsequently override a scene's bypass as the pedal moves.
+The wah_controller reference explicitly describes source binding performed by
+the server AFTER your design. Return wah and scene flags, not a controller key.
+Do not confuse a server-owned field absent from your schema with unsupported
+hardware. Consult wah_request for the read existing binding and effective mode.
+Resolved filter-versus-pitch answers stay resolved. A past AI statement that a
+feature was unavailable is not evidence against current capability facts.
 A high wah filter is NOT pitch transposition. When false, omit wah voicing
 and keep scene wah flags false. No reverb, NAM, IR installation or arbitrary grid layout.
 Other reserve blocks stay bypassed on the fixed captured14-block route.
@@ -206,6 +212,7 @@ def reference(reg):
         effect_exact_zero_executable=fw33_profile.FX_ZERO_RELEASED,
         compressor_executable=effect_voicing.COMPRESSOR_RELEASED,geq_executable=effect_voicing.GEQ_RELEASED,
         wah_executable=wah_voicing.RELEASED,
+        wah_controller=wah_voicing.reference(reg),
         drive_notice='When false, omit Drive voicing and keep every scene drive flag false. A requested Drive remains an explicit unsupported requirement, not a silent substitution.',
         models=list(MODELS.values()),
         cabs=[[c['bank'],c['slot'],c['name']] for c in cab_inventory.choices(reg,include_fullres=True)],

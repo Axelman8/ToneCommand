@@ -9,6 +9,35 @@ RELEASED=True
 Knob=Annotated[float,Field(ge=0,le=10,strict=True,allow_inf_nan=False)]
 
 
+def reference(reg):
+    """Describe server-owned binding separately from the AI's tone schema."""
+    from . import serial_build,pedal_fw33
+    ready=RELEASED and pedal_fw33.RELEASED and serial_build.supported(reg)
+    return dict(executable=ready,block='Wah 1',channel='A',model='Cry Babe',
+        sources=['External 1','External 2'] if ready else [],
+        auto_engage_modes=['Off','Fast Pos'] if ready else [],
+        binding_owner='server',binding_in_design_schema=False,
+        allocation_executable=ready,global_cc_mapping_executable=False,
+        pitch_transposition_executable=False,
+        rule='When executable, the server compiles the selected External source and Auto Engage after validating the AI wah voice. Their absence from the musical design schema is NOT missing support. Do not ask to omit this supported controller or ask for a CC number.')
+
+
+def request_state(reg,initial,source,auto):
+    """Only read snapshot evidence; preserve never means invent Fast Pos."""
+    if not reference(reg)['executable']:
+        raise ValueError('Wah request context requires the released AMP/CAB profile')
+    current=existing_controller(initial['modifiers'])
+    effective_source=source or (current['source'] if current else None)
+    effective_auto=(auto if source and auto is not None else
+        current['auto_engage'] if current else 'Off' if source else None)
+    return dict(existing_binding=current,requested_source=source,
+        requested_auto_engage=auto if source else None,
+        effective_source=effective_source,effective_auto_engage=effective_auto,
+        new_binding=bool(source and not current),
+        preserve_without_binding=bool(source and auto is None and not current),
+        preservation_rule='Null means preserve the independently read mode. With no existing binding, native allocation defaults to Off, NOT Fast Pos. If the user explicitly chose preserve, explain this consequence once; never override that choice or falsely claim External is unsupported.')
+
+
 class Voice(planning.Shape):
     model:Literal['Cry Babe']='Cry Babe'
     frequency_min:Annotated[float,Field(ge=100,le=1000,strict=True,allow_inf_nan=False)]

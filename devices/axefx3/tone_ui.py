@@ -346,7 +346,10 @@ def register(app, host):
                 if dev.current_preset()[0] != body.expected_preset or dev.firmware_label() != dev.reg.firmware:
                     raise ValueError('Target or firmware changed; refresh first.')
                 intake_mode=('nam' if dev.reg.firmware==fw33_profile.KEY else 'amp') if body.mode=='auto' else body.mode
-                body=body.model_copy(update=dict(wah_source=request_intake.explicit_wah_source(body.prompt,body.wah_source)))
+                inferred_source=request_intake.explicit_wah_source(body.prompt,body.wah_source)
+                inferred_auto=(request_intake.explicit_wah_auto_engage(body.prompt)
+                    if body.wah_source is None and body.wah_auto_engage is None and inferred_source else body.wah_auto_engage)
+                body=body.model_copy(update=dict(wah_source=inferred_source,wah_auto_engage=inferred_auto))
                 intake=request_intake.analyze(body.prompt,dev.reg,intake_mode,body.scenes,body.resolution,
                                               refining=bool(body.refine_token),wah_source=body.wah_source)
                 if not intake['ready']:
@@ -396,6 +399,10 @@ def register(app, host):
                     dev.reg.load_amp_facts(json.loads(facts.read_text(encoding='utf-8')))
                 reference = (album_planning.reference(dev.reg) if album_mode else serial_planning.reference(dev.reg) if serial_mode else
                     nam_planning.reference(dev.reg,initial) if nam_mode else planning.reference(dev.reg))
+                if album_mode and wah_voicing.reference(dev.reg)['executable']:
+                    facts=json.loads(reference)
+                    facts['wah_request']=wah_voicing.request_state(dev.reg,initial,body.wah_source,body.wah_auto_engage)
+                    reference=json.dumps(facts,ensure_ascii=False)
                 design_module = album_planning if album_mode else serial_planning if serial_mode else nam_planning if nam_mode else planning
                 state_text = json.dumps(tone_review.public_state(initial,dev.reg),ensure_ascii=False)
                 turn=conversations.begin(body.dialogue_token,body.answers,conversation_binding(body,dev,intake),
@@ -483,12 +490,24 @@ def register(app, host):
             schema['required']=list(dict.fromkeys(schema.get('required',[])+['scene_goals']+
                 (['scene_layout'] if album_mode else [])))
             schema=design_dialogue.schema(schema)
-            result = planner.plan(
+            design_prompt=(
                 f'Exactly {body.scenes} scenes. User-selected wah source: {body.wah_source or "preserve"}. '
                 f'Wah Auto Engage: {body.wah_auto_engage if body.wah_source and body.wah_auto_engage else "preserve"}. '
-                'Do not override these controller choices.\n'+body.prompt+context,
-                state_text,reference,system=design_module.SYSTEM+'\n'+scene_intent.SYSTEM+request_intake.context(intake)+'\n'+design_dialogue.SYSTEM,
+                'Do not override these controller choices.\n'+body.prompt+context)
+            design_arguments=dict(system=design_module.SYSTEM+'\n'+scene_intent.SYSTEM+request_intake.context(intake)+'\n'+design_dialogue.SYSTEM,
                 shape=json.dumps(schema),schema=schema,validate=validate)
+            wah_dialogue=album_mode and wah_voicing.reference(dev.reg)['executable'] and (body.wah_source or request_intake._positive(request_intake.normalized(body.prompt),r'\bwah\b'))
+            design_repaired=False
+            try:
+                result=planner.plan(design_prompt,state_text,reference,**design_arguments)
+            except (ValueError,RuntimeError):
+                if not wah_dialogue or not design_failure:raise
+                # One corrected proposal, never a repeated device operation.
+                design_repaired=True
+                result=planner.plan(design_dialogue.repair_prompt(design_prompt,design_failure[-1]),
+                    state_text,reference,**design_arguments)
+            if wah_dialogue and not design_repaired:
+                result=design_dialogue.review_question(planner.plan,result,design_prompt,state_text,reference,**design_arguments)
             with host._lock:
                 editable()
                 if selected() is not dev:
@@ -501,6 +520,8 @@ def register(app, host):
                     result['capture_search'] = captures
                 prepared=reviews.prepare(dev,result,initial)
                 prepared.update(conversations.finish(turn))
+                if design_repaired:
+                    prepared['warnings'].append('De AI heeft een afgewezen voorstel eenmaal opnieuw uitgewerkt binnen dezelfde controles. Er is nog niets verzonden.')
                 if prepared['dialogue_history']:
                     prepared['warnings'].append('Het ontwerp gebruikt je antwoorden uit DESIGN CONVERSATION. Deze antwoorden geven geen toestemming voor SEND of opslag.')
                 return prepared
@@ -509,12 +530,13 @@ def register(app, host):
         except (ValueError,RuntimeError,OSError,KeyError) as exc:
             if design_failure:
                 try:
-                    clarification=design_dialogue.recover(planner.plan,body.prompt, state_text,reference,turn,design_failure[-1])
+                    clarification=design_dialogue.recover(planner.plan,design_prompt,state_text,reference,turn,design_failure[-1])
                     with host._lock:
                         editable()
                         if selected() is not dev or tone_review.digest(tone_review.snapshot(dev,body.nam_slot,include_nam=nam_mode))!=tone_review.digest(initial):
                             raise ValueError('Device changed during clarification; begin again.')
-                        return design_dialogue.response(intake,clarification,conversations.finish(turn,clarification))
+                        return dict(design_dialogue.response(intake,clarification,conversations.finish(turn,clarification)),
+                            design_validation_issue=design_failure[-1][:1200])
                 except (ValueError,RuntimeError,OSError,KeyError):
                     pass  # Failed question recovery is not permission to send the refused design.
             if requirement_failure:
