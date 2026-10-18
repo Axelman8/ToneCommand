@@ -289,11 +289,11 @@ def register(app, host):
                 body.audio_reference.model_dump() if body.audio_reference else None,
                 request_scope=request_intake.context(intake)+design_dialogue.context(turn))
             result['request_intake']=intake
-            if result.get('clarification'):
+            if result.get('ai_question'):
                 with host._lock:
                     if selected() is not dev or dev.current_preset()[0]!=body.expected_preset or dev.firmware_label()!=dev.reg.firmware:
                         raise ValueError('Connection or target changed while asking; nothing selected.')
-                    return design_dialogue.response(intake,result['clarification'],conversations.finish(turn,result['clarification']))
+                    return design_dialogue.response(intake,result['ai_question'],conversations.finish(turn,result['ai_question']))
             from . import tone3000
             result['nam_candidates']=[]
             result['nam_search_warning']=''
@@ -459,7 +459,7 @@ def register(app, host):
                 try:
                     raw,clarification=design_dialogue.unwrap(raw)
                     if clarification:
-                        return dict(clarification=clarification)
+                        return dict(clarification=clarification['message'],ai_question=clarification)
                     plan=validate_plan(raw)
                     requirement_failure.clear()
                     return plan
@@ -482,10 +482,10 @@ def register(app, host):
                 editable()
                 if selected() is not dev:
                     raise ValueError('Device connection changed while planning; nothing sent.')
-                if result.get('clarification'):
+                if result.get('ai_question'):
                     if tone_review.digest(tone_review.snapshot(dev,body.nam_slot,include_nam=nam_mode))!=tone_review.digest(initial):
                         raise ValueError('Preset changed while asking; begin the conversation again.')
-                    return design_dialogue.response(intake,result['clarification'],conversations.finish(turn,result['clarification']))
+                    return design_dialogue.response(intake,result['ai_question'],conversations.finish(turn,result['ai_question']))
                 if captures:
                     result['capture_search'] = captures
                 prepared=reviews.prepare(dev,result,initial)

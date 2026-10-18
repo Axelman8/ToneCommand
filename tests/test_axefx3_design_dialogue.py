@@ -8,6 +8,8 @@ from devices.axefx3 import design_dialogue as chat, tone3000
 from tests.test_axefx3_request_intake import workspace
 from tests.test_axefx3_route_options import COMPARISON
 from tests.test_axefx3_scene_counts import short_design
+from tests.test_axefx3_text_planning import REAL_PLAN
+import server
 
 QUESTION = dict(message='Meer volume in de breedte kan verschillende dingen betekenen.',
     questions=[dict(id='width',text='Bedoel je stereobreedte, een vollere klank of harder geluid?',
@@ -181,3 +183,22 @@ def test_clear_request_builds_in_one_ai_call_without_routine_questions(workspace
     assert response.status_code==200 and response.json()['token']
     assert ask.call_count==1 and not response.json()['dialogue_history']
     dev._write.assert_not_called()
+
+
+@pytest.mark.parametrize('phase',['options','plan','recovery'])
+def test_real_shared_planner_quality_contract_keeps_clarification_as_text(workspace,monkeypatch,phase):
+    client,dev,_=workspace
+    monkeypatch.setattr(tone3000.client,'status',lambda:dict(connected=False))
+    monkeypatch.setattr(server.planner,'plan',REAL_PLAN)
+    raw=short_design(4)
+    raw['scene_goals'][0]['required_features']=['pitch']
+    replies=[(raw,'mock-model'),(QUESTION,'mock-model')] if phase=='recovery' else [(question_reply(),'mock-model')]
+    runner=Mock(side_effect=replies)
+    monkeypatch.setattr(server.planner,'_RUNNERS',{'cli':runner})
+    body=dict(BODY) if phase=='options' else dict(**BODY,mode='amp')
+    response=client.post('/api/axefx3/'+('options' if phase=='options' else 'plan'),json=body)
+    assert response.status_code==200,response.text
+    assert response.json()['needs_clarification'] and response.json()['dialogue_token']
+    assert 'token' not in response.json() and 'actions' not in response.json()
+    assert runner.call_count==(2 if phase=='recovery' else 1)
+    dev._write.assert_not_called();dev.store_preset.assert_not_called()

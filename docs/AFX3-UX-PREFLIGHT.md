@@ -110,7 +110,14 @@ AI-vervolgvraag opleveren, maar wordt niet uitgevoerd. De apparaatcompiler,
 uitvoeringscontrole en afzonderlijke opslagtoestemming blijven verplicht.
 
 De gecombineerde regressierun slaagt met 392 tests. De gerichte dialoogtests
-slagen met 24 tests, inclusief vervolgvraag, verlopen of verwisseld gesprek,
+slagen met 27 tests, inclusief vervolgvraag, verlopen of verwisseld gesprek,
 afgewezen ontwerp en gesprekscode die niet als SEND-token kan worden gebruikt.
 Deze runs overlappen. De Chrome-test slaagt ook voor het behouden van een
 antwoord als concept bij een verlopen gesprek, zonder automatische herhaling.
+
+De gedeelde plannerfunctie wordt afzonderlijk getest voor routevragen,
+ontwerpvragen en de herstelvraag na afwijzing. Het gedeelde veld `clarification`
+blijft tekst; de gestructureerde FX3-vraag staat in een apart veld. Daardoor
+blijven de bestaande FM9-kwaliteitscontrole en transportcode ongewijzigd.
+De aansluitende run van verplichte controles en gerichte tests slaagt met
+122 tests. Dit is een overlappende controle, geen extra aantal unieke tests.

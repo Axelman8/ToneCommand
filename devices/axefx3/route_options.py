@@ -63,13 +63,13 @@ def compare(ask,prompt,reg,audio_reference=None,*,request_scope=''):
         measurements=audio_reference,write_authorized=False),ensure_ascii=False)
     def validate(raw):
         proposal, clarification=design_dialogue.unwrap(raw)
-        return dict(clarification=clarification) if clarification else Comparison.model_validate(proposal).model_dump()
+        return dict(clarification=clarification['message'],ai_question=clarification) if clarification else Comparison.model_validate(proposal).model_dump()
     schema=design_dialogue.schema(Comparison.model_json_schema())
     result=ask(prompt,'Read-only strategy exploration; nothing selected or sent',reference,
         system=SYSTEM+request_scope+'\n'+design_dialogue.SYSTEM,shape=json.dumps(schema),
         schema=schema,validate=validate)
-    if result.get('clarification'):
-        return dict(clarification=result['clarification'],readonly=True,hardware_written=False)
+    if result.get('ai_question'):
+        return dict(ai_question=result['ai_question'],readonly=True,hardware_written=False)
     comparison=Comparison.model_validate({key:result[key] for key in Comparison.model_fields})
     return dict(comparison=comparison.model_dump(),routes=caps,readonly=True,hardware_written=False,
                 backend=result.get('backend'),model=result.get('model'),

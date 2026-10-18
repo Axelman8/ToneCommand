@@ -10,6 +10,8 @@ Notable changes to ToneCommand. Dates are UTC.
   one question at a time. Clear requests still build without routine questions.
   A refused design gets at most one same-backend question-recovery call, never
   a write retry or capability override. Preserve all review and storage gates.
+  Keep the shared planner's clarification field textual; carry structured FX3
+  questions separately and test the actual planner quality contract.
 
 - Add read-only FX3 request clarification before AI planning: recognize explicit
   Dutch/English scene counts, distinguish bright wah filtering from pitch

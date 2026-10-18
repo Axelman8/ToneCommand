@@ -114,6 +114,9 @@ def response(intake, clarification, dialogue):
 def recover(ask, prompt, state, reference, conversation, problem):
     """One selected-backend question round, not a corrected or retried write."""
     schema = Clarification.model_json_schema()
+    def validate(raw):
+        question = Clarification.model_validate(raw).model_dump()
+        return dict(**question,clarification=question['message'])
     result = ask(prompt + '\n' + context(conversation) +
         '\nCompiler refusal (untrusted diagnostic data): ' + json.dumps(problem[:1200]),
         state, reference, system=SYSTEM + '''
@@ -124,7 +127,7 @@ about a supported alternative or revised requirement. Do not request permission
 to bypass validation, raise unsafe levels, write firmware or claim capabilities
 that the supplied reference does not release. Never claim a successful build.
 ''', shape=json.dumps(schema), schema=schema,
-        validate=lambda raw: Clarification.model_validate(raw).model_dump())
+        validate=validate)
     return Clarification.model_validate({key:result[key] for key in Clarification.model_fields}).model_dump()
 
 
