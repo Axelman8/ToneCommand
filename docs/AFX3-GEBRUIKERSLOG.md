@@ -12,6 +12,36 @@ eigen grenzen.
 
 ## Wijzigingen op 18 oktober 2026
 
+### Klankverschillen tussen scenes controleren
+
+Bij een nieuw AMP/CAB-verzoek met meerdere scenes legt TC eerst de muzikale
+functie en het gewenste verschil per scene vast. Daarna werkt de AI de
+instellingen uit. Het ontwerp mag deze eerdere afspraken niet achteraf
+aanpassen om een kopie als een nieuwe klank te presenteren. Exact hergebruik
+vereist een onderbouwing uit je eigen verzoek of antwoord. TC kan dezelfde
+ampfamilie blijven gebruiken en toch een passende variatie uitwerken; andere
+modellen kiezen is geen doel op zich.
+
+In PLAN en REVIEW toont KLANKVERSCHILLEN EN HERGEBRUIK de concrete geplande
+verschillen en de actieve IR-namen. Een andere naam, kanaalletter of alleen
+meer volume geldt niet als een andere klankkleur. Pan wordt afzonderlijk als
+ruimtelijk verschil beoordeeld. Kleine knopverschillen blijven herkenbaar als
+onbewezen hoorbaar contrast. Ook Master, Depth en Presence staan nu in het
+instellingenoverzicht; gedeelde delay- en choruskanalen zijn expliciet benoemd.
+
+De cab-omschrijving wordt getoetst aan het formaat in de gekozen actieve
+IR-namen. Staat er 2x12 in de naam, dan mag TC die selectie niet als een 4x12
+beschrijven. Een User IR zonder die metadata bewijst geen kastformaat.
+Een afgewezen voorstel mag de AI eenmaal zelf corrigeren binnen dezelfde
+afspraken en veiligheidscontroles. Bestaande API-koppelingen blijven werken;
+de bijgewerkte GUI schakelt de voorafgaande sceneafspraken in bij nieuwe
+ontwerpen. Succesvol verzonden ontwerpen bewaren deze afspraken ook in de
+lokale ontwerphistorie.
+
+Deze controle vergelijkt parameters en is geen luistertest of bewijs dat een
+opname exact wordt gereproduceerd. REVIEW, bevestigde externe mute, SEND en
+permanent opslaan blijven afzonderlijke stappen.
+
 ### Bestaande functies behouden bij firmware updates
 
 Het FW33-profiel bouwt voort op alle75 goedgekeurde FW32.06-parameters en voegt

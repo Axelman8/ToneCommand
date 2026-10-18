@@ -141,6 +141,12 @@ class Design(planning.Shape, scene_intent.IntentDesign):
 
 SYSTEM = '''Design exactly the requested number of Axe-Fx III scenes, one to
 eight, not necessarily four album pairs. Set scene_count to the requested count.
+When the reference includes a scene_contract, it was established before this
+concrete design. Implement it unchanged: your own scene_goals cannot downgrade
+the required contrast or justify an unrequested exact reprise afterwards.
+Use the exact selected IR names in explanations. Do not invent a4x12/2x12
+format that disagrees with them; an unknown User IR label proves no cabinet
+dimensions. Report shared Delay/Chorus A honestly, not independent settings.
 The historical schema key albums holds FOUR available Amp/Cab voice slots
 A-D, not a rule that four album pairs must share a sound. Return scene_layout
 with exactly that many scene names, amp_channel/cab_channel 0..3 and effect flags.

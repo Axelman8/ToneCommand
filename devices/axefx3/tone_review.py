@@ -110,8 +110,12 @@ class Reviews:
             controller=wah_voicing.existing_controller(initial['modifiers']) if record['plan']['design'].get('wah') else None
             plan=album_planning.compile_design(dev.reg,record['plan']['design'],route,count,
                 controller['source'] if controller else None,controller['auto_engage'] if controller else None)
-            if record['version']==2:
+            if 'reference_measurements' in record['plan']:
                 plan['reference_measurements']=deepcopy(record['plan']['reference_measurements'])
+            if 'scene_contract' in record['plan']:
+                from . import scene_contract
+                plan['scene_comparison']=scene_contract.assess(plan,record['plan']['scene_contract'])
+                plan['warnings'].extend(plan['scene_comparison']['warnings'])
             self.clear();self.last_sent=None
             # Scene selection is explicitly consented, but a mismatch never
             # triggers a rollback, old SEND, model write or preset reload.

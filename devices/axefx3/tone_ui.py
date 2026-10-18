@@ -14,7 +14,7 @@ from . import planning, route_guard, tone_review, profile, tone_search, referenc
 from .controller_ui import Confirmation
 from . import album_build,album_planning,runtime,scene_intent,amp_inventory,amp_refresh
 from . import cab_inventory,cab_mix,design_history,cab_metadata
-from . import audio_measurements, request_intake, design_dialogue,wah_voicing
+from . import audio_measurements, request_intake, design_dialogue,wah_voicing,scene_contract
 from .audio_measurements import Measurements
 
 AnnotatedSceneNumber = Annotated[StrictInt, Field(ge=1,le=8)]
@@ -38,6 +38,7 @@ class Request(BaseModel):
     resolution: request_intake.Resolution = Field(default_factory=request_intake.Resolution)
     dialogue_token: str | None = Field(default=None,min_length=16,max_length=100)
     answers: list[design_dialogue.Answer] = Field(default_factory=list,max_length=3)
+    scene_contract: StrictBool = False
 
 
 class Intake(BaseModel):
@@ -167,6 +168,7 @@ def register(app, host):
                             serial_build_supported=serial_build.supported(dev.reg),
                             album_build_supported=album_build.supported(dev.reg),
                             wah_planning_supported=album_build.supported(dev.reg) and wah_voicing.RELEASED,
+                            scene_contract_supported=album_build.supported(dev.reg),
                             album_scene_counts=sorted(fw33_profile.ALBUM_SCENE_COUNTS) if album_build.supported(dev.reg) else [],
                             amp_refresh_supported=True,
                             amp_inventory=amp_inventory.report(dev.reg) if album_build.supported(dev.reg) else None,
@@ -361,6 +363,8 @@ def register(app, host):
                     raise ValueError('FW33 NAM planning requires the declared measured MK2 profile')
                 serial_mode = body.mode == 'serial'
                 album_mode = body.mode=='amp' and dev.reg.firmware==fw33_profile.KEY
+                if body.scene_contract and (not album_mode or body.refine_token):
+                    raise ValueError('Request-first scene brief requires a new FW33 AMP/CAB design; existing refinement has its own preservation checks')
                 if album_mode and (not album_build.supported(dev.reg) or body.scenes not in fw33_profile.ALBUM_SCENE_COUNTS
                         or (body.wah_source and not wah_voicing.RELEASED) or body.nam_slot is not None or body.source_kind!='tone'):
                     raise ValueError('Measured FW33 AMP/CAB route: released scene counts only, four voices, no NAM/controller or rig translation')
@@ -439,6 +443,7 @@ def register(app, host):
             if not planner._env('PLANNER_BACKEND').strip() or len(planner.candidates()) != 1:
                 raise ValueError('Choose one explicit AI backend in TC settings first; no automatic or paid fallback.')
             source = compiled = None
+            musical_contract=None
             if body.source_kind == 'rig':
                 source = rig_source.read(body.prompt)
                 compiled = rig_source.compile_source(source, nam_mode=nam_mode, mode=body.rig_mode)
@@ -464,6 +469,10 @@ def register(app, host):
                     plan['rig_report'] = rig_source.report(compiled, plan)
                     plan['warnings'].extend(compiled['warnings'] + plan['rig_report']['design_omissions'])
                 plan['scene_intent']=scene_intent.assess(plan,require=True)
+                if album_mode:
+                    frozen=musical_contract or (previous.get('scene_comparison',{}).get('contract') if previous else None)
+                    plan['scene_comparison']=scene_contract.assess(plan,frozen)
+                    plan['warnings'].extend(plan['scene_comparison']['warnings'])
                 request_intake.annotate(plan,intake)
                 if measured:
                     plan['reference_measurements']=audio_measurements.private_evidence(measured)
@@ -494,9 +503,20 @@ def register(app, host):
                 f'Exactly {body.scenes} scenes. User-selected wah source: {body.wah_source or "preserve"}. '
                 f'Wah Auto Engage: {body.wah_auto_engage if body.wah_source and body.wah_auto_engage else "preserve"}. '
                 'Do not override these controller choices.\n'+body.prompt+context)
+            if body.scene_contract:
+                strategy=scene_contract.prepare(planner.plan,design_prompt,reference,body.scenes,turn,request_text=body.prompt)
+                if strategy.get('ai_question'):
+                    with host._lock:
+                        editable()
+                        if selected() is not dev or tone_review.digest(tone_review.snapshot(dev,include_nam=False))!=tone_review.digest(initial):
+                            raise ValueError('Device changed during scene brief; nothing planned')
+                        return design_dialogue.response(intake,strategy['ai_question'],conversations.finish(turn,strategy['ai_question']))
+                musical_contract=strategy['scene_contract']
+                reference=json.dumps(dict(json.loads(reference),scene_contract=musical_contract),ensure_ascii=False)
+                design_prompt+='\nFROZEN REQUEST-FIRST SCENE CONTRACT: implement these earlier musical decisions; do not redefine them to justify copies. Shared sounds require the quoted user choice. Do not add tiny arbitrary knob changes, new model choices or fictitious effects merely to evade comparison.\n'+json.dumps(musical_contract,ensure_ascii=False)
             design_arguments=dict(system=design_module.SYSTEM+'\n'+scene_intent.SYSTEM+request_intake.context(intake)+'\n'+design_dialogue.SYSTEM,
                 shape=json.dumps(schema),schema=schema,validate=validate)
-            wah_dialogue=album_mode and wah_voicing.reference(dev.reg)['executable'] and (body.wah_source or request_intake._positive(request_intake.normalized(body.prompt),r'\bwah\b'))
+            wah_dialogue=album_mode and (body.scene_contract or wah_voicing.reference(dev.reg)['executable'] and (body.wah_source or request_intake._positive(request_intake.normalized(body.prompt),r'\bwah\b')))
             design_repaired=False
             try:
                 result=planner.plan(design_prompt,state_text,reference,**design_arguments)

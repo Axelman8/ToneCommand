@@ -94,6 +94,11 @@ const ampChanges=document.createElement('ul');ampChanges.id='ampChanges';ampChan
 el('ampCount').after(ampRefreshButton,ampRefreshStatus,ampChanges);
 const intentPanel=document.createElement('section');intentPanel.id='sceneIntent';intentPanel.hidden=true;
 el('controllerChoice').after(intentPanel);
+const comparisonPanels=['pane-plan','pane-review'].map((id,index)=>{
+  const panel=document.createElement('section');panel.id=index?'sceneComparisonReview':'sceneComparison';panel.hidden=true;
+  panel.setAttribute('aria-label','Controle van geplande klankverschillen');
+  el(id).querySelector('.stagecard').prepend(panel);return panel;
+});
 const refineButton=document.createElement('button');refineButton.id='refineSound';refineButton.textContent='BIJSTUREN NA LUISTERTEST';refineButton.hidden=true;
 el('returnRequest').after(refineButton);
 const adjustPanel=document.createElement('fieldset');adjustPanel.id='adjustScenes';adjustPanel.hidden=true;
@@ -768,7 +773,32 @@ el('compareAudio').onclick=async()=>{
   }catch(error){el('comparisonStatus').textContent=error.message;}
   finally{busy=false;controls();}
 };
+function showSceneComparison(plan){
+  for(const panel of comparisonPanels){
+    panel.replaceChildren();panel.hidden=!plan.scene_comparison;
+    if(panel.hidden)continue;
+    const audit=plan.scene_comparison;
+    const heading=document.createElement('h3');heading.textContent='KLANKVERSCHILLEN EN HERGEBRUIK';panel.append(heading);
+    const note=document.createElement('p');note.className='hint';note.textContent=audit.notice;panel.append(note);
+    if(audit.contract){
+      const brief=document.createElement('details'),title=document.createElement('summary');
+      title.textContent='Klankafspraken vastgelegd voor de uitwerking';brief.append(title);
+      for(const scene of audit.contract.scenes){
+        const p=document.createElement('p');p.textContent=`${scene.scene}. ${scene.role}: ${scene.target}. ${scene.reason}`;brief.append(p);
+      }panel.append(brief);
+    }
+    for(const scene of audit.rows){
+      const p=document.createElement('p'),title=document.createElement('strong');title.textContent=`${scene.scene}. ${scene.name}: `;p.append(title);
+      const description=scene.same_as.length?`Dezelfde geprogrammeerde klank als scene ${scene.same_as.join(', ')}. ${scene.reuse_reason||'Niet vooraf als hergebruik vastgelegd.'}`:
+        scene.reference_scene?`Ten opzichte van scene ${scene.reference_scene}: ${scene.changes.join('; ')||'Geen ander klankkarakter; alleen overige instellingen.'}`:'Uitgangsklank voor dit ontwerp.';
+      p.append(document.createTextNode(description));
+      if(scene.small_variation){const warning=document.createElement('span');warning.className='warning';warning.textContent=' Kleine parameterwijziging, geen bewezen hoorbaar contrast.';p.append(warning);}
+      const cab=document.createElement('span');cab.className='hint';cab.textContent=' Actieve IR: '+scene.cab_names.join(' + ');p.append(cab);panel.append(p);
+    }
+  }
+}
 function showDesign(plan){
+  showSceneComparison(plan);
   intentPanel.replaceChildren();intentPanel.hidden=!plan.scene_intent?.goals?.length;
   if(!intentPanel.hidden){
     const heading=document.createElement('h3');heading.textContent='KLANKDOEL PER SCENE';intentPanel.append(heading);
@@ -793,7 +823,7 @@ function showDesign(plan){
       const auxiliary=[drive,comp?`Compressor: ${role.compressor?'aan':'uit'} / ${'ABCD'[role.amp_channel]} | ${comp.model}, threshold ${comp.threshold}dB, ratio ${comp.ratio}, attack ${comp.attack_ms}ms, release ${comp.release_ms}ms, mix ${comp.mix}%, level ${comp.level}dB, auto OFF`:'Compressor: uit (geen voicing)',
         eq?`GEQ: ${role.geq?'aan':'uit'} / ${'ABCD'[role.amp_channel]} | ${eq.model}, banden ${eq.gains.join('/')}dB, Q ${eq.q}, level ${eq.level}dB`:'GEQ: uit (geen voicing)'].join('\n');
       const wah=design.wah?`${role.wah?'Aan':'Uit'} | ${design.wah.model} (A), ${design.wah.frequency_min}-${design.wah.frequency_max}Hz`:'Uit';
-      for(const value of [`${index+1}. ${role.name} / ${'ABCD'[role.amp_channel]}`,`${album.amp_model} | gain ${album.amp.gain} | EQ ${album.amp.bass}/${album.amp.mid}/${album.amp.treble} | ${album.amp.level}dB`,wah,role.chorus?`${design.chorus.rate_hz}Hz / ${design.chorus.mix}% (A)`:'Uit',role.delay?`${design.delay.time_ms}ms / ${design.delay.feedback}% / ${design.delay.mix}% (A)`:'Uit','Niet in route',`${auxiliary}\n${cabDescription(cab)} | Output A -18dB`]){const td=document.createElement('td');td.textContent=value;row.append(td);}
+      for(const value of [`${index+1}. ${role.name} / ${'ABCD'[role.amp_channel]}`,`${album.amp_model} | gain ${album.amp.gain} | EQ ${album.amp.bass}/${album.amp.mid}/${album.amp.treble} | ${album.amp.level}dB${album.amp.master===undefined?'':` | master ${album.amp.master}, depth ${album.amp.depth}, presence ${album.amp.presence}`}`,wah,role.chorus?`${design.chorus.rate_hz}Hz / ${design.chorus.mix}% (gedeeld A)`:'Uit',role.delay?`${design.delay.time_ms}ms / ${design.delay.feedback}% / ${design.delay.mix}% (gedeeld A)`:'Uit','Niet in route',`${auxiliary}\n${cabDescription(cab)} | Output A -18dB`]){const td=document.createElement('td');td.textContent=value;row.append(td);}
       el('sceneRows').append(row);
     }return;
   }
@@ -867,7 +897,7 @@ el('generate').onclick=()=>run(async()=>{
   }
   if(!await ensureIntake(el('buildRoute').value||'auto'))return;
   invalidate();el('result').hidden=true;
-  note('AI werkt het voorstel uit. Er wordt nog niets naar de Fractal gestuurd...');
+  note(state.scene_contract_supported&&el('buildRoute').value==='amp'&&Number(el('scenes').value)>1&&!adjusting?'TC legt eerst de muzikale sceneverschillen vast en werkt daarna de instellingen uit. Niets wordt verzonden...':'AI werkt het voorstel uit. Er wordt nog niets naar de Fractal gestuurd...');
   stage(1);
   if(el('namWithRequest').checked&&!el('namQuery').value.trim())throw new Error('Vul een Tone3000-zoekterm in, of schakel zoeken bij dit voorstel uit.');
   const adjustTargets=[...adjustPanel.querySelectorAll('input:checked')].map(input=>Number(input.value));
@@ -877,6 +907,7 @@ el('generate').onclick=()=>run(async()=>{
   proposal=await api('plan',{prompt:el('prompt').value,expected_preset:state.preset,scenes:Number(el('scenes').value),wah_source:el('wah').value||null,
     wah_auto_engage:el('wah').value?(el('wahMode').value||null):null,audio_reference:audioReference,
     ...(state.route_options_supported?{mode:el('buildRoute').value}:{}),
+    ...(state.scene_contract_supported?{scene_contract:el('buildRoute').value==='amp'&&Number(el('scenes').value)>1&&!adjusting}:{}),
     nam_query:el('namWithRequest').checked?(el('namQuery').value||null):null,
     ...(adjusting?{refine_token:refineContext.token,adjust_scenes:adjustTargets}:{}),
     ...(state.request_intake_supported?{resolution:intakeResolution}:{}),

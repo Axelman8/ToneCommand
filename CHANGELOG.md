@@ -4,6 +4,20 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Add a request-first musical scene brief for new multi-scene FW33 AMP/CAB
+  GUI designs. Freeze the brief before generating concrete settings; compare
+  compiled amp/cab/effect choices against it, not the design's own claims.
+  Reject unrequested exact copies and require a quoted user choice for shared
+  sounds. Separate stereo pan from base-tone contrast, ignore names/levels and
+  dry effects as proof of contrast, and label small knob changes as unproven.
+  Check cabinet-format claims against active IR labels, including each scene.
+  Show actual differences, shared sounds and active IR names in PLAN/REVIEW,
+  plus previously hidden amp knobs and explicit shared effect channels.
+  Preserve scene briefs in private successful-design history and revalidate
+  on resume/refinement. Legacy API clients remain compatible; their plans
+  receive parameter comparisons without pretending a prior brief exists.
+  No firmware capability, device write, automatic SEND or Store is added.
+
 - Give the FX3 AI explicit server-owned wah binding capabilities and current
   modifier evidence. Distinguish a supported External1/2 binding from fields
   intentionally absent from the musical schema. Resolve an unambiguous textual

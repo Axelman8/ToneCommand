@@ -12,7 +12,7 @@ const path=require('node:path');
     const errors=[],plans=[],sends=[],requestAttempts=[];
     let audioFetches=0,sourceBackendReady=true,routeOptionsReady=false,navigationReady=false,serialReady=false,multiSceneReady=false,albumReady=false;
     let currentPreset=325,currentScene=1,navigationRequest=null;
-    let albumCounts=[8],wahReady=false;
+    let albumCounts=[8],wahReady=false,contractReady=false;
     let intakeReady=false,planNeedsClarification=false;const intakes=[];
     let aiDialogueReady=false,staleDialogue=false;const dialogueTurns=[];
     let audioV2Ready=false;
@@ -90,6 +90,7 @@ const path=require('node:path');
         if(serialReady)result.serial_build_supported=true;
         if(albumReady){result.album_build_supported=true;result.amp_refresh_supported=true;result.design_history_supported=true;
           result.wah_planning_supported=wahReady;
+          result.scene_contract_supported=contractReady;
           result.album_scene_counts=albumCounts;
           const models=JSON.parse(fs.readFileSync(path.join(__dirname,'../devices/axefx3/data/fw33_amp_models.json'),'utf8')).models;
           result.amp_inventory={count:336,models:Object.entries(models).map(([ordinal,name])=>({ordinal:Number(ordinal),name}))};
@@ -181,6 +182,14 @@ const path=require('node:path');
           for(const [i,role] of result.design.scene_layout.entries())role.drive=i%2===1;
           if(wahReady&&req.postDataJSON().wah_source){result.design.wah={model:'Cry Babe',frequency_min:350,frequency_max:3000};
             for(const [i,role] of result.design.scene_layout.entries())role.wah=i%2===1;}
+          if(contractReady){
+            result.scene_comparison={contract:{scenes:[{scene:1,role:'Theme',target:'Expressieve lead',reason:'Muzikale uitgangsklank.'}]},
+              rows:Array.from({length:req.postDataJSON().scenes},(_,i)=>({scene:i+1,name:i===3?'Outro':'Scene '+(i+1),
+                reference_scene:i?1:null,same_as:i===3?[1]:[],reuse_reason:i===3?'De gebruiker vraagt dezelfde themaklank.':null,
+                changes:i?['gain: 5 -> 7','Andere actieve cab-IR of IR-mix']:[],small_variation:i===2,
+                cab_names:['2x12 Leggy 57 <img src=x>']})),
+              notice:'Vergelijking van geplande instellingen, geen luistertest.'};
+          }
           result.cab_choices=Array.from({length:4},(_,c)=>({channel:'ABCD'[c],slot:c?800:516,name:c?'4x12 Recto57A':'4x12 Brit70s GB57A'}));
           result.cab_choices[0]={channel:'A',irs:[{ir:1,bank:3,slot:1024,name:'<img src=x> User cab',mode:'normal',level_db:-6.1,pan:-70},{ir:2,bank:1,slot:516,name:'Selected but muted cab',mode:'mute',level_db:-6.1,pan:70}]};
         }
@@ -885,7 +894,7 @@ const path=require('node:path');
     assert.equal(dialogueTurns.length,beforeStale+1);assert.equal(await page.inputValue('#prompt'),generalPrompt+' Nieuwe versie.');
     staleDialogue=false;await page.click('#engage');await page.locator('#refresh:not([disabled])').waitFor();
     assert.equal(dialogueTurns.at(-1).dialogue_token,null);assert.deepEqual(dialogueTurns.at(-1).answers,[]);
-    aiDialogueReady=false;wahReady=true;
+    aiDialogueReady=false;wahReady=true;contractReady=true;
     page.once('dialog',dialog=>dialog.accept());await page.click('#newDesign');await page.locator('#refresh:not([disabled])').waitFor();
     await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
     await page.fill('#prompt','4 scenes met wah op External 2');
@@ -900,6 +909,11 @@ const path=require('node:path');
     const wahSends=sends.length;
     await page.click('#engage');await page.locator('#reviewbtn:not([disabled])').waitFor();
     assert.equal(plans.at(-1).wah_source,'External 2');assert.match(await page.textContent('#controllerChoice'),/External 2.*Fast Pos/);
+    assert.equal(plans.at(-1).scene_contract,true);
+    assert.match(await page.textContent('#sceneComparison'),/Dezelfde geprogrammeerde klank als scene 1/);
+    assert.match(await page.textContent('#sceneComparisonReview'),/gain: 5 -> 7/);
+    assert.match(await page.textContent('#sceneComparison'),/Kleine parameterwijziging/);
+    assert.equal(await page.locator('#sceneComparison img').count(),0);
     assert.match(await page.textContent('#sceneRows'),/Cry Babe.*350-3000Hz/);assert.equal(sends.length,wahSends);
     await request();await page.fill('#prompt',longDraft);
     await page.selectOption('#deviceChoice','fm9');
