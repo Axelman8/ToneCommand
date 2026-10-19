@@ -139,7 +139,7 @@ def test_reviewed_profile_wins_over_a_learned_copy(tmp_path):
     reviewed, learned = tmp_path / "profiles", tmp_path / "learned"
     ddlp.save(dict(run(), label="Reviewed One"), reviewed)
     ddlp.save(dict(run(), label="Local One"), learned)
-    (learned / "broken.json").write_text("{not json")
+    (learned / "broken.json").write_text("{not json", encoding="utf-8")
     prof = catalog.load_profiles([reviewed, learned])[(0x1963, 0xd1)]
     assert prof["label"] == "Reviewed One" and prof["reviewed"] is True
 
@@ -176,7 +176,7 @@ def test_route_learns_with_consent(client):
     body = r.json()
     assert body["ok"] and body["saved"] == "ik-multimedia-tonex-one.json"
     assert body["profile"]["probe"]["bytes_sent"] == 0
-    assert json.loads((learned / body["saved"]).read_text())["id"] == "ik-multimedia-tonex-one"
+    assert json.loads((learned / body["saved"]).read_text(encoding="utf-8"))["id"] == "ik-multimedia-tonex-one"
 
 
 def test_route_refuses_an_unknown_kind(client):

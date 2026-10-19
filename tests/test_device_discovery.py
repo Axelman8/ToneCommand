@@ -188,12 +188,12 @@ def test_usb_reads_linux_sysfs(tmp_path):
     for name, value in (("idVendor", "1963"), ("idProduct", "00d1"),
                         ("manufacturer", "IK Multimedia"), ("product", "ToneX One"),
                         ("serial", "SECRET123")):
-        (dev / name).write_text(value + "\n")
+        (dev / name).write_text(value + "\n", encoding="utf-8")
     for n, (c, s) in enumerate([("01", "01"), ("02", "02"), ("0a", "00")]):
         itf = dev / f"1-2:1.{n}"
         itf.mkdir()
-        (itf / "bInterfaceClass").write_text(c)
-        (itf / "bInterfaceSubClass").write_text(s)
+        (itf / "bInterfaceClass").write_text(c, encoding="utf-8")
+        (itf / "bInterfaceSubClass").write_text(s, encoding="utf-8")
     (dev / "1-2:1.2" / "tty").mkdir()
     (dev / "1-2:1.2" / "tty" / "ttyACM0").mkdir()
     (tmp_path / "usb1").mkdir()                       # a root hub without IDs is skipped
