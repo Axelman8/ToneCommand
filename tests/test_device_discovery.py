@@ -372,12 +372,18 @@ def test_windows_list_usb_dispatches_and_never_raises(monkeypatch):
 
 @pytest.mark.skipif(sys.platform != "win32", reason="the real Windows reader runs on Windows only")
 def test_windows_real_reader_runs_on_this_machine():
-    """#263 REQ-004: the CI Windows runner reads its own USB tree."""
+    """#263 REQ-004: the CI Windows runner reads its own USB tree. The command
+    itself must succeed: an empty list from a failing command proves nothing."""
+    r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", usb.PS_COMMAND],
+                       capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0 and not r.stderr.strip(), r.stderr
+    assert usb.parse_windows(r.stdout) is not None
     got = usb.read_windows()
     assert isinstance(got, list)
     for d in got:
         assert set(d) == {"vid", "pid", "maker", "product", "interfaces", "serial_port"}
     # a warning, so CI's quiet run still shows the read happened (evidence for #263)
     import warnings
-    warnings.warn(f"#263 real Windows USB read: {len(got)} device(s): "
+    warnings.warn(f"#263 real Windows USB read: powershell exit {r.returncode}, "
+                  f"{len(r.stdout)} bytes, {len(got)} device(s): "
                   f"{[(hex(d['vid']), hex(d['pid']), d['product']) for d in got]}")
