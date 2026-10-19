@@ -96,6 +96,9 @@ def test_watch_is_a_no_op_off_macos(monkeypatch, fresh_watch):
 
 
 def test_watch_main_starts_it_too(monkeypatch):
+    # main() pushes the saved AI settings into os.environ; doing that for
+    # real here leaked into later tests in the same process (CI shard 0)
+    monkeypatch.setattr(server.ai_settings, "apply_to_env", lambda *a, **k: None)
     calls = []
     monkeypatch.setattr(server, "start_bus_watch", lambda *a, **k: calls.append("watch"))
     import uvicorn
@@ -182,6 +185,7 @@ def test_usb_hub_does_not_inherit_its_downstream_devices():
     assert [d["kind"] for d in catalog.unrecognised([], got, profiles={})] == ["usb:1234:0001"]
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="sysfs names hold ':', which Windows paths cannot")
 def test_usb_reads_linux_sysfs(tmp_path):
     dev = tmp_path / "1-2"
     dev.mkdir()
