@@ -5,6 +5,24 @@ Notable changes to ToneCommand. Dates are UTC.
 ## Unreleased
 
 ### Added
+- **The version is always on screen (#264).** A small badge under the
+  wordmark shows the version running. A build that is not the tagged
+  release, such as a branch or main ahead of the tag, also shows its branch
+  and commit, so a dev build never passes for a release.
+- **A page with several rigs asks which one to build (#245).** A gear page
+  that lists rigs by era used to be read as the newest one, silently. Now
+  the reader lists each rig and the page asks which to build before
+  drawing the rig card.
+- **The four-cable method is understood (#244).** A multi-effects unit in
+  front of the amp and in its effects loop used to be read as a loop that
+  could not be built. It is now drawn as two positions, before the amp and
+  in its loop, with the amp's output running through the loop to the cab.
+  A single effect lands by kind: a delay or chorus goes in the loop, a
+  drive before the amp. A rack unit whose effects the source does not name
+  is not built, and the card says so.
+- **USB identity on Windows (#263).** An unknown instrument plugged into a
+  Windows machine now gets the same card as on macOS and Linux, read from
+  Windows' own device list (reads only).
 - **An unknown device is named, and can be learned (#258, #261).** Plugging
   in an instrument ToneCommand does not know used to produce no response at
   all. Discovery now also reads USB identity (reads only, nothing opened),

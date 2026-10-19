@@ -64,10 +64,43 @@ def _block_for(node: dict) -> str | None:
     return ROLE_BLOCK.get(role)
 
 
+def _fold_four_cable(out: dict, nodes: dict) -> dict:
+    """#244: one state per ORIGINAL node again. The two positions of a
+    four-cable processor fold back into it: what was built is named by its
+    position, and a processor whose effects the source never names is not
+    reproduced for exactly that reason (#243), not as an unbuildable loop."""
+    status = out["status"]["nodes"]
+    groups: dict[str, list] = {}
+    for nid in list(status):
+        fc = nodes.get(nid, {}).get("four_cable")
+        if fc:
+            groups.setdefault(fc["of"], []).append((fc, status.pop(nid)))
+    for of, parts in groups.items():
+        used = [(fc, st) for fc, st in parts if fc["used"]]
+        kept = [f"{st[1]} {riggraph.POSITION_LABEL[fc['position']]}" for fc, st in used if st[0] == "kept"]
+        node = next(nodes[n] for n in nodes if nodes[n].get("four_cable", {}).get("of") == of)
+        label = node["label"].rsplit(" (", 1)[0]
+        if kept:
+            status[of] = ["kept", "four-cable method: " + "; ".join(kept)]
+        elif node["role"] in ("rack_fx", "other", "switcher") and len(used) == 2:
+            status[of] = ["not_reproduced", f"four-cable method: the source does not say which of the "
+                                            f"{label}'s effects sit before the amp and which in its loop"]
+        else:
+            status[of] = list(used[0][1]) if used else ["not_reproduced", "not on the built path"]
+    for scene in out["scenes"]:
+        for step in scene["chain"]:
+            fc = nodes.get(step["node"], {}).get("four_cable")
+            if fc:
+                step["node"], step["position"] = fc["of"], fc["position"]
+                step["label"] = step["label"].rsplit(" (", 1)[0]
+    return out
+
+
 def compile(graph: dict, mode: str = "closest", scenes: int | None = None) -> dict:
     if mode not in MODES:
         raise riggraph.RigGraphError(f"mode {mode!r} is not one of {', '.join(MODES)}")
-    g = riggraph.load(graph)
+    # #244: a four-cable processor compiles as its two positions
+    g = riggraph.split_four_cable(riggraph.load(graph))
     nodes = {n["id"]: n for n in g["nodes"]}
     node_status: dict[str, list] = {}
     edge_status: dict[str, list] = {}
@@ -110,6 +143,9 @@ def compile(graph: dict, mode: str = "closest", scenes: int | None = None) -> di
         prev_amp = None
         for nid in chosen:
             n = nodes[nid]
+            if not n.get("four_cable", {}).get("used", True):
+                node_status.setdefault(nid, ["changed", "a position this effect does not use"])
+                continue
             if n["role"] in NO_BLOCK:
                 node_status.setdefault(nid, ["changed", "not a block; it is you playing, or switching scenes"]
                                        if n["role"] != "instrument" else ["kept", "the input"])
@@ -157,7 +193,9 @@ def compile(graph: dict, mode: str = "closest", scenes: int | None = None) -> di
     lr_seen: set[tuple] = set()
     for e in g["edges"]:
         on_chain = (e["from"], e["to"]) in kept_pairs
-        if e["kind"] in ("control", "expression"):
+        if e.get("four_cable_return"):
+            edge_status[e["id"]] = ["kept", "the return from the amp's effects loop"]
+        elif e["kind"] in ("control", "expression"):
             edge_status[e["id"]] = ["changed", "control, not audio: you switch scenes or ride the pedal yourself"]
         elif e["kind"] == "audio_stereo" and (((e["from"], e["to"]) in lr_seen)
                                               or (not on_chain and e["from"] in stereo_on_chain)):
@@ -188,9 +226,9 @@ def compile(graph: dict, mode: str = "closest", scenes: int | None = None) -> di
             else:
                 node_status[nid] = ["not_reproduced", "not connected to the signal path"]
 
-    return {"mode": mode, "scenes": built,
-            "status": {"nodes": node_status, "edges": edge_status},
-            "blockers": blockers}
+    return _fold_four_cable({"mode": mode, "scenes": built,
+                             "status": {"nodes": node_status, "edges": edge_status},
+                             "blockers": blockers}, nodes)
 
 
 def summary(compiled: dict, graph: dict) -> dict:
@@ -455,7 +493,8 @@ def compile_for_params(graph: dict, params: list[dict], device: str,
     the same one-state-per-id accounting as compile(), plus `target`."""
     if mode not in MODES:
         raise riggraph.RigGraphError(f"mode {mode!r} is not one of {', '.join(MODES)}")
-    g = riggraph.load(graph)
+    # #244: a four-cable processor compiles as its two positions
+    g = riggraph.split_four_cable(riggraph.load(graph))
     nodes = {n["id"]: n for n in g["nodes"]}
     names = {p["name"] for p in params}
     amp_row = next((p for p in params if p["name"] == "AMP"), {})
@@ -539,7 +578,9 @@ def compile_for_params(graph: dict, params: list[dict], device: str,
     lr_seen: set[tuple] = set()
     for e in g["edges"]:
         on_chain = (e["from"], e["to"]) in kept_pairs
-        if e["kind"] in ("control", "expression"):
+        if e.get("four_cable_return"):
+            edge_status[e["id"]] = ["kept", "the return from the amp's effects loop"]
+        elif e["kind"] in ("control", "expression"):
             edge_status[e["id"]] = ["changed", "control, not audio: you ride the pedal yourself"]
         elif e["kind"] == "audio_stereo" and ((e["from"], e["to"]) in lr_seen
                                               or (not on_chain and e["from"] in stereo)):
@@ -573,6 +614,8 @@ def compile_for_params(graph: dict, params: list[dict], device: str,
         if parallel or stereo:
             blockers.append(f"This rig runs {'in stereo' if stereo else 'two paths at once'}; "
                             f"the {device} is one mono path.")
-    return {"mode": mode, "target": device,
-            "scenes": [{"n": 1, "name": device, "route": order[0] if order else None, "chain": chain}],
-            "status": {"nodes": node_status, "edges": edge_status}, "blockers": blockers}
+    return _fold_four_cable({"mode": mode, "target": device,
+                             "scenes": [{"n": 1, "name": device, "route": order[0] if order else None,
+                                         "chain": chain}],
+                             "status": {"nodes": node_status, "edges": edge_status},
+                             "blockers": blockers}, nodes)
