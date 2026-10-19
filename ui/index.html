@@ -3219,7 +3219,9 @@
   #shelf {
     --shelf-accent: var(--cyan);
     flex: 0 0 68px; display: grid;
-    grid-template-columns: repeat(8, minmax(0, 1fr));
+    /* one equal bay per button, however many there are: a fixed repeat(8)
+       pushed the ninth (SETTINGS) onto a row of its own */
+    grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
     gap: 0; padding: 0 12px;
     border-top: 1px solid rgba(133,178,202,0.34);
     background:

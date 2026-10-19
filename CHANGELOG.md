@@ -4,6 +4,11 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+### Fixed
+- **The bottom shelf is one row again.** It was laid out for eight
+  buttons; since DEVICES made nine, SETTINGS sat on a row of its own. Each
+  button now gets an equal bay, however many there are.
+
 ## 1.5.16 (2026-10-19)
 
 ### Added
