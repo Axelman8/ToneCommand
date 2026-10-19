@@ -417,6 +417,8 @@ def _table(sim) -> list[dict]:
         ("GET", "/api/ai-settings", {}, None, None),
         ("GET", "/api/fm3/port", {}, None, None),
         ("POST", "/api/fm3/port", {}, {"port": ""}, None),
+        # #261: the DDLP probe sends nothing to any device and touches no gate
+        ("POST", "/api/ddlp/probe", {}, {"kind": "usb:0000:0000", "consent": False}, None),
         ("GET", "/api/ai-settings/models", {}, None, None),
         ("GET", "/api/ai-settings/setup", {}, None, None),
         ("POST", "/api/chat", {}, {"messages": [{"role": "user", "content": "hi"}]}, None),
