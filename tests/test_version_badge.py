@@ -57,7 +57,8 @@ HARNESS = """
 import { readFileSync } from "node:fs";
 const src = readFileSync(process.argv[2], "utf8");
 const start = src.indexOf("function versionBadgeText(d) {");
-const end = src.indexOf("\\n}\\n", start) + 3;
+// the next function, not "\\n}\\n": a Windows checkout has CRLF line ends
+const end = src.indexOf("function renderVersion(d) {", start);
 const f = new Function(src.slice(start, end) + "\\nreturn versionBadgeText;")();
 console.log(JSON.stringify(JSON.parse(process.argv[3]).map(f)));
 """

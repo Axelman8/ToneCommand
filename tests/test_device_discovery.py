@@ -377,4 +377,7 @@ def test_windows_real_reader_runs_on_this_machine():
     assert isinstance(got, list)
     for d in got:
         assert set(d) == {"vid", "pid", "maker", "product", "interfaces", "serial_port"}
-    print(f"windows USB devices read: {len(got)}: {[(hex(d['vid']), d['product']) for d in got]}")
+    # a warning, so CI's quiet run still shows the read happened (evidence for #263)
+    import warnings
+    warnings.warn(f"#263 real Windows USB read: {len(got)} device(s): "
+                  f"{[(hex(d['vid']), hex(d['pid']), d['product']) for d in got]}")
