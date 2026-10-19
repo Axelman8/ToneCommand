@@ -97,4 +97,5 @@ packages = ["fm9", "devices", "devices.headrush", "devices.ir2", "devices.tonex"
 
 [tool.setuptools.package-data]
 # #209: the DPDP device catalog is data the devices package reads at runtime.
-devices = ["catalog.json"]
+# #261: so are the reviewed DDLP profiles.
+devices = ["catalog.json", "profiles/*.json"]
