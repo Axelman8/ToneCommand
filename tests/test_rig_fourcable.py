@@ -132,3 +132,11 @@ def test_reader_prompt_says_how_to_draw_it():
     from fm9 import describe
     assert "The four-cable method" in describe.EXTRACT_TASK
     assert "Never draw the unit twice" in describe.EXTRACT_TASK
+
+
+def test_explain_names_gear_plainly_outside_the_signal_line():
+    g = rig()
+    g["edges"].append(e("ctl", "p", "amp", "control"))
+    lines = rg.explain(g)
+    assert "Control: FX1 controls Mezzabarba (not in the audio path)" in lines
+    assert not any("(before the amp)" in l for l in lines if not l.startswith("Signal"))

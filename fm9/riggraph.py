@@ -314,6 +314,8 @@ def explain(graph: dict) -> list[str]:
         lines.append(lead + chain)
     for cyc in walked["cycles"]:
         lines.append("Unresolved loop: " + " -> ".join(_label(g, n) for n in cyc))
+    # everything below names the gear as the source does, not its positions
+    g = raw
     for e in g["edges"]:
         if e["kind"] in ("control", "expression"):
             what = "controls" if e["kind"] == "control" else "is an expression pedal for"
