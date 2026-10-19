@@ -45,7 +45,11 @@ def parse_ioreg(data: bytes) -> list[dict]:
         interfaces, ttys = set(), []
 
         def walk(n):
-            if not isinstance(n, dict):
+            # a downstream USB device (behind a hub) owns its own interfaces
+            # and serial port, and ioreg lists it as a device of its own.
+            # Interface nodes carry idVendor too; a device node has no
+            # interface class.
+            if not isinstance(n, dict) or ("idVendor" in n and "bInterfaceClass" not in n):
                 return
             if "bInterfaceClass" in n:
                 interfaces.add((n["bInterfaceClass"], n.get("bInterfaceSubClass", 0)))

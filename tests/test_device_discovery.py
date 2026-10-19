@@ -164,6 +164,24 @@ def test_usb_reads_the_tonex_ones_real_tree():
     assert "serial" not in json.dumps(devices).lower().replace("serial_port", "")
 
 
+def test_usb_hub_does_not_inherit_its_downstream_devices():
+    """A hub's subtree holds the devices plugged into it; their interfaces
+    and serial ports stay theirs (ioreg lists each device on its own too)."""
+    import plistlib
+    synth = {"idVendor": 0x1234, "idProduct": 1, "USB Vendor Name": "Acme", "USB Product Name": "Acme Synth",
+             "IORegistryEntryChildren": [
+                 {"bInterfaceClass": 1, "bInterfaceSubClass": 3,
+                  "IORegistryEntryChildren": [{"IOCalloutDevice": "/dev/cu.usbmodem9"}]}]}
+    hub = {"idVendor": 0x05e3, "idProduct": 0x0610, "USB Vendor Name": "Generic", "USB Product Name": "USB2.0 Hub",
+           "IORegistryEntryChildren": [{"bInterfaceClass": 9, "bInterfaceSubClass": 0,
+                                        "IORegistryEntryChildren": [synth]}]}
+    got = usb.parse_ioreg(plistlib.dumps([hub, synth]))
+    assert got[0]["product"] == "USB2.0 Hub"
+    assert got[0]["interfaces"] == [(9, 0)] and got[0]["serial_port"] is None
+    assert got[1]["interfaces"] == [(1, 3)] and got[1]["serial_port"] == "/dev/cu.usbmodem9"
+    assert [d["kind"] for d in catalog.unrecognised([], got, profiles={})] == ["usb:1234:0001"]
+
+
 def test_usb_reads_linux_sysfs(tmp_path):
     dev = tmp_path / "1-2"
     dev.mkdir()
