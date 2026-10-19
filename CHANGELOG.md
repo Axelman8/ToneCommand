@@ -4,6 +4,8 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+## 1.5.16 (2026-10-19)
+
 ### Added
 - **The version is always on screen (#264).** A small badge under the
   wordmark shows the version running. A build that is not the tagged
