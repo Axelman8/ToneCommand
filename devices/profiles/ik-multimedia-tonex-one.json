@@ -1,0 +1,88 @@
+{
+ "schema": 1,
+ "id": "ik-multimedia-tonex-one",
+ "label": "IK Multimedia ToneX One",
+ "identity": {
+  "vid": 6499,
+  "pid": 209,
+  "maker": "IK Multimedia",
+  "product": "ToneX One",
+  "provenance": {
+   "kind": "observed",
+   "source": "USB descriptors reported by the operating system"
+  }
+ },
+ "transports": {
+  "midi_in": {
+   "value": [],
+   "provenance": {
+    "kind": "observed",
+    "source": "MIDI ports owned by the device"
+   }
+  },
+  "midi_out": {
+   "value": [],
+   "provenance": {
+    "kind": "observed",
+    "source": "MIDI ports owned by the device"
+   }
+  },
+  "usb_audio": {
+   "value": {
+    "inputs": 2,
+    "outputs": 2,
+    "sample_rate": 44100
+   },
+   "provenance": {
+    "kind": "observed",
+    "source": "CoreAudio device report (the current sample rate)"
+   }
+  },
+  "serial_control": {
+   "value": true,
+   "provenance": {
+    "kind": "observed",
+    "source": "USB descriptors reported by the operating system"
+   }
+  },
+  "interfaces": {
+   "value": [
+    [
+     1,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     2
+    ],
+    [
+     10,
+     0
+    ]
+   ],
+   "provenance": {
+    "kind": "observed",
+    "source": "USB descriptors reported by the operating system"
+   }
+  }
+ },
+ "observed": [],
+ "parameters": [],
+ "verified_writes": [],
+ "known": [
+  "USB identity: IK Multimedia ToneX One (1963:00d1)",
+  "USB audio: 2 in, 2 out, running at 44100 Hz",
+  "Serial control port present (not opened, contents not read)",
+  "No MIDI port",
+  "No controls known yet: nothing can be changed from ToneCommand"
+ ],
+ "probe": {
+  "tool": "ToneCommand DDLP probe, schema 1",
+  "bytes_sent": 0,
+  "listened_seconds": 0
+ }
+}

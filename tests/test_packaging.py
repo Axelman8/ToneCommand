@@ -156,6 +156,9 @@ def test_the_device_catalog_ships_as_package_data():
     cfg = tomllib.load(open(ROOT / "pyproject.toml", "rb"))
     assert "catalog.json" in cfg["tool"]["setuptools"]["package-data"]["devices"]
     assert (ROOT / "devices" / "catalog.json").is_file()
+    # #261: reviewed DDLP profiles ship too, or an installed copy never knows them
+    assert "profiles/*.json" in cfg["tool"]["setuptools"]["package-data"]["devices"]
+    assert list((ROOT / "devices" / "profiles").glob("*.json"))
     # and it is read the installed way, through the package, not a repo path
     from devices import catalog
     assert "resources.files(\"devices\")" in (ROOT / "devices" / "catalog.py").read_text(encoding="utf-8")

@@ -47,7 +47,15 @@ from fm9.signal_path import resolve_aliases
 from fm9.paths import project_root, resource_path
 
 ROOT = project_root()
-app = FastAPI(title="FM9 Tone Control")
+@contextlib.asynccontextmanager
+async def _lifespan(_app):
+    # #259: the MIDI bus watcher is live before the first request can
+    # enumerate ports, however the server was launched
+    start_bus_watch()
+    yield
+
+
+app = FastAPI(title="FM9 Tone Control", lifespan=_lifespan)
 
 #: WARNING and above reach stderr even with no handler configured (Python's
 #: last-resort handler), which is exactly the bar: a failed action inside a
@@ -152,15 +160,31 @@ DEVICE_KINDS = {
 _selected_kind: dict = {"kind": None}
 
 
+def _headrush_configured() -> bool:
+    import os
+    return bool(os.environ.get("TONECOMMAND_HEADRUSH_HOST")) or \
+        os.environ.get("TONECOMMAND_HEADRUSH_SIM") == "1"
+
+
+def _tonex_configured() -> bool:
+    import os
+    return bool(os.environ.get("TONECOMMAND_TONEX_PORT")) or \
+        os.environ.get("TONECOMMAND_TONEX_SIM") == "1"
+
+
+#: #260: kinds that are reachable only when configured, so a detected one is
+#: offered for connection only then. Configuration alone decides: discovery
+#: must never ask available_devices(), which itself asks discovery.
+_CONFIGURED = {"headrush": _headrush_configured, "tonex": _tonex_configured}
+
+
 def available_devices() -> list[dict]:
     import os
     out = [{"kind": "fm9", "label": DEVICE_KINDS["fm9"]}]
-    if os.environ.get("TONECOMMAND_HEADRUSH_HOST") or \
-            os.environ.get("TONECOMMAND_HEADRUSH_SIM") == "1":
+    if _headrush_configured():
         out.append({"kind": "headrush", "label": DEVICE_KINDS["headrush"]})
     # #163: the ToneX is read-only here (captures listed, nothing written)
-    if os.environ.get("TONECOMMAND_TONEX_PORT") or \
-            os.environ.get("TONECOMMAND_TONEX_SIM") == "1":
+    if _tonex_configured():
         out.append({"kind": "tonex", "label": DEVICE_KINDS["tonex"]})
     # The IR-2 announces itself: it is listed when its MIDI port is present,
     # so a plugged-in pedal needs no environment variable. The simulator is
@@ -196,9 +220,16 @@ def detected_devices() -> list[dict]:
     byte reaching it. Never raises: a missing MIDI binding means nothing
     detected, not a broken page."""
     try:
-        from devices import catalog
+        from devices import catalog, usb
         from fm9 import midi_transport
-        return catalog.recognise(midi_transport.port_names())
+        names = midi_transport.port_names()
+        devices = usb.list_usb()
+        found = catalog.recognise(names, devices)
+        for d in found:
+            if d["kind"] in _CONFIGURED:
+                d["supported"] = d["supported"] and _CONFIGURED[d["kind"]]()
+        # #258, #261: instruments on USB the catalog does not know
+        return found + catalog.unrecognised(names, devices)
     except Exception:      # noqa: BLE001  device discovery must never fail the page
         return []
 
@@ -344,6 +375,37 @@ def api_fm3_port():
             "inputs": inputs, "outputs": outputs,
             # the #221 field: names present as both an input and an output
             "ports": [name for name in inputs if name in set(outputs)]}
+
+
+_ddlp_lock = threading.Lock()
+
+
+@app.post("/api/ddlp/probe")
+def api_ddlp_probe(body: dict):
+    """#261: learn an unknown device, with the player's consent. The probe
+    sends nothing (devices/ddlp.py); it writes a local profile that makes
+    the device recognised from then on."""
+    from devices import ddlp, usb
+    from fm9 import midi_transport
+    if body.get("consent") is not True:
+        return JSONResponse({"ok": False, "error": "Learning a device needs your go-ahead first."},
+                            status_code=400)
+    if not _ddlp_lock.acquire(blocking=False):
+        return JSONResponse({"ok": False, "error": "A device is already being learned."},
+                            status_code=409)
+    try:
+        import mido
+        profile = ddlp.probe(str(body.get("kind") or ""),
+                             port_names=midi_transport.port_names(),
+                             out_names=midi_transport.output_names(),
+                             usb_devices=usb.list_usb(fresh=True),
+                             open_input=mido.open_input)
+        path = ddlp.save(profile)
+    except ddlp.ProbeRefused as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+    finally:
+        _ddlp_lock.release()
+    return {"ok": True, "profile": profile, "saved": path.name}
 
 
 @app.post("/api/fm3/port")
@@ -702,7 +764,38 @@ def rescan_midi() -> None:
 #: The one CoreMIDI client this process keeps for NOTIFICATIONS, plus the
 #: ctypes callback, which must stay referenced or its trampoline is freed
 #: under CoreMIDI's feet and the process crashes on the next notification.
-_coremidi_watch: dict = {"on": False, "cb": None}
+_coremidi_watch: dict = {"on": False, "cb": None, "ready": threading.Event(), "ok": None}
+
+
+def _coremidi_create_client(cm, cf, name, cb, client) -> int:
+    """MIDIClientCreate, apart so a test can delay or fail it (#259)."""
+    import ctypes
+    return cm.MIDIClientCreate(name, cb, None, ctypes.byref(client))
+
+
+def _is_macos() -> bool:
+    import sys
+    return sys.platform == "darwin"
+
+
+def start_bus_watch(timeout: float = 2.0) -> bool:
+    """#259: start the bus watcher and wait until its CoreMIDI client exists,
+    before anything enumerates ports. Order matters: a first enumeration on a
+    worker thread before the watcher (uvicorn server:app, which never runs
+    main()) froze this process's port list both ways, reproduced without
+    hardware with a virtual port. True when the watcher is live; on a
+    timeout or failure the app starts anyway, as it always did."""
+    if not _is_macos():
+        return False
+    _pump_coremidi()
+    if not _coremidi_watch["ready"].wait(timeout):
+        log.warning("MIDI bus watcher not ready after %.1f s; plugs may be missed until restart",
+                    timeout)
+        return False
+    if not _coremidi_watch["ok"]:
+        log.warning("MIDI bus watcher could not start; plugs may be missed until restart")
+    return bool(_coremidi_watch["ok"])
+
 
 
 def _pump_coremidi() -> None:
@@ -754,8 +847,10 @@ def _pump_coremidi() -> None:
             # Created on THIS thread on purpose: the notify source attaches
             # to the creating thread's runloop, and this thread is the one
             # that will keep that runloop running.
-            if cm.MIDIClientCreate(name, cb, None,
-                                   ctypes.byref(client)) != 0:
+            ok = _coremidi_create_client(cm, cf, name, cb, client) == 0
+            _coremidi_watch["ok"] = ok
+            _coremidi_watch["ready"].set()
+            if not ok:
                 return
             mode = ctypes.c_void_p.in_dll(cf, "kCFRunLoopDefaultMode")
             while True:
@@ -764,7 +859,8 @@ def _pump_coremidi() -> None:
             # A watcher that cannot start leaves things exactly as bad as
             # they were, not worse; the LINK pill then answers only as fast
             # as a restart, which is the pre-existing behaviour.
-            pass
+            _coremidi_watch["ok"] = False
+            _coremidi_watch["ready"].set()
 
     threading.Thread(target=run, daemon=True,
                      name="coremidi-buswatch").start()
@@ -8406,7 +8502,7 @@ def main():
     ai_settings.apply_to_env()
     # The bus watcher starts before the first enumeration so the process's
     # very first CoreMIDI snapshot is already backed by notifications.
-    _pump_coremidi()
+    start_bus_watch()
     import uvicorn
     raw_port = _os.environ.get("TONECOMMAND_PORT", "8909")
     try:

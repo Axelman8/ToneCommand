@@ -131,6 +131,12 @@ def _no_hardware_in_device_discovery(monkeypatch):
     # #209: the detected list reads the same bus, so it is off for the same
     # reason; tests/test_device_catalog.py turns the real one back on.
     monkeypatch.setattr(server, "detected_devices", lambda: [])
+    # #258: discovery also reads USB identity; an instrument on the desk's
+    # USB must not leak into tests, and learned profiles on this machine
+    # must not either. Tests that need them pass their own.
+    from devices import catalog, usb
+    monkeypatch.setattr(usb, "list_usb", lambda *a, **k: [])
+    monkeypatch.setattr(catalog, "PROFILE_DIRS", (catalog.DEVICES_DIR / "profiles",))
     # #212: Report a problem lists the MIDI ports; with the real bus behind
     # it every report-building test depended on the machine (and aborted in
     # a sandbox with no MIDI service). tests/test_report_bus.py puts it back.

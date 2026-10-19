@@ -4,6 +4,31 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+### Added
+- **An unknown device is named, and can be learned (#258, #261).** Plugging
+  in an instrument ToneCommand does not know used to produce no response at
+  all. Discovery now also reads USB identity (reads only, nothing opened),
+  so an instrument from a known maker, or one with a MIDI interface, gets a
+  card: "IK Multimedia ToneX One found. ToneCommand doesn't know it yet."
+  Its button runs the first DDLP probe (#239): with your go-ahead it records
+  what the device reports (USB identity, audio channels, a serial control
+  port, MIDI ports it owns) and listens to it, sending nothing. The result
+  is a profile, and the device is recognised by it from then on. Nothing
+  can be controlled from a profile yet. A software MIDI port, such as a
+  DAW's, is never mistaken for a device. USB identity is read on macOS and
+  Linux; Windows still detects by MIDI port names only.
+
+### Fixed
+- **Plugging and unplugging is seen however the app is started (#259).**
+  A server started with `uvicorn server:app` kept its first view of the
+  MIDI ports: an unplugged FM9 stayed listed and a new device was never
+  seen. The port watcher now starts before the first request.
+- **A ToneX Pedal is recognised (#260).** Its catalog entry had no port
+  pattern, so it never got a card. It is now matched by its `ToneX` port
+  and USB ID, and is offered for connection only when a live ToneX is set
+  up; otherwise its card says it cannot be controlled yet. A ToneX One is
+  a different device and does not match.
+
 ## 1.5.15 (2026-10-11)
 
 ### Fixed
