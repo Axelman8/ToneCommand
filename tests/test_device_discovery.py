@@ -67,9 +67,10 @@ def test_watch_startup_waits_until_the_client_exists(monkeypatch, fresh_watch):
     monkeypatch.setattr(server, "_pump_coremidi", _fake_pump(fresh_watch, 0.3, True))
     seen = []
     monkeypatch.setattr(server, "detected_devices", lambda: seen.append(fresh_watch["ok"]) or [])
-    t0 = time.monotonic()
     with TestClient(server.app) as client:
-        assert fresh_watch["ok"] is True and time.monotonic() - t0 >= 0.3
+        # ok is only set after the delayed client exists, so startup waited
+        # (an elapsed-time check flaked on Windows' coarse clock)
+        assert fresh_watch["ok"] is True
         assert client.get("/api/state").status_code == 200
     assert seen and all(ok is True for ok in seen)   # no enumeration before readiness
 
