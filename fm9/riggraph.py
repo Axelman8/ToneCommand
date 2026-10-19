@@ -168,7 +168,8 @@ def audio_paths(graph: dict) -> dict:
     out_edges: dict[str, list[dict]] = {n: [] for n in nodes}
     has_in: set[str] = set()
     for e in g["edges"]:
-        if e["kind"] in AUDIO_KINDS and e.get("from") in out_edges and e.get("to") in out_edges:
+        if e["kind"] in AUDIO_KINDS and e.get("from") in out_edges and e.get("to") in out_edges \
+                and not e.get("four_cable_return"):
             out_edges[e["from"]].append(e)
             has_in.add(e["to"])
     audio_nodes = {e["from"] for es in out_edges.values() for e in es} | has_in
@@ -210,6 +211,87 @@ def audio_paths(graph: dict) -> dict:
     return {"paths": paths, "cycles": cycles}
 
 
+# --- #244: the four-cable method ---------------------------------------------
+
+#: Not processors that can sit in an amp's loop.
+_NOT_PROCESSOR = frozenset({"instrument", "amp", "preamp", "power_amp", "cab", "interface"})
+_AMPS = frozenset({"amp", "preamp"})
+#: Where a single-effect processor belongs in the four-cable method: gain and
+#: filter effects before the amp, time and modulation in its effects loop.
+PRE_ONLY = frozenset({"drive", "wah", "compressor", "pitch", "volume"})
+LOOP_ONLY = frozenset({"delay", "reverb", "modulation"})
+POSITION_LABEL = {"pre": "before the amp", "loop": "in the amp's loop"}
+
+
+def four_cable(graph: dict) -> list[dict]:
+    """[{'processor': id, 'amp': id}] for each processor wired in the
+    four-cable method: it feeds the amp's input AND the amp sends back to it
+    (the amp's effects loop), which a plain walk sees as a loop. Any audio
+    kind counts either way: readers draw the send as audio or send_return."""
+    g = normalize(graph)
+    role = {n["id"]: n["role"] for n in g["nodes"]}
+    audio = {(e["from"], e["to"]) for e in g["edges"] if e["kind"] in AUDIO_KINDS}
+    out = []
+    for p, a in sorted(audio):
+        if role.get(a) in _AMPS and role.get(p) not in _NOT_PROCESSOR and p in role \
+                and (a, p) in audio and {"processor": p, "amp": a} not in out:
+            out.append({"processor": p, "amp": a})
+    return out
+
+
+def split_four_cable(graph: dict) -> dict:
+    """A copy with each four-cable processor P replaced by P@pre (before the
+    amp) and P@loop (in its loop). Every edge keeps its id: P->amp leaves
+    P@pre, amp->P reaches P@loop, any other cable into P reaches P@pre and
+    any other cable out of P leaves P@loop. A position the processor's kind
+    does not use is marked used=False, a pass-through."""
+    g = normalize(graph)
+    pairs = four_cable(g)
+    if not pairs:
+        return g
+    amp_of = {x["processor"]: x["amp"] for x in pairs}
+    nodes = []
+    for n in g["nodes"]:
+        if n["id"] not in amp_of:
+            nodes.append(n)
+            continue
+        for pos in ("pre", "loop"):
+            used = not ((pos == "loop" and n["role"] in PRE_ONLY)
+                        or (pos == "pre" and n["role"] in LOOP_ONLY))
+            nodes.append(dict(n, id=f"{n['id']}@{pos}", label=f"{n['label']} ({POSITION_LABEL[pos]})",
+                              four_cable={"of": n["id"], "position": pos, "used": used,
+                                          "amp": amp_of[n["id"]]}))
+    # A second cable from P into the amp is the loop's RETURN: kept, out of
+    # the walk. Whether or not the reader drew it, whatever the amp feeds
+    # onward (the cab) is fed from the loop position, so the chain reads
+    # pre -> amp -> loop -> cab rather than the amp feeding two places at once.
+    returns: set[str] = set()
+    with_return: set[str] = set()
+    for p_id, a in amp_of.items():
+        into = [e for e in g["edges"] if e.get("from") == p_id and e.get("to") == a
+                and e["kind"] in AUDIO_KINDS]
+        if len(into) > 1:
+            first = next((e for e in into if e["kind"] != "send_return"), into[0])
+            returns |= {e["id"] for e in into if e is not first}
+            with_return.add(p_id)
+    loop_of_amp = {a: p_id for p_id, a in amp_of.items()}
+    edges = []
+    for e in g["edges"]:
+        e = dict(e)
+        f, t = e.get("from"), e.get("to")
+        if e["id"] in returns:
+            e["from"], e["four_cable_return"] = f"{f}@loop", True
+        elif f in amp_of:
+            e["from"] = f"{f}@pre" if t == amp_of[f] else f"{f}@loop"
+        if t in amp_of and e["id"] not in returns:
+            e["to"] = f"{t}@loop" if f == amp_of[t] else f"{t}@pre"
+        elif f in loop_of_amp and t != loop_of_amp[f] and e["kind"] in AUDIO_KINDS:
+            e["from"] = f"{loop_of_amp[f]}@loop"
+        edges.append(e)
+    g["nodes"], g["edges"] = nodes, edges
+    return g
+
+
 def _label(g: dict, nid: str) -> str:
     n = next((n for n in g["nodes"] if n["id"] == nid), None)
     return n["label"] if n else nid
@@ -217,8 +299,13 @@ def _label(g: dict, nid: str) -> str:
 
 def explain(graph: dict) -> list[str]:
     """The rig in plain lines a guitarist reads top to bottom."""
-    g = normalize(graph)
+    raw = normalize(graph)
+    # #244: a four-cable processor reads as its two positions, not a loop
+    g = split_four_cable(raw)
     lines: list[str] = []
+    for x in four_cable(raw):
+        lines.append(f"Four-cable method: {_label(raw, x['processor'])} runs before the "
+                     f"{_label(raw, x['amp'])} and in its effects loop.")
     walked = audio_paths(g)
     routes = {p["route"] for p in walked["paths"] if p["route"]}
     for p in walked["paths"]:
@@ -227,6 +314,8 @@ def explain(graph: dict) -> list[str]:
         lines.append(lead + chain)
     for cyc in walked["cycles"]:
         lines.append("Unresolved loop: " + " -> ".join(_label(g, n) for n in cyc))
+    # everything below names the gear as the source does, not its positions
+    g = raw
     for e in g["edges"]:
         if e["kind"] in ("control", "expression"):
             what = "controls" if e["kind"] == "control" else "is an expression pedal for"

@@ -2611,6 +2611,9 @@ def _with_rig_explain(spec: dict) -> None:
     """#226: the rig in plain lines, beside the graph the page draws."""
     from fm9 import riggraph
     spec["rig_explain"] = riggraph.explain(spec["rig"]) if spec.get("rig") else []
+    # #245: each rig of a several-rig source, for the chooser
+    for r in spec.get("rigs") or []:
+        r["rig_explain"] = riggraph.explain(r["rig"]) if r.get("rig") else []
 
 
 class RigCorrectBody(BaseModel):
@@ -7247,8 +7250,11 @@ def api_version():
     st = _updates.repo_state(ROOT)
     avail = bool(latest) and _updates.is_newer(latest["version"], cur)
     can, why = _updates.can_auto_update(ROOT)
+    head = _updates.head_info(ROOT)
     return {
         "current": cur,
+        # #264: a release build is HEAD carrying the tag of its own version
+        "commit": head["commit"], "release": f"v{cur}" in head["tags"],
         "latest": (latest or {}).get("version"),
         "update_available": avail,
         "notes_url": (latest or {}).get("url"),

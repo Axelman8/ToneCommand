@@ -310,3 +310,80 @@ def test_card_learn_posts_consent_and_shows_what_is_known(tmp_path):
     assert r["paints"][0]["text"].endswith("Nothing is sent to it.")
     assert r["paints"][-1]["title"] == "Learned: IK Multimedia ToneX One"
 
+
+
+# -- #263: USB identity on Windows ------------------------------------------------------
+
+WIN_ROWS = [
+    # a ToneX One-like composite device: the parent names it, MI_nn interfaces
+    # give classes, a Ports interface gives the COM port; the instance after
+    # the last backslash is a serial number and must never come through
+    {"PNPDeviceID": "USB\\VID_1963&PID_00D1\\SECRET123", "Name": "ToneX One", "Manufacturer": "IK Multimedia",
+     "PNPClass": "USB", "CompatibleID": ["USB\\DevClass_EF&SubClass_02&Prot_01", "USB\\COMPOSITE"]},
+    {"PNPDeviceID": "USB\\VID_1963&PID_00D1&MI_00\\7&ABC&0&0000", "Name": "USB Serial Device (COM5)",
+     "Manufacturer": "Microsoft", "PNPClass": "Ports", "CompatibleID": ["USB\\Class_02&SubClass_02&Prot_01"]},
+    {"PNPDeviceID": "USB\\VID_1963&PID_00D1&MI_02\\7&ABC&0&0002", "Name": "ToneX One",
+     "Manufacturer": "(Generic USB Audio)", "PNPClass": "MEDIA", "CompatibleID": ["USB\\Class_01&SubClass_01&Prot_00"]},
+    # a MIDI interface: one interface, MIDI streaming
+    {"PNPDeviceID": "USB\\VID_1234&PID_0001\\5&XYZ", "Name": "Acme Synth", "Manufacturer": "Acme",
+     "PNPClass": "MEDIA", "CompatibleID": ["USB\\Class_01&SubClass_03&Prot_00", "USB\\Class_01"]},
+    # a hub, and a non-USB-ID entry that is skipped
+    {"PNPDeviceID": "USB\\VID_05E3&PID_0610\\6&HUB", "Name": "Generic USB Hub", "Manufacturer": "(Standard USB HUBs)",
+     "PNPClass": "USB", "CompatibleID": "USB\\Class_09&SubClass_00&Prot_02"},
+    {"PNPDeviceID": "USB\\ROOT_HUB30\\4&1", "Name": "USB Root Hub", "PNPClass": "USB"},
+]
+
+
+def test_windows_reads_composite_midi_and_hub_devices():
+    got = usb.parse_windows(json.dumps(WIN_ROWS))
+    assert got == [
+        {"vid": 0x05e3, "pid": 0x0610, "maker": "(Standard USB HUBs)", "product": "Generic USB Hub",
+         "interfaces": [(9, 0)], "serial_port": None},
+        {"vid": 0x1234, "pid": 0x0001, "maker": "Acme", "product": "Acme Synth",
+         "interfaces": [(1, 3)], "serial_port": None},
+        {"vid": 0x1963, "pid": 0x00d1, "maker": "IK Multimedia", "product": "ToneX One",
+         "interfaces": [(1, 1), (2, 2)], "serial_port": "COM5"}]
+    text = json.dumps(got)
+    assert "SECRET" not in text and "XYZ" not in text and "7&ABC" not in text
+    kinds = [d["kind"] for d in catalog.unrecognised([], got, profiles={})]
+    assert kinds == ["usb:1234:0001", "usb:1963:00d1"]       # the hub is no instrument
+
+
+@pytest.mark.parametrize("text", ["", "not json", "{}", "[1, 2]", json.dumps(WIN_ROWS[0])])
+def test_windows_parser_tolerates_odd_output(text):
+    try:
+        got = usb.parse_windows(text)
+    except ValueError:
+        got = None
+    assert got is None or isinstance(got, list)
+    if text == json.dumps(WIN_ROWS[0]):
+        assert got[0]["product"] == "ToneX One" and got[0]["interfaces"] == []
+
+
+def test_windows_list_usb_dispatches_and_never_raises(monkeypatch):
+    monkeypatch.setattr(usb, "list_usb", REAL_LIST_USB)
+    monkeypatch.setattr(usb, "_cache", {"at": 0.0, "devices": None})
+    monkeypatch.setattr(usb.sys, "platform", "win32")
+    monkeypatch.setattr(usb, "read_windows", lambda: usb.parse_windows(json.dumps(WIN_ROWS)))
+    assert [d["product"] for d in usb.list_usb(fresh=True)] == ["Generic USB Hub", "Acme Synth", "ToneX One"]
+    monkeypatch.setattr(usb, "read_windows", lambda: usb.parse_windows("not json"))
+    assert usb.list_usb(fresh=True) == []
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="the real Windows reader runs on Windows only")
+def test_windows_real_reader_runs_on_this_machine():
+    """#263 REQ-004: the CI Windows runner reads its own USB tree. The command
+    itself must succeed: an empty list from a failing command proves nothing."""
+    r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", usb.PS_COMMAND],
+                       capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0 and not r.stderr.strip(), r.stderr
+    assert usb.parse_windows(r.stdout) is not None
+    got = usb.read_windows()
+    assert isinstance(got, list)
+    for d in got:
+        assert set(d) == {"vid", "pid", "maker", "product", "interfaces", "serial_port"}
+    # a warning, so CI's quiet run still shows the read happened (evidence for #263)
+    import warnings
+    warnings.warn(f"#263 real Windows USB read: powershell exit {r.returncode}, "
+                  f"{len(r.stdout)} bytes, {len(got)} device(s): "
+                  f"{[(hex(d['vid']), hex(d['pid']), d['product']) for d in got]}")

@@ -1,8 +1,8 @@
 """USB identity for discovery (#258): which devices are on USB, by maker and
 product, read from what the operating system already knows. Nothing is
 opened and nothing is sent: on macOS this is ioreg's view of the device tree,
-on Linux the files under /sys/bus/usb/devices. Windows has no reader yet, so
-discovery there stays on MIDI port names.
+on Linux the files under /sys/bus/usb/devices, on Windows the Plug and Play
+device list through PowerShell (#263).
 
 Why USB at all: a device with no MIDI port (the ToneX One is a USB audio
 interface plus a serial control port) is invisible to a MIDI-name catalog,
@@ -14,7 +14,9 @@ them.
 """
 from __future__ import annotations
 
+import json
 import plistlib
+import re
 import subprocess
 import sys
 import time
@@ -94,6 +96,60 @@ def read_sysfs(root: Path = Path("/sys/bus/usb/devices")) -> list[dict]:
     return out
 
 
+_VIDPID = re.compile(r"^USB\\VID_([0-9A-F]{4})&PID_([0-9A-F]{4})(&MI_[0-9A-F]{2})?\\", re.I)
+#: an interface's class; a composite device's own DevClass_EF is not one
+_CLASS = re.compile(r"(?<![A-Za-z])Class_([0-9A-F]{2})(?:&SubClass_([0-9A-F]{2}))?", re.I)
+_COM = re.compile(r"\((COM\d+)\)")
+#: The Windows reader: USB Plug and Play entries, the fields it needs, as JSON.
+PS_COMMAND = ("Get-CimInstance Win32_PnPEntity | Where-Object { $_.PNPDeviceID -like 'USB\\*' } | "
+              "Select-Object PNPDeviceID, Name, Manufacturer, PNPClass, CompatibleID | "
+              "ConvertTo-Json -Depth 3 -Compress")
+
+
+def parse_windows(text: str) -> list[dict]:
+    """Devices from PowerShell's Win32_PnPEntity JSON (#263). The device ID
+    gives vendor and product (USB\\VID_1963&PID_00D1\\<instance>); the
+    instance part, which can be a serial number, is never kept. A composite
+    device's interfaces (&MI_nn) fold into it, each giving its class from
+    CompatibleID (USB\\Class_01&SubClass_03); a Ports entry gives (COMn)."""
+    try:
+        rows = json.loads(text or "[]")
+    except ValueError:
+        return []
+    rows = rows if isinstance(rows, list) else [rows]
+    devices: dict[tuple, dict] = {}
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        m = _VIDPID.match(str(r.get("PNPDeviceID") or ""))
+        if not m:
+            continue
+        key = (int(m.group(1), 16), int(m.group(2), 16))
+        d = devices.setdefault(key, {"maker": "", "product": "", "interfaces": set(), "serial_port": None})
+        compat = r.get("CompatibleID") or []
+        compat = compat if isinstance(compat, list) else [compat]
+        for c in compat:
+            cm = _CLASS.search(str(c))
+            if cm:
+                d["interfaces"].add((int(cm.group(1), 16), int(cm.group(2) or "0", 16)))
+                break
+        if str(r.get("PNPClass") or "").lower() == "ports":
+            com = _COM.search(str(r.get("Name") or ""))
+            d["serial_port"] = d["serial_port"] or (com.group(1) if com else None)
+        elif not m.group(3):
+            # the parent device names the product; an interface names itself
+            d["product"] = str(r.get("Name") or d["product"])
+            d["maker"] = str(r.get("Manufacturer") or d["maker"])
+    return [_device(v, p, d["maker"], d["product"], d["interfaces"], d["serial_port"])
+            for (v, p), d in sorted(devices.items())]
+
+
+def read_windows() -> list[dict]:
+    r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", PS_COMMAND],
+                       capture_output=True, text=True, timeout=15)
+    return parse_windows(r.stdout) if r.returncode == 0 and r.stdout.strip() else []
+
+
 def _read() -> list[dict]:
     if sys.platform == "darwin":
         r = subprocess.run(["ioreg", "-r", "-c", "IOUSBHostDevice", "-l", "-a"],
@@ -101,6 +157,8 @@ def _read() -> list[dict]:
         return parse_ioreg(r.stdout) if r.returncode == 0 and r.stdout else []
     if sys.platform.startswith("linux"):
         return read_sysfs()
+    if sys.platform == "win32":
+        return read_windows()
     return []
 
 

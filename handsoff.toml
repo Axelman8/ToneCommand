@@ -191,6 +191,11 @@ commands = [
   "TONECOMMAND_SIM=1 .venv/bin/python -m pytest tests/test_device_discovery.py -q -k 'usb or unknown or card'",
   "TONECOMMAND_SIM=1 .venv/bin/python -m pytest tests/test_ddlp_probe.py -q",
   "TONECOMMAND_SIM=1 .venv/bin/python -m pytest tests/test_device_catalog.py tests/test_capability_gates.py tests/test_device_handle.py -q",
+  "TONECOMMAND_SIM=1 .venv/bin/python -m pytest tests/test_rig_fourcable.py -q",
+  "TONECOMMAND_SIM=1 .venv/bin/python -m pytest tests/test_rig_multirig.py -q",
+  "TONECOMMAND_SIM=1 .venv/bin/python -m pytest tests/test_device_discovery.py -q -k windows",
+  "TONECOMMAND_SIM=1 .venv/bin/python -m pytest tests/test_riggraph.py tests/test_rigcompile.py tests/test_rig_rackfx.py tests/test_rig_explain.py tests/test_describe.py tests/test_rig_extract.py -q",
+  "TONECOMMAND_SIM=1 .venv/bin/python -m pytest tests/test_version_badge.py -q",
 ]
 # Commands that verify the deployed system. Phase 8 is blocked until these
 # run successfully after deployment approval. This app has no hosted server;

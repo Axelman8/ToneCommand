@@ -444,6 +444,16 @@ Rules:
   you cannot tell is audio at all. Two separate alternatives through a switcher get
   different "route" labels. If the source says nothing about the gear,
   return "rig": null.
+- The four-cable method (a multi-effects unit both in front of the amp and in
+  its effects loop): draw ONE node for the unit, an "audio" edge from it to
+  the amp's input, a "send_return" edge from the amp to it (the amp's send),
+  and a "send_return" edge from it back to the amp (the return). The amp then
+  feeds the cab as usual. Never draw the unit twice.
+- If the source describes MORE THAN ONE distinct rig (different eras, tours,
+  or a "current" and a "previous" setup), add "rigs": a list, newest first,
+  each {"name": "short era or tour label", "summary": "one sentence",
+  "stated": [settings for this rig only], "rig": {the graph, same shape as
+  above}}, and set the top-level "rig" to null. One rig: omit "rigs".
 
 SOURCE:
 """
@@ -477,7 +487,34 @@ def _parse_spec(body: str) -> dict:
         if not isinstance(spec.get(key), list):
             spec[key] = []
     _settle_rig(spec)
+    _settle_rigs(spec)
     return spec
+
+
+def _settle_rigs(spec: dict) -> None:
+    """#245: a source describing several rigs (eras, tours) lists each, so
+    the player picks one instead of the reader silently taking the newest.
+    Each graph is settled like the single one; a rig whose graph does not
+    validate keeps its name and summary with no graph. One rig or none: no
+    list, and the single-rig path is exactly as before."""
+    raw = spec.get("rigs")
+    rigs = []
+    for r in raw if isinstance(raw, list) else ():
+        if not isinstance(r, dict) or not str(r.get("name") or "").strip():
+            continue
+        one = {"name": str(r["name"]).strip(), "summary": str(r.get("summary") or "").strip(),
+               "stated": [str(s) for s in r.get("stated") or [] if str(s).strip()],
+               "rig": r.get("rig")}
+        _settle_rig(one)
+        rigs.append(one)
+    if len(rigs) > 1:
+        spec["rigs"] = rigs
+        spec["rig"] = None
+    else:
+        spec.pop("rigs", None)
+        if rigs and spec.get("rig") is None:
+            # a list of one is just the rig
+            spec["rig"] = rigs[0]["rig"]
 
 
 def _settle_rig(spec: dict) -> None:
