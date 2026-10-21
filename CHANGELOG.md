@@ -4,6 +4,11 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Add a separate Windows MK1 read-only evaluation launcher, source ZIP builder,
+  English first-use guide, VS Code tasks and local report export. Exact read
+  queries are enforced at the MIDI output; preset/scene writes, NAM memory,
+  controller changes and account workflows remain blocked. This test package
+  does not release MK1 writes or change the production adapter's write gates.
 - Reconcile upstream 1.5.16 device discovery, rig reading, package data and
   shared GUI updates with the existing bounded Axe-Fx III adapter. Preserve
   both device-selection paths and private NAM/DDLP exclusions. This source

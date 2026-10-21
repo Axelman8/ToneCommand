@@ -13,7 +13,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PRIVATE_DIRS = {"kb", "backups", "designs", ".venv", ".testruns"}
+PRIVATE_DIRS = {"kb", "backups", "designs", ".venv", ".testruns", "test-results", "notes"}
 PRIVATE_NAMES = {"ai_settings.json", "device_settings.json", "store_slots.json",
                  "outbox.json", "tone_dir.json", "tone3000_tokens.json",
                  "tone3000-account.dat", "amp_models.full.json", "cab_models.full.json"}
