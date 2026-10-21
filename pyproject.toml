@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tonecommand"
-version = "1.5.15"
+version = "1.5.16"
 description = "Natural-language tone control over USB MIDI: Fractal FM9 and BOSS IR-2, more devices joining"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -97,4 +97,5 @@ packages = ["fm9", "devices", "devices.headrush", "devices.axefx3", "devices.ir2
 [tool.setuptools.package-data]
 "devices.axefx3" = ["data/*.json"]
 # #209: the DPDP device catalog is data the devices package reads at runtime.
-devices = ["catalog.json"]
+# #261: so are the reviewed DDLP profiles.
+devices = ["catalog.json", "profiles/*.json"]

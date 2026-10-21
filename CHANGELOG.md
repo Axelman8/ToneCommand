@@ -4,6 +4,10 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Reconcile upstream 1.5.16 device discovery, rig reading, package data and
+  shared GUI updates with the existing bounded Axe-Fx III adapter. Preserve
+  both device-selection paths and private NAM/DDLP exclusions. This source
+  integration does not expand hardware write profiles or certify sound quality.
 - Add a request-first musical scene brief for new multi-scene FW33 AMP/CAB
   GUI designs. Freeze the brief before generating concrete settings; compare
   compiled amp/cab/effect choices against it, not the design's own claims.
@@ -604,6 +608,57 @@ Notable changes to ToneCommand. Dates are UTC.
 - The library symlink security test explicitly skips WinError 1314 when a
   Windows account cannot create symlinks. All other OS errors still fail;
   the production path containment rule is unchanged.
+
+### Fixed
+- **The bottom shelf is one row again.** It was laid out for eight
+  buttons; since DEVICES made nine, SETTINGS sat on a row of its own. Each
+  button now gets an equal bay, however many there are.
+
+## 1.5.16 (2026-10-19)
+
+### Added
+- **The version is always on screen (#264).** A small badge under the
+  wordmark shows the version running. A build that is not the tagged
+  release, such as a branch or main ahead of the tag, also shows its branch
+  and commit, so a dev build never passes for a release.
+- **A page with several rigs asks which one to build (#245).** A gear page
+  that lists rigs by era used to be read as the newest one, silently. Now
+  the reader lists each rig and the page asks which to build before
+  drawing the rig card.
+- **The four-cable method is understood (#244).** A multi-effects unit in
+  front of the amp and in its effects loop used to be read as a loop that
+  could not be built. It is now drawn as two positions, before the amp and
+  in its loop, with the amp's output running through the loop to the cab.
+  A single effect lands by kind: a delay or chorus goes in the loop, a
+  drive before the amp. A rack unit whose effects the source does not name
+  is not built, and the card says so.
+- **USB identity on Windows (#263).** An unknown instrument plugged into a
+  Windows machine now gets the same card as on macOS and Linux, read from
+  Windows' own device list (reads only).
+- **An unknown device is named, and can be learned (#258, #261).** Plugging
+  in an instrument ToneCommand does not know used to produce no response at
+  all. Discovery now also reads USB identity (reads only, nothing opened),
+  so an instrument from a known maker, or one with a MIDI interface, gets a
+  card: "IK Multimedia ToneX One found. ToneCommand doesn't know it yet."
+  Its button runs the first DDLP probe (#239): with your go-ahead it records
+  what the device reports (USB identity, audio channels, a serial control
+  port, MIDI ports it owns) and listens to it, sending nothing. The result
+  is a profile, and the device is recognised by it from then on. Nothing
+  can be controlled from a profile yet. A software MIDI port, such as a
+  DAW's, is never mistaken for a device. USB identity is read on macOS and
+  Linux; Windows still detects by MIDI port names only.
+
+### Fixed
+- **Plugging and unplugging is seen however the app is started (#259).**
+  A server started with `uvicorn server:app` kept its first view of the
+  MIDI ports: an unplugged FM9 stayed listed and a new device was never
+  seen. The port watcher now starts before the first request.
+- **A ToneX Pedal is recognised (#260).** Its catalog entry had no port
+  pattern, so it never got a card. It is now matched by its `ToneX` port
+  and USB ID, and is offered for connection only when a live ToneX is set
+  up; otherwise its card says it cannot be controlled yet. A ToneX One is
+  a different device and does not match.
+
 ## 1.5.15 (2026-10-11)
 
 ### Fixed

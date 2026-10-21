@@ -183,11 +183,17 @@ def _stub_world(monkeypatch, tmp_path) -> list[str]:
     # leave an endless stream early. So the bus check answers once (the real
     # first `link` event) and raises on its second look, which ends the
     # stream through the runner's own error path.
-    looks = {"n": 0}
+    # Counted per stream, keyed by that stream's own cancel event (kept
+    # alive here, so it is never reused). One count shared by the baseline
+    # and sentinel streams made the sentinel's first look depend on whether
+    # the baseline's worker had taken its second look yet, a race CI lost on
+    # the #258 branch. Worker threads are pooled, so a thread is not a stream.
+    looks: dict = {}
 
     def _port_present_once():
-        looks["n"] += 1
-        if looks["n"] % 2 == 0:
+        me = sys._getframe(1).f_locals.get("cancel")
+        looks[me] = looks.get(me, 0) + 1
+        if looks[me] > 1:
             raise RuntimeError("test: the bus watcher stops after one look")
         return False
     monkeypatch.setattr(server, "_fm9_port_present", _port_present_once)
@@ -463,6 +469,8 @@ def _table(sim) -> list[dict]:
         ("GET", "/api/ai-settings", {}, None, None),
         ("GET", "/api/fm3/port", {}, None, None),
         ("POST", "/api/fm3/port", {}, {"port": ""}, None),
+        # #261: the DDLP probe sends nothing to any device and touches no gate
+        ("POST", "/api/ddlp/probe", {}, {"kind": "usb:0000:0000", "consent": False}, None),
         ("GET", "/api/ai-settings/models", {}, None, None),
         ("GET", "/api/ai-settings/setup", {}, None, None),
         ("POST", "/api/chat", {}, {"messages": [{"role": "user", "content": "hi"}]}, None),

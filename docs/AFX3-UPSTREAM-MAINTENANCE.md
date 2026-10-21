@@ -20,15 +20,24 @@ certify untested firmware, controllers, NAM formats or upstream features.
 
 ## Repeatable update check
 
-### Current local acceptance boundary, 2026-10-16
+### Current source integration boundary, 2026-10-21
 
-The shared source has been reconciled with upstream1.5.15 at
-`9ed8751c566f7b2ccb11b387c39f98ab7996edad`. Preserve upstream placement/rehearsal,
-honesty, split FM3 binding and Python packaging changes while keeping this
-adapter's failed-open port cleanup and separate FX3 CI/browser gate. The FM9
-never-brick `_send` AST is unchanged. The upstream checker now compares future
-changes from that integration foundation rather than reporting integrated work
-as missing. This does not claim remote CI or physical FM9/FX3 audition.
+The shared source integrates upstream1.5.16 at
+`2aa7a3998b2cec59edff8cd7e0f3f30d2571ebe9`. Reconciliation preserves upstream
+USB discovery, DDLP profiles, watcher startup ordering, four-cable/multiple-rig
+reading, version badge and bottom-shelf layout, alongside the existing FX3
+selection, planner seams, controller workspace and separate CI/browser gate.
+Learned device profiles and private NAM/account files remain excluded from
+publication. The FM9 never-brick `_send` guard is not changed. The maintenance
+manifest uses this upstream foundation rather than reporting integrated work
+as missing. This is source integration, not new device-write or audible acceptance.
+
+[Draft PR270](https://github.com/monzta1/ToneCommand/pull/270) remains a review
+contribution, not an upstream merge. The existing Unofficial1.5.15-fx3.1 release
+and tag remain pinned to their original99adce1 source snapshot; neither is
+silently replaced by this reconciliation. No live application restart, preset
+change or new hardware test is required to resolve Git conflicts. Remote CI,
+clean installation and physical FX3/FM9 acceptance remain separate checks.
 
 Upstream's shared Python3.14/supriya acceptance applies to its measured FM9
 path, not automatically to FX3. Native FW33 writes are pinned to the measured

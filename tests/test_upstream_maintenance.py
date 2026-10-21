@@ -27,13 +27,15 @@ def repo(tmp_path):
 
 @pytest.mark.parametrize("path", ["backups/export.json", "kb/index.json", "file.syx",
     "FILE.NAM", "user/model.fasBundle", "ai_settings.json", "store_slots.json",
-    "config/cab_models.full.json", ".env", ".env.local", "local\\device_settings.json"])
+    "config/cab_models.full.json", ".env", ".env.local", "local\\device_settings.json",
+    "devices/learned/private-profile.json", "devices\\learned\\private-profile.json"])
 def test_private_artifacts_are_refused(path):
     assert release_audit.inspect_blob(path, b"{}") == ["private-artifact"]
 
 
 def test_public_metadata_and_synthetic_tests_are_allowed():
     assert release_audit.inspect_blob("config/axefx3_upstream.json", b"{}") == []
+    assert release_audit.inspect_blob("devices/profiles/reviewed-profile.json", b"{}") == []
     assert release_audit.inspect_blob("tests/test_account.py", b"token = 'sk-test'") == []
 
 

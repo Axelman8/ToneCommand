@@ -29,7 +29,8 @@ SECRET_PATTERNS = {
 
 def private_path(path: str) -> bool:
     parts = path.replace("\\", "/").lower().split("/")
-    return (bool(set(parts) & PRIVATE_DIRS) or parts[-1] in PRIVATE_NAMES
+    return (bool(set(parts) & PRIVATE_DIRS) or parts[:2] == ["devices", "learned"]
+            or parts[-1] in PRIVATE_NAMES
             or parts[-1] == ".env" or parts[-1].startswith(".env.")
             or Path(parts[-1]).suffix in PRIVATE_SUFFIXES)
 

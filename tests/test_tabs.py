@@ -109,3 +109,12 @@ def test_the_poll_cannot_wipe_the_acknowledgement():
     fn = SCRIPT.split("const plainGig = renderGig;")[1].split("\n}")[0]
     assert "changed = on !== gigOn" in fn
     assert "changed && stage === 'confirm'" in fn
+
+
+def test_the_shelf_is_one_row_however_many_buttons():
+    """A fixed column count wrapped the ninth button (SETTINGS) onto a second
+    row once DEVICES was added; the shelf sizes its bays from its buttons."""
+    rule = UI[UI.index("The utility shelf reads as one physical control strip"):]
+    rule = rule[:rule.index("}")]
+    assert "grid-auto-flow: column" in rule and "grid-auto-columns: minmax(0, 1fr)" in rule
+    assert "grid-template-columns" not in rule

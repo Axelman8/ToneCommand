@@ -75,3 +75,6 @@ handsoff-verifications.jsonl
 tone3000_tokens.json
 tone3000-account.dat
 backups/
+
+# #261: DDLP profiles learned on this machine (reviewed ones live in devices/profiles)
+devices/learned/

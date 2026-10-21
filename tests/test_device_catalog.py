@@ -60,8 +60,9 @@ def test_catalog_entries_are_complete_and_point_somewhere():
         else:
             # an adapter named here is one the server can actually build
             assert e["adapter"] in server.DEVICE_KINDS, e["kind"]
-    # the two patterns seen on real hardware, and only those, are verified
-    assert {e["kind"] for e in entries if e["verified"]} == {"fm9", "ir2"}
+    # the patterns seen on real hardware, and only those, are verified
+    # (#260: the ToneX Pedal's 'ToneX' and USB ID, kb/TONEX_PROTOCOL.md section 1)
+    assert {e["kind"] for e in entries if e["verified"]} == {"fm9", "ir2", "tonex"}
 
 
 @pytest.mark.parametrize("names, kinds", [

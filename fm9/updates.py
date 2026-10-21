@@ -147,6 +147,21 @@ def repo_state(root: Path) -> dict:
     return {"git": True, "branch": branch, "clean": not dirty}
 
 
+def head_info(root: Path) -> dict:
+    """#264: the commit running and the tags on it, so the page can tell a
+    release build from a branch or dev build. Empty outside git."""
+    if not is_git_checkout(root):
+        return {"commit": None, "tags": []}
+    try:
+        def g(*args):
+            return subprocess.run(["git", "-C", str(root), *args],
+                                  capture_output=True, text=True, timeout=8).stdout
+        return {"commit": g("rev-parse", "--short", "HEAD").strip() or None,
+                "tags": g("tag", "--points-at", "HEAD").split()}
+    except Exception:      # noqa: BLE001  a version badge must never fail the page
+        return {"commit": None, "tags": []}
+
+
 def upgrade_commands(os_name: str = "") -> list[str]:
     """The manual upgrade, copy-paste ready, for the notify banner."""
     if os_name.lower().startswith("win"):

@@ -1789,6 +1789,11 @@
     padding: 0; margin: 0;
   }
   #hwbar .brand { gap: 12px; }
+  /* #264: which version is open, always; a dev build says what it is */
+  .brandtext { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .verbadge { color: var(--muted); font-size: var(--fs-badge, 0.7rem); letter-spacing: 0.08em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .verbadge:empty { display: none; }
   #hwbar .brand img { width: 40px; height: 40px; border-radius: 8px;
     filter: drop-shadow(0 0 12px rgba(90,140,255,0.35)); }
   #hwbar h1 { font-size: calc(1.15rem * var(--ui-scale, 1));
@@ -2222,6 +2227,9 @@
      overflow visible, and the card (taller since the rig view) was drawn
      over the progress panel and the footer. Present since before 1.5.10. */
   #pane-request:has(> #srcask:not([hidden])) { overflow-y: auto; min-height: 0; }
+  /* #245: one button per rig a source describes */
+  .rigpick { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .rigpick .rigchoice { text-align: left; padding: 10px 12px; line-height: 1.4; }
   /* In-flow, not floating: the strip claims its own row above the shelf so
      it can never cover a stage's actions. */
   #opstrip #working { position: static; transform: none; max-width: none;
@@ -3210,7 +3218,9 @@
   #shelf {
     --shelf-accent: var(--cyan);
     flex: 0 0 68px; display: grid;
-    grid-template-columns: repeat(8, minmax(0, 1fr));
+    /* one equal bay per button, however many there are: a fixed repeat(8)
+       pushed the ninth (SETTINGS) onto a row of its own */
+    grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
     gap: 0; padding: 0 12px;
     border-top: 1px solid rgba(133,178,202,0.34);
     background:
@@ -3427,6 +3437,8 @@
   #devcard.err .devcardtitle { color: var(--amber); }
   #devcard #devcardlink { color: var(--cyan); order: 3; }
   #devcard #devcardclose { order: 1; padding: 3px 9px; font-size: var(--fs-badge); }
+  #devcard #devcardlearn { order: 3; padding: 3px 9px; font-size: var(--fs-badge); }
+  #devcard #devcardlearn[hidden] { display: none; }
   #devcard .devcardtext { flex-basis: calc(100% - 140px); }
   #devcard .devcardbar { order: 4; flex-basis: 100%; margin-top: 2px; }
 
@@ -3484,7 +3496,10 @@
   <header id="hwbar">
     <a class="brand" href="/" title="ToneCommand">
       <img src="/logo.png" alt="" width="40" height="40">
-      <h1>TONE <span>//</span> COMMAND</h1>
+      <span class="brandtext">
+        <h1>TONE <span>//</span> COMMAND</h1>
+        <span class="verbadge" id="verbadge" title="the version running"></span>
+      </span>
     </a>
     <div class="hwtarget">
       <span class="pillwrap">
@@ -3538,6 +3553,7 @@
     <span class="devcardtitle" id="devcardtitle"></span>
     <span class="devcardtext" id="devcardtext"></span>
     <a id="devcardlink" href="#" target="_blank" rel="noopener" hidden></a>
+    <button class="small" id="devcardlearn" hidden aria-label="Help ToneCommand learn it" title="listens only: nothing is sent to the device">HELP TONECOMMAND LEARN IT</button>
     <button class="small" id="devcardclose" title="hide this">DISMISS</button>
     <div class="sendbar devcardbar" id="devcardbar" hidden><i></i></div>
   </div>
@@ -5398,9 +5414,20 @@ function setUpdBtn(btn, d) {
     why.hidden = !!d.can_update;
   }
 }
+// #264: the running version, on the main screen. A build that is not the
+// tagged release of its own version (a branch, main ahead of the tag) says
+// which branch and commit, so a dev build never passes for a release.
+function versionBadgeText(d) {
+  if (!d || !d.current) return '';
+  let t = `v${d.current}`;
+  if (d.git && !d.release && (d.branch || d.commit)) t += ` + ${[d.branch, d.commit].filter(Boolean).join(' ')}`;
+  return t;
+}
 function renderVersion(d) {
   if (!d) return;
   bootId = d.boot || bootId;
+  const badge = $('verbadge');
+  if (badge) badge.textContent = versionBadgeText(d);
   $('aboutver').textContent = `ToneCommand ${d.current || '?'}`
     + (d.update_available ? ` (latest ${d.latest})` : ' (up to date)');
   // Settings ABOUT: the same update controls as the banner, in place.
@@ -6750,6 +6777,10 @@ async function selectDevice(kind) {
 document.addEventListener('DOMContentLoaded', () => {
   // #209: dismissing an unsupported device keeps it away for this session;
   // dismissing a plug-in card just closes it (the device stays selected).
+  $('devcardlearn').addEventListener('click', () => {
+    const kind = $('devcard').dataset.kind;
+    if (kind) learnDevice(kind);
+  });
   $('devcardclose').addEventListener('click', () => {
     const kind = $('devcard').dataset.kind;
     if (kind && (detectedKinds || []).includes(kind) && !$('devcardlink').hidden) dismissKind(kind);
@@ -6800,11 +6831,52 @@ function paintDevCard(st) {
   const link = $('devcardlink');
   link.hidden = !st.issue_url;
   if (st.issue_url) { link.href = st.issue_url; link.textContent = `Follow issue #${st.issue}`; }
+  const learn = $('devcardlearn');
+  if (learn) learn.hidden = !st.learn;
 }
 
 function unsupportedCard(dev) {
+  // #258: an instrument nobody has described yet is named, not ignored, and
+  // can be learned (#261). The probe only listens: nothing is sent to it.
+  if (dev.unknown) {
+    return { kind: dev.kind, title: `${dev.label} found`, learn: true,
+             text: "ToneCommand doesn't know it yet. Learning it only listens: nothing is sent to it.",
+             issue: dev.issue, issue_url: dev.issue_url };
+  }
+  if (dev.learned) {
+    return { kind: dev.kind, title: `Learned: ${dev.label}`,
+             text: `Known: ${(dev.known || []).join('; ')}.`, issue: dev.issue, issue_url: dev.issue_url };
+  }
   return { kind: dev.kind, title: dev.verified ? `${dev.label} connected` : `Looks like a ${dev.label}`,
            text: 'ToneCommand cannot control it yet.', issue: dev.issue, issue_url: dev.issue_url };
+}
+
+// #261: the DDLP probe, after the player's go-ahead. While it runs, the
+// detected poll leaves the card alone.
+let ddlpBusy = false;
+async function learnDevice(kind, io) {
+  io = io || { paint: paintDevCard,
+               post: body => fetch('/api/ddlp/probe', {method: 'POST',
+                 headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)})
+                 .then(r => r.json().then(d => ({status: r.status, d}))) };
+  ddlpBusy = true;
+  io.paint({kind, title: 'Learning this device...', pct: 40,
+            text: 'Reading what it reports and listening only. Nothing is sent to it.'});
+  try {
+    const {d} = await io.post({kind, consent: true});
+    if (!d || !d.ok) {
+      io.paint({kind, title: 'Could not learn it', error: true, pct: null, text: (d && d.error) || 'The probe failed.'});
+      return 'failed';
+    }
+    io.paint({kind, title: `Learned: ${d.profile.label}`, done: true, pct: 100,
+              text: `Known: ${d.profile.known.join('; ')}.`});
+    return 'learned';
+  } catch (e) {
+    io.paint({kind, title: 'Could not learn it', error: true, pct: null, text: String((e && e.message) || e)});
+    return 'failed';
+  } finally {
+    ddlpBusy = false;
+  }
 }
 
 // The plug-in walk. Every step is a real one: the bar never moves for a step
@@ -6885,8 +6957,8 @@ function renderDetected(list, io) {
   const arrived = prev === null ? [] : list.filter(d => d.supported && !prev.includes(d.kind));
   if (arrived.length) { runPlugCard(arrived[arrived.length - 1], io); return 'plug'; }
   // No walk running or just started: the card is free for an unsupported device.
-  const busy = $('devcard') && !$('devcard').hidden && $('devcard').dataset.kind
-    && list.some(d => d.supported && d.kind === $('devcard').dataset.kind);
+  const busy = ddlpBusy || ($('devcard') && !$('devcard').hidden && $('devcard').dataset.kind
+    && list.some(d => d.supported && d.kind === $('devcard').dataset.kind));
   if (busy) return 'busy';
   const shown = list.filter(d => !d.supported && !dismissedKinds().includes(d.kind));
   io.paint(shown.length ? unsupportedCard(shown[0]) : null);
@@ -7624,7 +7696,9 @@ async function analyzeSource(sourceText, pic) {
     // Stop here and ask. The source describes what the PLAYER IN IT has; how
     // much of it you want is yours to say, and building the wrong shape and
     // calling it an interpretation is not the same as asking.
-    askAboutBuild(spec, note);
+    // #245: and when it describes several rigs, which one comes first.
+    if ((spec.rigs || []).length > 1) askWhichRig(spec, note);
+    else askAboutBuild(spec, note);
   } catch (e) {
     const stopped = e.name === 'AbortError';
     $('srcprogress').hidden = true;
@@ -7774,6 +7848,27 @@ document.addEventListener('keydown', e => {
 // The two questions whose answers change the work. Modelled on how a careful
 // person takes a brief: confirm the shape and the name, then go.
 let srcAnswers = {scenes: null, name: '', mode: 'closest'};
+
+// #245: a page listing several rigs (eras, tours) used to be read as the
+// newest one, silently. The player picks; the pick is that rig's spec.
+function pickRig(spec, i) {
+  const r = (spec.rigs || [])[i];
+  if (!r) return spec;
+  const picked = Object.assign({}, spec, {summary: r.summary || spec.summary, rig: r.rig,
+                                          rig_explain: r.rig_explain || [], picked_rig: r.name});
+  if ((r.stated || []).length) picked.stated = r.stated;
+  delete picked.rigs;
+  return picked;
+}
+function askWhichRig(spec, note) {
+  $('srcask').innerHTML = `<h4>This source describes ${spec.rigs.length} rigs</h4>
+    <p>Which one should I build?</p>
+    <div class="rigpick">${spec.rigs.map((r, i) => `<button class="rigchoice" data-i="${i}">
+      <b>${esc(r.name)}</b><br><span class="hint">${esc(r.summary || '')}</span></button>`).join('')}</div>`;
+  $('srcask').hidden = false;
+  $('srcask').querySelectorAll('.rigchoice').forEach(b =>
+    b.addEventListener('click', () => askAboutBuild(pickRig(spec, Number(b.dataset.i)), note)));
+}
 
 function askAboutBuild(spec, note) {
   const found = (spec.scenes || []).length || 1;
