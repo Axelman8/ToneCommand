@@ -30,6 +30,15 @@ invariant this codebase is organised around.
 
 ## Layers, in dependency order
 
+Experimental Axe-Fx III reading is isolated in `devices/axefx3`. The existing
+Devices selector creates a separate adapter with a strict final output wrapper;
+only product 0x10 basic read forms reach MIDI. It neither inherits FM9 nor
+loads its parameter/model/cab catalogs. The shared block-name table is used
+only for status labels; unknown IDs remain numeric. `snapshot` delegates this
+context to a read-only status reader rather than the FM9's grid/parameter path.
+Preset/scene navigation, sound changes, NAM and account integration are outside
+this slice of #270. See `docs/AXEFX3-READONLY.md` for independent acceptance.
+
 | Layer | Files | Knows about |
 |---|---|---|
 | Protocol | `protocol.py` | SysEx bytes, effect ids, nothing above |
@@ -67,7 +76,7 @@ locally, and the only way to catch a layout regression is a screenshot.
 **Fix:** split into `ui/index.html`, `ui/app.css`, and JavaScript modules by
 concern. Served as static files. No behaviour change, mechanical, testable.
 
-### 2. `server.py` is 8,564 lines and 114 routes
+### 2. `server.py` is 8,577 lines and 114 routes
 
 Every concern in one module: device polling, planning, applying, settings,
 recipes, sharing, snapshots, profiles, slot admin. Eight pieces of

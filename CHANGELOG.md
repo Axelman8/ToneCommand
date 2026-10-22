@@ -4,6 +4,12 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+### Added
+- Experimental Axe-Fx III reading through the existing Devices selector:
+  firmware major/minor, preset and scene names, block bypass/channel status.
+  No navigation, parameter reads or writes, grid editing, NAM or account
+  workflow is enabled by this contribution. See docs/AXEFX3-READONLY.md.
+
 ### Fixed
 - Release an already opened MIDI input when opening its output fails or is
   interrupted, on both mido and supriya. Successful pair ownership and the

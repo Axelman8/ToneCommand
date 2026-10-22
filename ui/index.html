@@ -3028,6 +3028,8 @@
   body.readonly-device #dirty { display: none; }
   body.readonly-device #context .gridnote { display: none; }
   body.readonly-device #context .pathzone { display: flex; height: auto; }
+  body.readonly-navigation #preset,
+  body.readonly-navigation #newpreset { pointer-events: none; opacity: .65; }
   .ropanel { display: flex; align-items: center; gap: 6px; padding: 2px;
              flex-wrap: nowrap; overflow: hidden; white-space: nowrap; }
   .ronote { color: var(--amber); font-size: var(--fs-label); margin-right: 6px; }
@@ -4322,12 +4324,13 @@ function renderScenes(s) {
     // tooltip carries it in full for the rare name too long even for that. A
     // scene that did not answer shows its number and nothing else.
     const nm = sc.name ? esc(sc.name) : '&nbsp;';
-    return `<button class="sc${on}${warn}" data-scene="${sc.number}" title="${sc.name ? esc(sc.name) : 'scene ' + sc.number}">
+    return `<button class="sc${on}${warn}" data-scene="${sc.number}" ${s.navigation_read_only ? 'disabled' : ''} title="${sc.name ? esc(sc.name) : 'scene ' + sc.number}">
               <span class="n">${sc.number}</span><span class="nm">${nm}</span></button>`;
   }).join('');
 }
 
 async function gotoScene(n) {
+  if (lastState && lastState.navigation_read_only) return;
   if (sceneBusy) return;
   sceneBusy = true;
   const btn = document.querySelector(`.sc[data-scene="${n}"]`);
@@ -4523,6 +4526,7 @@ async function _loadPresets(refresh) {
 }
 
 async function gotoPreset(n, force) {
+  if (lastState && lastState.navigation_read_only) return;
   if (presetBusy) return;
   if (!force && bufferDirty && !window.confirm(
       'The edit buffer holds unsent or unstored changes. Loading a preset '
@@ -6711,7 +6715,7 @@ $('gridbig').addEventListener('click', e => {
 // always has. `deviceGen` is bumped by a selection; a poll that started
 // before the bump leaves the device block alone (a stale answer must never
 // revert a fresh choice).
-const DEVICE_SHORT = { fm9: 'FM9', headrush: 'HEADRUSH', ir2: 'IR-2', fm3: 'FM3' };
+const DEVICE_SHORT = { fm9: 'FM9', headrush: 'HEADRUSH', ir2: 'IR-2', fm3: 'FM3', axefx3: 'AXE-FX III' };
 let deviceGen = 0;
 let deviceState = null;
 function deviceShort(dev) {
@@ -6914,7 +6918,9 @@ async function runPlugCard(dev, io) {
     paint({error: true, pct: null, text: `Could not read the ${dev.label}. Check the cable, then click the link light.`});
     return 'unread';
   }
-  paint({pct: 100, done: true, text: dev.read_only
+  paint({pct: 100, done: true, text: dev.kind === 'axefx3'
+    ? 'Connected, read-only: change presets and scenes on the unit; refresh to read them.'
+    : dev.read_only
     ? 'Connected, read-only for now: presets and scenes switch; nothing changes your sound.'
     : 'Ready. Ask for a tone.'});
   io.later(() => { if (mine === plugCardGen) io.paint(null); }, 4000);
@@ -7019,6 +7025,7 @@ async function refresh() {
     // #212: a read-only device (the FM3) shows its preset, scenes and which
     // blocks are on, and offers nothing that would change the sound.
     document.body.classList.toggle('readonly-device', !!s.read_only);
+    document.body.classList.toggle('readonly-navigation', !!s.navigation_read_only);
     const ctxf = $('context');
     if (ctxf) ctxf.setAttribute('data-label', 'LIVE '
       + ((deviceState && deviceState.label) || 'FM9').toUpperCase() + ' CONTEXT');
@@ -7085,6 +7092,10 @@ function renderReadOnlyBlocks(s) {
     `<span class="robk${b.bypassed ? ' off' : ''}">${esc(b.label)} · ${esc(b.channel)}${b.bypassed ? ' · off' : ''}</span>`).join('');
   // One row: on a laptop-height window a second row pushed the request
   // heading off the top of the workspace.
+  if (s.navigation_read_only) {
+    $('blocks').innerHTML = `<div class="ropanel"><span class="ronote">${esc(s.read_only_reason || 'Read-only: change presets and scenes on the unit.')}</span>${chips}</div>`;
+    return;
+  }
   $('blocks').innerHTML = `<div class="ropanel"><span class="ronote">Read-only for now: presets and scenes `
     + `switch from here; <a href="https://github.com/monzta1/ToneCommand/issues/40" `
     + `target="_blank" rel="noopener">full ${esc(deviceShort(deviceState))} support</a> comes later.</span>`
@@ -7749,6 +7760,7 @@ const DEVICE_EXAMPLES = {
   ],
   // #212: read-only, so no request it would only refuse is suggested.
   fm3: [],
+  axefx3: [],
 };
 
 function renderExamples() {
