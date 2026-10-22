@@ -5,6 +5,9 @@ Notable changes to ToneCommand. Dates are UTC.
 ## Unreleased
 
 ### Fixed
+- Release an already opened MIDI input when opening its output fails or is
+  interrupted, on both mido and supriya. Successful pair ownership and the
+  FM3's exact input/output binding stay unchanged.
 - **The bottom shelf is one row again.** It was laid out for eight
   buttons; since DEVICES made nine, SETTINGS sat on a row of its own. Each
   button now gets an equal bay, however many there are.
