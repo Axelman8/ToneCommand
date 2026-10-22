@@ -10,6 +10,8 @@ from fm9.paths import project_root
 
 CONTRACT = 'fx3-workspace-20261012'
 FILES = ('server.py', 'fm9/planner.py', 'fm9/protocol.py', 'fm9/device.py',
+         'fm9/language.py', 'ui/languages/i18next.min.js', 'ui/languages/tc-language.js',
+         'ui/languages/en.json', 'ui/languages/template.json', 'ui/languages/manifest.json',
          'ui/axefx3.js', 'ui/axefx3.html', 'ui/index.html',
          'devices/axefx3/data/fw33_amp_models.json',
          'devices/axefx3/data/fw33_cab_models.json',

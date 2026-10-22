@@ -144,6 +144,16 @@ def test_connection_requires_local_action_and_chassis_cannot_be_changed(app):
         assert not state['profile']['write_supported'] and not state['profile']['nam_writes']
 
 
+def test_language_assets_are_available_without_relaxing_readonly_boundary(app):
+    application,dev=app
+    with TestClient(application) as client:
+        for asset in ('en.json','template.json','manifest.json','i18next.min.js','tc-language.js'):
+            assert client.get('/language/'+asset).status_code==200
+        assert client.post('/language/en.json',json={},headers=HEADERS).status_code in (405,423)
+        assert client.post('/api/axefx3/send',json={},headers=HEADERS).status_code==423
+        assert not client.get('/api/mk1-test/status').json()['connected']
+
+
 def test_observation_export_is_sanitized_and_survives_disconnect(app):
     application,dev=app
     with TestClient(application) as client:

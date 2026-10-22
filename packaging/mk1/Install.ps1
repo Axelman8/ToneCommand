@@ -20,7 +20,7 @@ if (-not (Test-Path -LiteralPath $kitPython -PathType Leaf)) {
 if ($LASTEXITCODE -ne 0) { throw 'This .venv is not 64-bit Python3.12. Extract into a new folder; do not reuse another app environment.' }
 & $kitPython -m pip install --disable-pip-version-check -e '.[dev]'
 if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed. Keep the console error; do not start a partial installation.' }
-& $kitPython -m pytest tests/test_mk1_tester.py -q
+& $kitPython -m pytest tests/test_mk1_tester.py tests/test_language_packs.py -q
 if ($LASTEXITCODE -ne 0) { throw 'Offline safety tests failed. Do not connect the unit.' }
 Write-Host 'Setup and offline safety tests passed. Run Start-MK1.cmd next.'
 Write-Host 'Never start server.py directly for this MK1 evaluation.'

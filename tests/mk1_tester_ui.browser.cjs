@@ -11,6 +11,7 @@ const path=require('node:path');
     page.on('pageerror',error=>errors.push(error.message));
     await page.route('**/*',async route=>{
       const request=route.request(),url=new URL(request.url());
+      if(url.pathname.startsWith('/language/'))return route.fulfill({contentType:url.pathname.endsWith('.json')?'application/json':'text/javascript',body:fs.readFileSync(path.join(__dirname,'../ui/languages',url.pathname.split('/').pop()))});
       if(url.pathname==='/mk1-test')return route.fulfill({contentType:'text/html',body:fs.readFileSync(path.join(__dirname,'../packaging/mk1/welcome.html'),'utf8')});
       calls.push({path:url.pathname,method:request.method(),body:request.postDataJSON()});
       const report={observations:[{label:'baseline'}],read_only:true};

@@ -305,11 +305,11 @@ def register(app, host):
                 try:
                     result['nam_candidates']=tone3000.client.search(result['comparison']['nam_query'])['data']
                     if not result['nam_candidates']:
-                        result['nam_search_warning']='Geen catalogustreffer voor deze zoekterm. Gebruik de NAM-widget om korter op artiest, liedje of ampmodel te zoeken; TC kiest geen vervangende capture.'
+                        result['nam_search_warning']='No catalog match for this query. Use the NAM widget with a shorter artist, song or amp-model query; TC will not choose a substitute capture.'
                 except tone3000.ToneError as exc:
                     result['nam_search_warning']=str(exc)
             else:
-                result['nam_search_warning']='Koppel Tone3000 voor catalogusonderzoek. AMP/CAB blijft een zelfstandige route.'
+                result['nam_search_warning']='Connect Tone3000 for catalog research. AMP/CAB remains an independent route.'
             with host._lock:
                 editable()
                 if selected() is not dev or dev.current_preset()[0]!=body.expected_preset or dev.firmware_label()!=dev.reg.firmware:
@@ -330,7 +330,7 @@ def register(app, host):
         requirement_failure = []
         design_failure = []
         if bool(body.refine_token) != bool(body.adjust_scenes):
-            raise HTTPException(422,'Een luisteraanpassing vereist zowel het vorige SEND-ontwerp als expliciet gekozen scenes.')
+            raise HTTPException(422,'A listening adjustment requires the previous SEND design and explicitly selected scenes.')
         urls = reference_audio.links(body.prompt)
         if body.source_kind == 'rig' and body.audio_reference:
             raise HTTPException(422,'Choose rig explanation or sound reference; speech measurements are not a guitar-tone target.')
@@ -477,10 +477,10 @@ def register(app, host):
                 if measured:
                     plan['reference_measurements']=audio_measurements.private_evidence(measured)
                 if album_mode and raw.get('scene_layout') is None:
-                    raise ValueError('Geef een expliciete scene_layout; verplichte albumparen zijn niet langer het ontwerpbeleid.')
+                    raise ValueError('Provide an explicit scene_layout; mandatory album pairs are no longer the design policy.')
                 if previous:
                     plan['adjustment']=scene_intent.preserve(previous,plan,body.adjust_scenes)
-                    plan['warnings'].append('Luisteraanpassing: volledige gecontroleerde her-toepassing van het ontwerp, geen minimale live-patch. Niet-geselecteerde scene-instellingen blijven na afloop gelijk; externe mute blijft tijdens alle overgangen verplicht.')
+                    plan['warnings'].append('Listening adjustment: full verified design reapplication, not a minimal live patch. Unselected scene settings remain unchanged afterwards; external audio mute is required during all transitions.')
                 return plan
             def validate(raw):
                 try:
@@ -541,9 +541,9 @@ def register(app, host):
                 prepared=reviews.prepare(dev,result,initial)
                 prepared.update(conversations.finish(turn))
                 if design_repaired:
-                    prepared['warnings'].append('De AI heeft een afgewezen voorstel eenmaal opnieuw uitgewerkt binnen dezelfde controles. Er is nog niets verzonden.')
+                    prepared['warnings'].append('AI revised a refused proposal once under the same checks. Nothing has been sent yet.')
                 if prepared['dialogue_history']:
-                    prepared['warnings'].append('Het ontwerp gebruikt je antwoorden uit DESIGN CONVERSATION. Deze antwoorden geven geen toestemming voor SEND of opslag.')
+                    prepared['warnings'].append('The design uses your DESIGN CONVERSATION answers. Those answers do not authorize SEND or storage.')
                 return prepared
         except design_dialogue.StaleConversation as exc:
             raise HTTPException(409,dict(code='dialogue_stale',message=str(exc))) from exc
@@ -563,7 +563,7 @@ def register(app, host):
                 failure=requirement_failure[-1]
                 return dict(needs_clarification=True,hardware_written=False,intake=dict(
                     intake,ready=False,questions=[dict(id='design_requirement',kind='message',
-                    text=f'Het AI-ontwerp kon scene {failure.scene} met {failure.feature} niet gecontroleerd uitwerken. Er is geen verzendbaar plan gemaakt. Pas je verzoek aan of probeer opnieuw; dit is geen AI-verbindingsfout.')]))
+                    text=f'The AI design could not safely develop scene {failure.scene} with {failure.feature}. No sendable plan was created. Adjust your request or try again; this is not an AI connection failure.')]))
             raise HTTPException(409,str(exc)) from exc
         finally:
             if acquired: host._settings_lock.release()

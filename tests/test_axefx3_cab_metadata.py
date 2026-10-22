@@ -40,7 +40,7 @@ def test_corrupt_cache_does_not_partially_import_or_delete():
     path.write_text(json.dumps(data),encoding='utf-8')
     second=registry()
     assert not second.cab_catalog.names and path.exists()
-    assert 'opnieuw' in second.cab_catalog.cache_note
+    assert 'again' in second.cab_catalog.cache_note
 
 
 @pytest.mark.parametrize('firmware',['32.06','33.01','unknown'])

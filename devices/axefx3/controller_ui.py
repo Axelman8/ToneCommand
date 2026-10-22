@@ -63,7 +63,7 @@ def register(app, host):
                             '/api/tone3000/load', '/api/tone3000/logout'})
             if request.url.path == '/':
                 return RedirectResponse('/axefx3')
-            if request.url.path not in allowed and not request.url.path.startswith(('/api/controllers/', '/api/axefx3/')):
+            if request.url.path not in allowed and not request.url.path.startswith(('/api/controllers/', '/api/axefx3/', '/language/')):
                 return JSONResponse({'error': 'Use the dedicated Axe-Fx III text/controller workspace; FM9 execution is blocked.',
                                      'controller_workspace': '/controllers'}, status_code=409)
         return await call_next(request)

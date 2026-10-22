@@ -137,7 +137,7 @@ def test_explicit_answers_build_four_scenes_with_visible_omission_only(workspace
     assert len(result['scenes']) == 4 and result['token']
     assert 'Exactly 4 scenes.' in ask.call_args.args[0]
     assert 'explicitly deferred requirements=wah_controller' in ask.call_args.kwargs['system']
-    assert any('NIET uitgevoerd' in w for w in result['warnings'])
+    assert any('NOT executed' in w for w in result['warnings'])
     assert not any(a['kind'] == 'bind_controller' for a in result['actions'])
     dev._write.assert_not_called()
     dev.store_preset.assert_not_called()
@@ -158,7 +158,7 @@ def test_typed_design_validation_failure_is_not_a_backend_connection_error(works
     assert response.status_code == 200, response.text
     result = response.json()
     assert result['needs_clarification'] and 'token' not in result
-    assert 'geen AI-verbindingsfout' in result['intake']['questions'][0]['text']
+    assert 'not an AI connection failure' in result['intake']['questions'][0]['text']
     dev._write.assert_not_called()
 
 

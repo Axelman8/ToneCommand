@@ -2283,6 +2283,10 @@ def logo():
     return FileResponse(resource_path("ui", "logo.png"), media_type="image/png")
 
 
+from fm9.language import register as _register_language_assets
+_register_language_assets(app)
+
+
 def _fm9_port_present() -> bool:
     """Whether an FM9 port is on the MIDI bus right now.
 

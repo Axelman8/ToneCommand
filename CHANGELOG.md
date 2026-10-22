@@ -4,11 +4,16 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Update the MK1 read-only evaluation to 1.5.16-fx3.3-mk1-test.2 with English
+  interface labels, local JSON language-pack support and installer checks.
+  This does not enable MK1 writes, NAM or account workflows.
 - Add a separate Windows MK1 read-only evaluation launcher, source ZIP builder,
   English first-use guide, VS Code tasks and local report export. Exact read
   queries are enforced at the MIDI output; preset/scene writes, NAM memory,
   controller changes and account workflows remain blocked. This test package
   does not release MK1 writes or change the production adapter's write gates.
+- Standardize fixed FX3 interface labels and request guidance on English, and
+  register optional language packs without changing hardware permissions.
 - Reconcile upstream 1.5.16 device discovery, rig reading, package data and
   shared GUI updates with the existing bounded Axe-Fx III adapter. Preserve
   both device-selection paths and private NAM/DDLP exclusions. This source
@@ -613,6 +618,11 @@ Notable changes to ToneCommand. Dates are UTC.
 - The library symlink security test explicitly skips WinError 1314 when a
   Windows account cannot create symlinks. All other OS errors still fail;
   the production path containment rule is unchanged.
+### Added
+- English-first interface language packs, using a locally bundled i18next
+  engine. Import version-matched JSON from Settings without AI translation,
+  hardware access, a CDN or changing protocol identifiers. Missing entries
+  stay English. See docs/LANGUAGE-PACKS.md for coverage and release updates.
 
 ### Fixed
 - **The bottom shelf is one row again.** It was laid out for eight

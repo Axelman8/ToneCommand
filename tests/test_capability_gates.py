@@ -340,6 +340,7 @@ def _table(sim) -> list[dict]:
         ("POST", "/api/controllers/review", {}, {"effect_id":95,"source":12}, None),
         ("POST", "/api/controllers/discard", {}, {}, None),
         ("POST", "/api/controllers/send", {}, {"token":"none","target_confirmed":True,"external_audio_muted":True}, None),
+        ("GET", "/language/{asset}", {"asset": "en.json"}, None, None),
         ("GET", "/api/link/stream", {}, None, None),
         ("POST", "/api/reconnect", {}, None, None),
         ("GET", "/api/state", {}, None, None),

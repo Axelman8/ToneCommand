@@ -32,7 +32,7 @@ const path = require('node:path');
         const target=state.targets.find(t=>t.effect_id===body.effect_id);
         result={token:'review-token',preset:324,preset_name:state.preset_name,scene:1,target:target.label,
           before_source:target.source_name,after_source:body.source===12?'External 1':'External 2',
-          before_auto:target.auto_engage,after_auto:body.auto_engage||'Behouden',new_binding:false};
+          before_auto:target.auto_engage,after_auto:body.auto_engage||"Preserve",new_binding:false};
       }
       if(endpoint==='send') {
         sends.push(body);
@@ -48,6 +48,7 @@ const path = require('node:path');
     });
     await page.route('**/*',async route=>{
       const pathname=new URL(route.request().url()).pathname;
+      if(pathname.startsWith('/language/'))return route.fulfill({contentType:pathname.endsWith('.json')?'application/json':'text/javascript',body:fs.readFileSync(path.join(__dirname,'../ui/languages',pathname.split('/').pop()))});
       if(pathname.startsWith('/api/controllers/'))return route.fallback();
       const names={'/controllers':'controllers.html','/controllers.js':'controllers.js','/logo.png':'logo.png'};
       const name=names[pathname];
@@ -66,7 +67,7 @@ const path = require('node:path');
     await page.click('#connect');await page.locator('#source-95').waitFor();
     await page.selectOption('#source-95','13');
     assert.equal(sends.length,0);assert.equal(reviews.length,0);
-    await page.locator('.row').filter({has:page.locator('#source-95')}).getByRole('button',{name:'Controleer'}).click();
+    await page.locator('.row').filter({has:page.locator('#source-95')}).getByRole('button',{name:'Review',exact:true}).click();
     await page.locator('#review:not([hidden])').waitFor();
     assert(await page.locator('#send').isDisabled());
     await page.check('#targetConfirmed');assert(await page.locator('#send').isDisabled());
@@ -74,10 +75,10 @@ const path = require('node:path');
     await page.selectOption('#source-95','12');
     assert(await page.locator('#review').isHidden());assert(!(await page.locator('#targetConfirmed').isChecked()));
     await page.selectOption('#source-102','12');assert(await page.locator('#mode-102').isDisabled());
-    await page.locator('.row').filter({has:page.locator('#source-102')}).getByRole('button',{name:'Controleer'}).click();
+    await page.locator('.row').filter({has:page.locator('#source-102')}).getByRole('button',{name:'Review',exact:true}).click();
     await page.check('#targetConfirmed');await page.check('#muted');
     await page.locator('#send:not([disabled])').waitFor();
-    await page.click('#send');await page.getByRole('heading',{name:'Koppeling teruggelezen en bevestigd'}).waitFor();
+    await page.click('#send');await page.getByRole('heading',{name:"Binding read back and confirmed"}).waitFor();
     await page.locator('#refresh:not([disabled])').waitFor();assert.equal(sends.length,1);
     assert(await page.locator('#send').isDisabled());
     assert.equal(reviews.at(-1).auto_engage,'Off');
@@ -85,11 +86,11 @@ const path = require('node:path');
     // A failed independent verification must not look like success or retry.
     fail=true;
     await page.selectOption('#source-95','13');
-    await page.locator('.row').filter({has:page.locator('#source-95')}).getByRole('button',{name:'Controleer'}).click();
+    await page.locator('.row').filter({has:page.locator('#source-95')}).getByRole('button',{name:'Review',exact:true}).click();
     await page.check('#targetConfirmed');await page.check('#muted');await page.click('#send');
-    await page.getByRole('heading',{name:'Verzending gestopt'}).waitFor();
+    await page.getByRole('heading',{name:"Transmission stopped"}).waitFor();
     await page.locator('#refresh:not([disabled])').waitFor();assert.equal(sends.length,2);
-    assert.match(await page.locator('#resultText').textContent(),/gedeeltelijke/);
+    assert.match(await page.locator('#resultText').textContent(),/Partial changes/);
     // Device strings are text, never HTML.
     state.preset_name='<img src=x onerror="window.injection=true">';
     await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();

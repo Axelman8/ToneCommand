@@ -1,5 +1,5 @@
 UNOFFICIAL TONECOMMAND MK1 READ-ONLY EVALUATION
-Version 1.5.16-fx3.2-mk1-test.1
+Version 1.5.16-fx3.3-mk1-test.2
 
 This is a Windows source test package, not a full MK1 preset-writing release.
 The normal TC application is included, but this evaluation blocks writes.

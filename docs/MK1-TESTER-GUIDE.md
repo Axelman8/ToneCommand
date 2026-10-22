@@ -6,7 +6,7 @@ communication and collect evidence before enabling writes. It is not an
 official ToneCommand or Fractal Audio release, and it does not yet build usable
 presets on MK1. Please do not interpret a successful connection as write support.
 
-Package version: **1.5.16-fx3.2-mk1-test.1**. TC's underlying package version is
+Package version: **1.5.16-fx3.3-mk1-test.2**. TC's underlying package version is
 1.5.16. The exact source commit and source-file hashes are in `MK1-PACKAGE.json`.
 The hardware comparison previously performed on MK2 does not prove MK1 behavior.
 
@@ -76,8 +76,11 @@ way of running or modifying the included source.
 The English test page connects/disconnects, reads the selected preset/scene,
 reads scene names, block status and grid, and collects observations. The current
 TC GUI is included for inspection through "Open the current TC interface".
-Its existing labels are partly Dutch; this package does not globally translate
-the production interface. Scene/preset selection and preset generation are
+Fixed interface labels and guidance now use English. LANGUAGE imports matching
+optional JSON packs without translating preset names, user input or AI replies.
+English and a translator template are included, not a full Dutch translation.
+See `docs/LANGUAGE-PACKS.md` for downloads and contribution instructions.
+Scene/preset selection and preset generation are
 disabled. A disabled action or a read-only refusal is expected, not a dead pedal
 or a broken unit.
 

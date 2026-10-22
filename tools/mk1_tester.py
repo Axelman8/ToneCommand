@@ -34,7 +34,7 @@ from devices.axefx3 import grid, profile, protocol, runtime
 from fm9 import midi_transport, protocol as shared
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '1.5.16-fx3.2-mk1-test.1'
+VERSION = '1.5.16-fx3.3-mk1-test.2'
 NOTICE = ('MK1 evaluation: READ ONLY. Preset/scene selection, SEND, Store, '
           'controller assignment, IR upload and NAM installation are blocked. '
           'Select sounds manually with external monitoring muted. Use /mk1-test for the English checklist.')
