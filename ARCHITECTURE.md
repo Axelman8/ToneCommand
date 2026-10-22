@@ -30,6 +30,14 @@ invariant this codebase is organised around.
 
 ## Layers, in dependency order
 
+Interface languages are local data, not AI or device actions. `fm9/language.py`
+serves a fixed asset allowlist. The bundled i18next engine translates registered
+initial markup and explicitly marked messages; user input, live device readings
+and existing plans are not scanned. English is the source and fallback. Imported
+JSON is matched to its catalog hash, rendered as text, stored only in the browser
+and cannot alter option values or critical English confirmations. Catalog and
+release ZIP checks live in `tools/language_packs.py`.
+
 | Layer | Files | Knows about |
 |---|---|---|
 | Protocol | `protocol.py` | SysEx bytes, effect ids, nothing above |
@@ -67,7 +75,7 @@ locally, and the only way to catch a layout regression is a screenshot.
 **Fix:** split into `ui/index.html`, `ui/app.css`, and JavaScript modules by
 concern. Served as static files. No behaviour change, mechanical, testable.
 
-### 2. `server.py` is 8,564 lines and 114 routes
+### 2. `server.py` is 8,568 lines and 115 routes
 
 Every concern in one module: device polling, planning, applying, settings,
 recipes, sharing, snapshots, profiles, slot admin. Eight pieces of

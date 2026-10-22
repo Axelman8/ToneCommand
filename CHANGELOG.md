@@ -4,6 +4,12 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+### Added
+- English-first interface language packs, using a locally bundled i18next
+  engine. Import version-matched JSON from Settings without AI translation,
+  hardware access, a CDN or changing protocol identifiers. Missing entries
+  stay English. See docs/LANGUAGE-PACKS.md for coverage and release updates.
+
 ### Fixed
 - **The bottom shelf is one row again.** It was laid out for eight
   buttons; since DEVICES made nine, SETTINGS sat on a row of its own. Each
