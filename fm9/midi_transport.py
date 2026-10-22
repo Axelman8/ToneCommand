@@ -18,7 +18,8 @@ mido stays as the message class either way; it is pure Python. The
 never-brick guard (device.FM9._send) sits ABOVE this module: a frame is
 checked before any port sees it, so no backend can widen what reaches the
 wire. The supriya path is fake-port proven here and hardware-pass pending
-(#172 REQ-004); the mido path is unchanged.
+(#172 REQ-004). A partial pair open releases its input on either backend;
+successful traffic and device-level send guards are unchanged.
 """
 from __future__ import annotations
 
@@ -257,21 +258,27 @@ def open_ports(hint: str, env: dict | None = None, supriya_module: Any = None,
                 if (n == exact_out if exact_out is not None else hint in n.lower())]
         if not ins or not outs:
             raise TransportError(_not_found(hint, inputs=every_in))
-        if hint == "fm3":
-            inp = mido.open_input(ins[0])
-            opened = False
-            try:
-                outp = mido.open_output(outs[0])
-                opened = True
-                return inp, outp
-            finally:
-                if not opened:
-                    inp.close()
-        return mido.open_input(ins[0]), mido.open_output(outs[0])
+        inp = mido.open_input(ins[0])
+        opened = False
+        try:
+            outp = mido.open_output(outs[0])
+            opened = True
+            return inp, outp
+        finally:
+            if not opened:
+                inp.close()
     sm = supriya_module or __import__("supriya_midi")
     if hint == "fm3":
         return _open_fm3_supriya(sm, exact_name, exact_out)
-    return SupriyaIn.open(sm, hint), SupriyaOut.open(sm, hint)
+    inp = SupriyaIn.open(sm, hint)
+    opened = False
+    try:
+        outp = SupriyaOut.open(sm, hint)
+        opened = True
+        return inp, outp
+    finally:
+        if not opened:
+            inp.close()
 
 
 def _open_fm3_supriya(sm: Any, exact_name: str | None,
