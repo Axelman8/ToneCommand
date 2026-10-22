@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="nl">
+<html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ToneCommand | Controllers</title><link rel="icon" href="/logo.png">
@@ -31,43 +31,45 @@ dl { display:grid;grid-template-columns:150px 1fr;gap:8px; } dt { color:var(--mu
 summary { cursor:pointer;color:var(--cyan); } a { color:var(--cyan); }
 @media(max-width:760px) { header,main { padding:16px; } .row { grid-template-columns:1fr; } header span { display:none; } dl { grid-template-columns:1fr; } }
 </style>
+<script src="/language/i18next.min.js" defer></script>
+<script src="/language/tc-language.js" defer></script>
 <script src="/controllers.js" defer></script>
 </head>
 <body>
-<nav style="max-width:1100px;margin:auto;padding:12px 24px"><a href="/axefx3" style="color:#40dfff">Preset ontwerpen met tekst</a></nav>
-<header><img src="/logo.png" alt=""><strong>TONE // COMMAND</strong><span>Axe-Fx III | Controllerwerkruimte</span></header>
+<nav style="max-width:1100px;margin:auto;padding:12px 24px"><a href="/axefx3" style="color:#40dfff">Design a preset with text</a></nav>
+<header><img src="/logo.png" alt=""><strong>TONE // COMMAND</strong><span>Axe-Fx III | Controller workspace</span></header>
 <main>
-<h1>Jouw pedaal, jouw koppeling</h1>
-<p class="muted">Kies welke controller een Wah of Volume bedient. Je keuze wordt pas toegepast na controleren en verzenden.</p>
+<h1>Your pedal, your binding</h1>
+<p class="muted">Choose which controller operates Wah or Volume. Your choice is applied only after review and sending.</p>
 <section aria-labelledby="connectionTitle">
-<h2 id="connectionTitle">1. Verbind je Axe-Fx III</h2>
-<p id="connection">Nog niet verbonden. Sluit Axe-Edit en andere TC-sessies voordat je verbindt.</p>
-<small>Integratieversie: alleen de geverifieerde controllerbediening is hier actief. De volledige toonplanner voor Axe-Fx III is nog niet aangesloten. FM9-bediening blijft apart.</small>
-<div class="actions"><button id="connect">Verbind Axe-Fx III</button><button id="refresh" class="secondary" disabled>Opnieuw uitlezen</button><button id="disconnect" class="secondary" disabled>Verbinding sluiten</button><a id="back" href="/">Terug naar TC</a></div>
+<h2 id="connectionTitle">1. Connect your Axe-Fx III</h2>
+<p id="connection">Not connected yet. Close Axe-Edit and other TC sessions before connecting.</p>
+<small>This workspace exposes verified controller controls only. Use the separate FX3 preset-design workspace for tone planning. FM9 controls remain separate.</small>
+<div class="actions"><button id="connect">Connect Axe-Fx III</button><button id="refresh" class="secondary" disabled>Read state again</button><button id="disconnect" class="secondary" disabled>Disconnect</button><a id="back" href="/">Back to TC</a></div>
 </section>
 <div id="status" role="status" aria-live="polite"></div>
 <section id="targets" hidden aria-labelledby="targetsTitle">
-<h2 id="targetsTitle">2. Kies een controller</h2>
-<p class="muted">Bestaande koppelingen blijven behouden totdat je een wijziging verzendt. Het bereik en de curve blijven ongewijzigd; een nieuwe koppeling krijgt de geverifieerde apparaatcurve.</p>
+<h2 id="targetsTitle">2. Choose a controller</h2>
+<p class="muted">Existing bindings are preserved until you send a change. Range and curve stay unchanged; a new binding gets the verified device curve.</p>
 <div id="rows"></div>
-<p id="empty" hidden>Geen ondersteunde Wah- of Volume-blokken gevonden. Voeg ze eerst toe op de Fractal of in Axe-Edit; dit paneel verandert de signaalroute niet.</p>
+<p id="empty" hidden>No supported Wah or Volume blocks found. Add them on the Fractal or in Axe-Edit first; this panel does not change the signal route.</p>
 </section>
 <section id="review" hidden aria-labelledby="reviewTitle" tabindex="-1">
-<h2 id="reviewTitle">3. Controleer de wijziging</h2>
+<h2 id="reviewTitle">3. Review the change</h2>
 <dl id="reviewDetails"></dl>
-<p>Dit verandert alleen de controllerkoppeling in het werkgeheugen, niet de globale MIDI-CC-toewijzing. De wijziging kan meerdere scenes of kanalen raken die deze modifier gebruiken.</p>
+<p>This changes only the controller binding in the edit buffer, not global MIDI-CC assignment. It can affect multiple scenes or channels using this modifier.</p>
 <div class="checks">
-<label><input id="targetConfirmed" type="checkbox">Ik heb de preset, het blok en de controller gecontroleerd.</label>
-<label><input id="muted" type="checkbox">Mijn speakers/koptelefoon zijn extern gedempt en blijven dat tijdens het verzenden. TC kan dit niet meten en heeft geen fysieke volumebegrenzer.</label>
+<label><input id="targetConfirmed" type="checkbox">I have reviewed the preset, block and controller.</label>
+<label><input id="muted" type="checkbox">My speakers/headphones are externally muted and will remain muted while sending. TC cannot measure this and has no physical volume limiter.</label>
 </div>
-<small>Een review vervalt na vijf minuten of zodra de uitgelezen apparaatstatus verandert. Niets wordt permanent opgeslagen. Een mislukte verzending kan gedeeltelijke wijzigingen achterlaten; er is geen automatische Undo.</small>
-<div class="actions"><button id="send" disabled>Verzend koppeling</button><button id="cancel" class="secondary">Annuleer</button></div>
+<small>A review expires after five minutes or when the read device state changes. Nothing is permanently stored. A failed transmission may leave partial changes; there is no automatic Undo.</small>
+<div class="actions"><button id="send" disabled>Send binding</button><button id="cancel" class="secondary">Cancel</button></div>
 </section>
 <section id="result" hidden tabindex="-1"><h2 id="resultTitle"></h2><p id="resultText"></p></section>
-<details><summary>Wat betekent External 1 of 2?</summary>
-<p>Op je Fractal bepaal je welk fysiek pedaal of MIDI-CC bij een External-controller hoort. TC koppelt die bron aan de parameter, maar wijzigt die globale instelling niet. Er wordt geen vast CC-nummer aangenomen.</p>
-<p>Wah: Off schakelt Auto Engage uit; Fast Pos is de geverifieerde Auto Engage-keuze. Volume gebruikt Auto Engage Off. Controleer de werking met je eigen pedaal.</p>
-<p>Delay, amp-gain, andere bronnen, aangepaste modifiercurves en verwijderen van bestaande koppelingen volgen pas na afzonderlijke verificatie. Geen koppeling gewenst? Laat een ongekoppeld blok ongewijzigd. Verwijder een bestaande koppeling voorlopig op het apparaat of in Axe-Edit, na het sluiten van deze verbinding.</p>
+<details><summary>What does External 1 or 2 mean?</summary>
+<p>On your Fractal you choose which physical pedal or MIDI-CC feeds an External controller. TC binds that source to the parameter but does not change the global setting. No fixed CC number is assumed.</p>
+<p>Wah: Off disables Auto Engage; Fast Pos is the verified Auto Engage option. Volume uses Auto Engage Off. Check operation with your own pedal.</p>
+<p>Delay, amp gain, other sources, custom modifier curves and removing existing bindings require separate verification. No binding wanted? Leave an unbound block unchanged. For now remove an existing binding on the device or in Axe-Edit after closing this connection.</p>
 </details>
 </main>
 </body></html>

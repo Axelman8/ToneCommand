@@ -307,3 +307,11 @@ order; this notice stands on its own either way.
 
 "HeadRush" is a trademark of inMusic Brands, Inc. This project is not
 affiliated with or endorsed by inMusic Brands.
+
+## i18next
+
+The local interface translation engine is i18next 26.5.5, distributed under
+the MIT license. Source: https://github.com/i18next/i18next and npm package
+https://www.npmjs.com/package/i18next/v/26.5.5. The unmodified browser build
+is in `ui/languages/i18next.min.js`; its license is included beside it as
+`i18next.LICENSE`. There is no runtime CDN or translation-service dependency.

@@ -21,24 +21,24 @@ def capabilities(reg):
     amp=(firmware=='32.06' and bool(reg.selectable_amp_models()) and bool(reg.cab_catalog.names))
     album=album_build.supported(reg)
     counts=sorted(fw33_profile.ALBUM_SCENE_COUNTS)
-    count_text='acht' if counts==[8] else '1-8' if counts==list(range(1,9)) else '/'.join(map(str,counts))
+    count_text='eight' if counts==[8] else '1-8' if counts==list(range(1,9)) else '/'.join(map(str,counts))
     available=[name for name,ready in (('T808 Mod',fw33_profile.DRIVE_RELEASED),
         ('Modern VCA Compressor',effect_voicing.COMPRESSOR_RELEASED),('10 Band Variable Q',effect_voicing.GEQ_RELEASED)) if ready]
-    drive_note=('Gemeten A-D-effectvoicings: '+', '.join(available)+'. Overige modellen blijven geblokkeerd.'
-                if available else 'Nieuwe Drive/Compressor/post-EQ-voicing wacht op volledige onafhankelijke acceptatie.')
-    drive_note+=(' Wah Cry Babe op gedeeld A met External1/2 en Off/Fast Pos.' if wah_voicing.RELEASED else ' Nieuwe Wah-plannerkoppelingen wachten op acceptatie.')
-    return [dict(mode='amp',label=f'AMP / CAB: {count_text} scenes met klankdoelen' if album else 'AMP / CAB + pedals',enabled=amp or album,
-        reason=(f'FW33: vaste14-blokkenketen, beschikbare sceneaantallen {count_text} met maximaal vier ampvoicings en vier cabkanalen A-D. Expliciete scene-indeling, geen verplichte rhythm/solo-paren. Alle {len(amp_inventory.roster(firmware))} Amp1-modellen, 2048 Factory-cabs en beschikbare geimporteerde Usernamen, met expliciete vier-IR-mix. Delay/Chorus delen A; Output -18dB en niet-ingerichte reserveblokken bypassed. {drive_note}' if album else
-                'Geverifieerde amp/cab-keuze en beschikbare effecten; volledige route wordt bij review gecontroleerd.' if amp else
-                'FW33 amp/cab-modelselectie, routing en extra pedals moeten nog onafhankelijk worden gemeten.' if firmware==fw33_profile.KEY else
-                'Geverifieerde firmware, ampmodellen en een geimporteerde cabnamenlijst zijn nodig.'),
+    drive_note=('Measured A-D effect voicings: '+', '.join(available)+'. Other models remain blocked.'
+                if available else 'New Drive/Compressor/post-EQ voicing awaits full independent acceptance.')
+    drive_note+=(' Wah Cry Babe on shared A with External1/2 and Off/Fast Pos.' if wah_voicing.RELEASED else ' New wah planner bindings await acceptance.')
+    return [dict(mode='amp',label=f'AMP / CAB: {count_text} scenes with tone goals' if album else 'AMP / CAB + pedals',enabled=amp or album,
+        reason=(f'FW33: fixed 14-block chain, available scene counts {count_text} with up to four amp voicings and four cab channels A-D. Explicit scene layout, no mandatory rhythm/solo pairs. All {len(amp_inventory.roster(firmware))} Amp1 models, 2048 Factory cabs and available imported User names, with explicit four-IR mix. Delay/Chorus share A; Output -18dB and unconfigured reserve blocks bypassed. {drive_note}' if album else
+                'Verified amp/cab selection and available effects; the full route is checked during review.' if amp else
+                'FW33 amp/cab model selection, routing and extra pedals still require independent measurement.' if firmware==fw33_profile.KEY else
+                'Verified firmware, amp models and an imported cab name list are required.'),
         interpretation_only=not (amp or album)),
-        dict(mode='nam',label='NAM + passende effecten',enabled=nam,
-        reason=('Geinstalleerde compatibele NAM, gecontroleerde keten, eerst 1 scene vanuit leeg en daarna maximaal 2. Download/installatie apart bevestigen.' if nam else
-                'NAM-presetbouw vereist het exact gemeten FW33-profiel en MK2. NAM is geen verplichte route.'),
-        interpretation_only=not nam)] + ([dict(mode='serial',label='AMP / CAB: gemeten testketen',
+        dict(mode='nam',label='NAM + appropriate effects',enabled=nam,
+        reason=('Installed compatible NAM, verified chain, first 1 scene from empty and then up to 2. Confirm download/installation separately.' if nam else
+                'NAM preset building requires the exact measured FW33 profile and MK2. NAM is not a mandatory route.'),
+        interpretation_only=not nam)] + ([dict(mode='serial',label='AMP / CAB: measured test chain',
         enabled=True,interpretation_only=False,
-        reason='Vaste14-blokkenketen, scene1/A. Bestaande/standaard amp en cab blijven behouden; gain/EQ, delay en chorus zijn instelbaar. Geen modelkeuze, reverb, nieuwe controllers of vrije gridindeling.')]
+        reason='Fixed 14-block chain, scene1/A. Existing/default amp and cab are preserved; gain/EQ, delay and chorus are adjustable. No model selection, reverb, new controllers or free grid layout.')]
         if serial_build.supported(reg) else [])
 
 
@@ -74,4 +74,4 @@ def compare(ask,prompt,reg,audio_reference=None,*,request_scope=''):
     comparison=Comparison.model_validate({key:result[key] for key in Comparison.model_fields})
     return dict(comparison=comparison.model_dump(),routes=caps,readonly=True,hardware_written=False,
                 backend=result.get('backend'),model=result.get('model'),
-                warning='Een muzikale aanbeveling maakt onbewezen Fractal-bediening niet beschikbaar. Kies zelf een uitvoerbare route.')
+                warning='A musical recommendation does not enable unproven Fractal controls. Choose an executable route yourself.')

@@ -15,8 +15,8 @@ class Resolution(BaseModel):
     scene_count_override: StrictBool = False
 
 
-LABELS = dict(wah_controller='Wah-bediening (filter/pedaal), nieuwe controllerkoppeling en Auto Engage',
-              pitch='Echte pedaalgestuurde pitchverhoging', reverb='Nieuwe reverb-instellingen')
+LABELS = dict(wah_controller='Wah control (filter/pedal), new controller binding and Auto Engage',
+              pitch='Real pedal-controlled pitch increase', reverb='New reverb settings')
 WORDS = dict(zip('een one twee two drie three vier four vijf five zes six zeven seven acht eight negen nine tien ten'.split(),
                  (1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10)))
 
@@ -69,16 +69,16 @@ def analyze(prompt, reg, mode, scenes, resolution=None, *, refining=False, wah_s
     questions, missing = [], []
     if (not refining and not resolution.scene_count_override and
             (len(counts) > 1 or any(not 1 <= n <= 8 for n in counts))):
-        questions.append(dict(id='scene_count', kind='scenes', text='Je tekst noemt tegenstrijdige of niet-beschikbare sceneaantallen. Kies expliciet 1 tot 8 scenes.'))
+        questions.append(dict(id='scene_count', kind='scenes', text='Your text requests conflicting or unavailable scene counts. Choose 1 to 8 scenes explicitly.'))
     fw33 = reg.firmware == fw33_profile.KEY
     if (mode == 'serial' and count != 1) or (fw33 and mode == 'nam' and count > 2):
-        questions.append(dict(id='route_scenes', kind='scenes', text='Deze bouwroute ondersteunt dit sceneaantal niet. Kies AMP/CAB voor maximaal acht scenes, of kies bewust minder scenes. Vanuit een lege NAM-preset is eerst een scene nodig.'))
+        questions.append(dict(id='route_scenes', kind='scenes', text='This build route does not support that scene count. Choose AMP/CAB for up to eight scenes, or deliberately choose fewer. An empty NAM preset needs a one-scene build first.'))
     wah = _positive(text, r'\bwah\b')
     pitch = _positive(text, r'\b(?:pitch(?:ed|\s*-?\s*shift(?:er|ing)?)?|whammy|toonhoogte(?:verhoging)?)\b')
     ambiguous = wah and pitch and bool(re.search(r'\b(?:high|hoge?|hoog|toe\s*-?\s*down|teen)\b', text))
     if ambiguous and resolution.pitch_meaning is None:
-        questions.append(dict(id='pitch_meaning', kind='choice', text='Met hoge pitch bij toe-down: bedoel je een helderdere/hogere wah-filterstand, of echte verhoging van de gespeelde toonhoogte?',
-                              options=[dict(value='filter', label='Hogere, helderdere wah-filterstand'), dict(value='pitch', label='Echte pitchverhoging (Whammy/Pitch)')]))
+        questions.append(dict(id='pitch_meaning', kind='choice', text='By high pitch at toe-down, do you mean a brighter/higher wah filter position or a real increase in musical pitch?',
+                              options=[dict(value='filter', label='Higher, brighter wah filter position'), dict(value='pitch', label='Real pitch increase (Whammy/Pitch)')]))
     actual_pitch = pitch and (not ambiguous or resolution.pitch_meaning == 'pitch')
     controller = bool(wah_source) or (wah and bool(re.search(r'\b(?:external\s*[12]|auto\s*-?\s*engag\w*|pedaal|pedal|controller)\b', text)))
     # auto is route exploration, not permission to drop requirements. Recheck
@@ -94,11 +94,11 @@ def analyze(prompt, reg, mode, scenes, resolution=None, *, refining=False, wah_s
     approved = [f for f in missing if f in resolution.accepted_omissions]
     for feature in missing:
         if feature not in approved:
-            questions.append(dict(id=feature, kind='omission', text=LABELS[feature] + ' is niet geverifieerd voor deze bouwroute. Wil je alleen het ondersteunde deel laten ontwerpen en dit onderdeel expliciet uitstellen? Dit voegt geen controller of effect toe.'))
+            questions.append(dict(id=feature, kind='omission', text=LABELS[feature] + ' is not verified for this build route. Design only the supported part and explicitly defer this requirement? This adds no controller or effect.'))
     return dict(ready=not questions, questions=questions, requested_scene_counts=counts,
                 scenes=count if 1 <= count <= 8 else scenes, approved_omissions=approved,
                 pitch_meaning=resolution.pitch_meaning, readonly=True, hardware_written=False,
-                notice='Verzoek gecontroleerd; nog geen AI-ontwerp, SEND of opslag. Een uitgesteld onderdeel wordt niet uitgevoerd.')
+                notice='Request checked; no AI design, SEND or storage yet. A deferred requirement will not be executed.')
 
 
 def context(intake):
@@ -116,4 +116,4 @@ def context(intake):
 def annotate(plan, intake):
     plan['request_intake'] = intake
     for feature in intake['approved_omissions']:
-        plan['warnings'].append('Expliciet uitgesteld, NIET uitgevoerd: ' + LABELS[feature] + '.')
+        plan['warnings'].append('Explicitly deferred, NOT executed: ' + LABELS[feature] + '.')

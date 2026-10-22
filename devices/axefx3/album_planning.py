@@ -12,10 +12,10 @@ AmpName = Literal[tuple(MODELS.values())]
 CABS = {'Greenback': (1, 515, '4x12 Brit70s GB57A'),
         'Recto': (1, 799, '4x12 Recto57A')}
 KNOBS = ('gain','bass','mid','treble','master','depth','presence','level')
-USER_CAB_NOTICE = ('Usercabselectie gebruikt de geimporteerde namenlijst: User1/2 elk 1024 slots op MK2. '
-    'Importeer eerst je actuele Usercabnamen; lege slots worden niet voorgesteld. '
-    'FullRes is apart, alleen IR3/4. MK1 met NAM-firmware heeft geen User2-cabbank. '
-    'Een naamimport installeert niets en bewijst geen hoorbare klankmatch.')
+USER_CAB_NOTICE = ('User cab selection uses the imported name list: User1/2 each have 1024 slots on MK2. '
+    'Import your current User cab names first; empty slots are not suggested. '
+    'FullRes is separate, IR3/4 only. MK1 with NAM firmware has no User2 cab bank. '
+    'Importing names installs nothing and does not prove an audible tone match.')
 MeasuredKnob = Annotated[float, Field(ge=0, le=10, allow_inf_nan=False, strict=True)]
 
 
@@ -386,11 +386,11 @@ def compile_design(reg,raw,current_route,scene_count,wah_source=None,wah_auto_en
         channel_mapping=[dict(scene=i+1,amp='ABCD'[item['amp_channel']],cab='ABCD'[item['cab_channel']],
             delay='A',chorus='A',output='A',**({'drive':'ABCD'[item['amp_channel']]} if has_drive(design) else {}),
             **{key:'ABCD'[item['amp_channel']] for key in ('compressor','geq') if any(getattr(a,key) is not None for a in design.albums)}) for i,item in enumerate(assignments)],
-        warnings=['Maximaal vier ampvoicings en vier cabkanalen A-D; zie de expliciete scene-indeling. Delay/Chorus delen A.',
-            f'{len(MODELS)} FW33-ampmodellen, 2048 Factory-cabs en geimporteerde niet-lege Usercabs. Alleen vrijgegeven effectprofielen mogen worden ingericht.',
-            'Gemeten vaste14-blokkenketen. Alleen expliciet ingerichte vrijgegeven effecten mogen actief; overige reserve-effecten blijven bypassed.',
-            'Wah gebruikt gedeeld kanaal A. Fast Pos kan de scenebypass door pedaalbeweging veranderen. Globale CC-toewijzing en fysieke sweep zijn niet bewezen.',
-            'Expliciete vier-IR-mix met level/pan/mute/solo.' if expanded_cabs(design) else 'Compatibiliteitsontwerp: alleen IR1 in de mix; IR2-4 blijven gemute.',
-            'Cabselectie installeert geen IRs. Mixerstatus bewijst geen hoorbare output of veilige fysieke luidheid.',
-            'Output -18dB; voorlopige scenevolumes. Externe mute is verplicht, geen limiter.',
-            'Interpretatie, geen exacte reproductie. SEND slaat niets permanent op.']))
+        warnings=['Up to four amp voicings and four cab channels A-D; see the explicit scene layout. Delay/Chorus share A.',
+            f'{len(MODELS)} FW33 amp models, 2048 Factory cabs and imported non-empty User cabs. Only released effect profiles may be configured.',
+            'Measured fixed 14-block chain. Only explicitly configured released effects may be active; other reserve effects remain bypassed.',
+            'Wah uses shared channel A. Fast Pos pedal movement can change scene bypass. Global CC mapping and physical sweep are not proven.',
+            'Explicit four-IR mix with level/pan/mute/solo.' if expanded_cabs(design) else 'Compatibility design: only IR1 in the mix; IR2-4 remain muted.',
+            'Cab selection installs no IRs. Mixer status proves neither audible output nor safe physical loudness.',
+            'Output -18dB; provisional scene volumes. External mute is required, not a limiter.',
+            'Interpretation, not exact reproduction. SEND stores nothing permanently.']))

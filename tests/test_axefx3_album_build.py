@@ -222,7 +222,7 @@ def test_user_cab_request_uses_imported_names_without_automatic_send(monkeypatch
     with TestClient(server.app) as client:
         state=client.get('/api/axefx3/state').json()
         assert state['workspace']['contract']=='fx3-workspace-20261012'
-        assert state['album_build_supported'] and 'Usercabselectie' in state['cab_selection_note']
+        assert state['album_build_supported'] and 'User cab selection' in state['cab_selection_note']
         response=client.post('/api/axefx3/plan',json=dict(
             prompt='Metallica albums, zoek een geschikte CAB in de usercab bibliotheek',
             expected_preset=322,mode='amp',scenes=8))

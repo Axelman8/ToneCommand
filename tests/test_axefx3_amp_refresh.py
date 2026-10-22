@@ -65,7 +65,7 @@ def test_refresh_matching_cache_is_read_only(tmp_path,monkeypatch):
 def test_changed_bundled_file_cannot_desynchronize_active_planner(monkeypatch):
     names=dict(album_planning.MODELS);names[100]='Different bundled name'
     monkeypatch.setattr(amp_inventory,'roster',lambda _:names)
-    with pytest.raises(ValueError,match='Herstart TC'):amp_refresh.refresh(reg())
+    with pytest.raises(ValueError,match='Restart TC'):amp_refresh.refresh(reg())
 
 
 def test_existing_review_still_sends_after_metadata_refresh(api,monkeypatch):
