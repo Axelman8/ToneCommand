@@ -150,7 +150,7 @@ def test_reads_and_coherent_snapshot_keep_unknown_effect_ids(device):
     dev, ports = device
     got = snapshot(dev)
     assert got["connected"] and got["read_only"] and got["navigation_read_only"]
-    assert got["preset"] == dict(number=320, editor=321, name="Read Test")
+    assert got["preset"] == dict(number=320, editor=320, name="Read Test")
     assert got["scene"] == dict(number=1, name="Scene 1")
     assert got["firmware"] == "33.00" and len(got["scenes"]) == 8
     assert got["blocks"][1]["bypassed"] and got["blocks"][1]["channel"] == "B"

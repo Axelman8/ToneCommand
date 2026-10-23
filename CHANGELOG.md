@@ -15,6 +15,8 @@ Notable changes to ToneCommand. Dates are UTC.
   workflow is enabled by this contribution. See docs/AXEFX3-READONLY.md.
 
 ### Fixed
+- Axe-Fx III preset numbers now match Axe-Edit's zero-based numbering in
+  current status and both name-list endpoints. FM9 numbering is unchanged.
 - Release an already opened MIDI input when opening its output fails or is
   interrupted, on both mido and supriya. Successful pair ownership and the
   FM3's exact input/output binding stay unchanged.

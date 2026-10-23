@@ -15,7 +15,7 @@ const path = require('node:path');
     const state = () => ({connected: true, read_only: true,
       navigation_read_only: kind === 'axefx3',
       read_only_reason: 'Axe-Fx III support is read-only. Change presets on the unit.',
-      preset: {number: 320, editor: 321, name: 'Read Test'},
+      preset: {number: 320, editor: kind === 'axefx3' ? 320 : 321, name: 'Read Test'},
       scene: {number: 1, name: 'Scene 1'}, firmware: '33.00',
       scenes: Array.from({length: 8}, (_, i) => ({number: i + 1, name: 'Scene ' + (i + 1)})),
       blocks: [{effect_id: 58, label: 'Amp 1', family: 'DISTORT', instance: 1,
@@ -54,7 +54,7 @@ const path = require('node:path');
         const total = chassis === 'mk1' ? 512 : 1024;
         return route.fulfill({contentType:'text/event-stream',body:'event: progress\ndata: '
           + JSON.stringify({read:total,total}) + '\n\nevent: result\ndata: '
-          + JSON.stringify({slots:[{number:total-1,editor:total,name:'Boundary name'}],cached:false}) + '\n\n'});
+          + JSON.stringify({slots:[{number:total-1,editor:total-1,name:'Boundary name'}],cached:false}) + '\n\n'});
       }
       if (url.pathname.endsWith('/stream')) return route.fulfill({contentType: 'text/event-stream', body: ''});
       if (url.pathname === '/api/presets') return route.fulfill({json: {slots: []}});
@@ -69,6 +69,7 @@ const path = require('node:path');
     assert.match(await page.locator('#blocks').innerText(), /Change presets on the unit/);
     assert(!/presets and scenes switch/.test(await page.locator('#blocks').innerText()));
     assert.match(await page.locator('#linktext').innerText(), /AXE-FX III/);
+    assert.equal(await page.locator('#preset .pnum').innerText(), '320');
     await page.evaluate(async () => { await gotoScene(2); await gotoPreset(321, true); });
     assert.deepEqual(posts, []);
     for (const width of [1180, 1280, 1440]) {
@@ -86,6 +87,7 @@ const path = require('node:path');
       'Names must be cleared or replaced by a fresh MK2 scan, never the old MK1 boundary');
     await page.evaluate(() => loadPresets(true));
     assert.equal(await page.evaluate(() => allSlots.at(-1).number),1023);
+    assert.equal(await page.evaluate(() => allSlots.at(-1).editor),1023);
     await page.locator('#axefx3chassis').selectOption('turbo');
     await page.waitForFunction(() => deviceState.axefx3?.chassis === 'turbo' && !axeFxChassisBusy);
     rejectChoice = true;
@@ -97,6 +99,7 @@ const path = require('node:path');
     await page.waitForFunction(() => deviceState.axefx3?.chassis === 'mk1' && !axeFxChassisBusy);
     await page.evaluate(() => loadPresets(true));
     assert.equal(await page.evaluate(() => allSlots.at(-1).number),511);
+    assert.equal(await page.evaluate(() => allSlots.at(-1).editor),511);
     await page.evaluate(() => closeDrawer());
     assert.equal(profilePosts.length,4);
     // Existing FM3 navigation must not inherit the III-only lockout.

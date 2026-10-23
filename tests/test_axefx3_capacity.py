@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 import server
 from devices.axefx3 import protocol as p
-from devices.axefx3.adapter import AxeFxIII, ReadOnlyOutput, ReadOnlyRegistry
+from devices.axefx3.adapter import AxeFxIII, ReadOnlyOutput, ReadOnlyRegistry, SlotName
 from fm9 import protocol as shared
 from fm9.device import FM9NotFound, ReadOnly
 from tests.test_axefx3_readonly import FakePorts
@@ -43,6 +43,7 @@ def test_full_declared_name_scan_including_upper_boundary(chassis, count):
         before = (ports.preset, ports.scene)
         assert [s.number for s in dev.scan_slots()] == list(range(count))
         assert dev.slot_name(count - 1).name == 'Read Test'
+        assert dev.slot_name(count - 1).editor == count - 1
         sent = list(ports.sent)
         with pytest.raises(ValueError):
             dev.slot_name(count)
@@ -154,6 +155,8 @@ def test_full_http_scan_uses_capacity_and_does_not_reuse_other_device_cache(clie
     response = http.get('/api/presets')
     assert len(response.json()['slots']) == 1024
     assert response.json()['slots'][-1]['number'] == 1023
+    assert response.json()['slots'][-1]['editor'] == 1023
+    assert response.json()['slots'][-1]['label'] == '1023 (wire 1023)'
     http.post('/api/device/select', json={'kind': 'axefx3', 'chassis': 'mk1'})
     response = http.get('/api/presets')
     assert len(response.json()['slots']) == 512
@@ -165,6 +168,7 @@ def test_stream_reports_1024_and_cache_stays_scoped(client):
     http.post('/api/device/select', json={'kind':'axefx3', 'chassis':'turbo'})
     result = http.get('/api/presets/stream').text
     assert '"total": 1024' in result and '"number": 1023' in result
+    assert '"editor": 1023' in result and '"label": "1023 (wire 1023)"' in result
     assert server._preset_cache_matches()
     dev.set_chassis('mk1')
     assert not server._preset_cache_matches()
@@ -199,3 +203,10 @@ def test_chassis_field_cannot_be_used_for_another_device(client):
     before = list(ports.sent)
     assert http.post('/api/device/select', json={'kind':'fm9', 'chassis':'mk2'}).status_code == 400
     assert ports.sent == before
+
+
+@pytest.mark.parametrize('number', [0, 323, 511, 512, 1023])
+def test_iii_numbering_matches_editor_without_changing_fm9(number):
+    assert SlotName(number, 'Name').editor == number
+    assert SlotName(number, 'Name').label == f'{number:04d} (wire {number})'
+    assert shared.SlotName(number, 'Name').editor == number + 1

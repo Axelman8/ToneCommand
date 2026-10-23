@@ -56,12 +56,19 @@ Neither the names scan nor the chassis choice selects or saves a preset.
 On a real Mark II, read all names with the Mark II declaration, then compare
 the upper half against Axe-Edit with TC disconnected first. Record exact
 firmware/build and editor version, and specifically compare wire slots 512
-and 1023 (the existing UI labels show these as 513 and 1024). Keep monitoring
+and 1023. Axe-Fx III labels use these same zero-based numbers; the FM9 keeps
+its own one-based display convention. Keep monitoring
 muted for any manual preset/scene change. Close Axe-Edit before reconnecting TC.
 Confirm the selected preset and scene remain unchanged during TC's scan.
 
-The new range is covered by synthetic tests, not yet an independent hardware
-acceptance. Do not send above-511 requests to a Mark I to investigate its
+On 2026-10-23, the read-only adapter read all 1024 names on a Mark II and
+repeated all 512 upper names without changing the current preset, scene or
+block status. Axe-Edit III 1.15.01 independently displayed matching names at
+512 and 1023, and confirmed zero-based numbering. Its status identified the
+unit as Mark II / FW 33.00 beta. This adapter still reports the raw version
+fields as 97.00; exact beta identification remains a separate investigation.
+The full upper-half name-by-name editor comparison is not yet complete.
+Do not send above-511 requests to a Mark I to investigate its
 unknown response. Missing names remain unknown; a timeout is not an empty slot.
 
 ## Read boundary
@@ -85,8 +92,9 @@ timeout/close behavior, request correlation, scene/preset coherence, adapter
 conformance, selection/state endpoints and write refusals. The existing full
 suite and mandatory safety/capability checks accompany the draft, with any
 platform-specific failures disclosed in its description.
-These are not new hardware results: this slice's independent live comparison
-is still pending on an actual III, including the external MK1 tester.
+The Mark II checks above cover names and current-state preservation, not
+new write acceptance. External MK1 testing and a complete upper-half editor
+comparison remain pending.
 
 Review MIDI partial-open cleanup separately; it is the first small PR and is
 recommended before live connection testing. The two PRs both target upstream

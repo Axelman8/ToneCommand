@@ -19,6 +19,18 @@ READ_ONLY = ("Axe-Fx III support is read-only in this review slice. "
              "are separate contributions tracked in #270.")
 
 
+class SlotName(shared.SlotName):
+    """The III editor shows wire numbers directly, not the FM9's offset."""
+
+    @property
+    def editor(self):
+        return self.number
+
+    @property
+    def label(self):
+        return f"{self.number:04d} (wire {self.number})"
+
+
 class ReadOnlyRegistry(SharedRegistry):
     """Shared block names only. Never load FM9 parameters, models or cabs."""
 
@@ -172,7 +184,7 @@ class AxeFxIII:
             raise ValueError(f"Preset name reads are limited to wire slots 0..{self.preset_count - 1}")
         def parse(data):
             got = shared.parse_patch_name_full(data) if len(data) == 40 else None
-            return got if got and got.number == preset else None
+            return SlotName(got.number, got.name, got.ghost) if got and got.number == preset else None
         return self._request(0x0D, list(shared.encode14(preset)), parse)
 
     def scan_slots(self, start=0, end=None):
@@ -254,7 +266,7 @@ def snapshot(adapter, gig_mode=False):
     return dict(connected=True, read_only=True, navigation_read_only=True,
                 declared_chassis=adapter.chassis, preset_count=adapter.preset_count,
                 read_only_reason=READ_ONLY, firmware=firmware,
-                preset=dict(number=before[0], editor=before[0] + 1, name=before[1]),
+                preset=dict(number=before[0], editor=before[0], name=before[1]),
                 scene=dict(number=active, name=scenes[active - 1]["name"]),
                 scenes=scenes, blocks=rows, values={}, params={}, mods=[],
                 cab_sel=None, gig_mode=gig_mode)

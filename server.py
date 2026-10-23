@@ -5749,8 +5749,8 @@ def api_presets(refresh: bool = False):
             for s in fm9.scan_slots(0, getattr(fm9, 'preset_count', 512) - 1):
                 slots.append({
                     "number": s.number,                       # wire
-                    "editor": proto.editor_number(s.number),  # what the unit shows
-                    "label": proto.slot_label(s.number),      # both, for prompts
+                    "editor": getattr(s, 'editor', proto.editor_number(s.number)),
+                    "label": getattr(s, 'label', proto.slot_label(s.number)),
                     "name": s.name,
                     "empty": proto.is_empty_slot_name(s.name),
                 })
@@ -5792,8 +5792,8 @@ def api_presets_stream(refresh: bool = False):
                         return
                     slots.append({
                         "number": s.number,
-                        "editor": proto.editor_number(s.number),
-                        "label": proto.slot_label(s.number),
+                        "editor": getattr(s, 'editor', proto.editor_number(s.number)),
+                        "label": getattr(s, 'label', proto.slot_label(s.number)),
                         "name": s.name,
                         "empty": proto.is_empty_slot_name(s.name),
                     })

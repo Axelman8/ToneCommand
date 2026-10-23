@@ -43,6 +43,8 @@ Mark II/Turbo explicitly allow 1024 name reads at both output boundaries.
 The choice is process-local, never hardware autodetection or a write release.
 Shared name scans derive their bound from the adapter and scope their cache
 to the selected context/connection/chassis; FM9 retains its 512-name default.
+Name-list formatting uses each adapter's slot labels: the III displays wire
+numbers directly, while FM9 keeps its existing one-based display numbering.
 
 | Layer | Files | Knows about |
 |---|---|---|
