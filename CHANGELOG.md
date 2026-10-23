@@ -4,6 +4,10 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Show only detected FM9/III choices in the FX3 header, retaining a verified
+  connected III when discovery fails. Hide irrelevant hardware cards; keep
+  first-time FM3 MIDI setup behind an explicit generic setup action. Passive
+  refresh never selects or connects a device or sends a hardware write.
 - Bundle English, Dutch and German with the full FX3 workspace, reusing the
   upstream local language loader. Replace the manual-import dialog with a
   styled, keyboard-accessible language picker. Keep existing FX3/NAM/controller

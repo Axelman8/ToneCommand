@@ -317,7 +317,7 @@ def api_device():
     kind, avail = device_target()
     return {"selected": kind, "active": device_context().kind,
             "available": avail,
-            "ambiguous": kind is None}
+            "ambiguous": kind is None, "detected": detected_devices()}
 
 
 @app.post("/api/device/select")

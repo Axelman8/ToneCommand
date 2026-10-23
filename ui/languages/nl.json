@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "catalog_version": "1.5.16-lang.3",
-  "catalog_sha256": "cc589f30aca95129666cbbbb990c5a1430ec98fb0414520568bac6bf4ce25bfe",
+  "catalog_sha256": "4bab830ad47d84ae5f0ba3c459f8cddc5551c35d1758d75dad8950d82562f107",
   "locale": "nl",
   "name": "Nederlands",
   "coverage": "Core request, Settings and navigation labels; untranslated and protected text stays English.",

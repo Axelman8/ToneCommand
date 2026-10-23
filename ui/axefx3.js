@@ -3,6 +3,19 @@ const tcText=(key,values={})=>window.TCLanguage?.t(key,values)??key.replace(/\{\
 const viewIds={planPanel:'pane-plan',review:'pane-review',confirmPanel:'pane-confirm',result:'pane-send',generate:'engage',toReview:'reviewbtn',toConfirm:'toconfirm',send:'apply'};
 const el=id=>document.getElementById(viewIds[id]||id);
 let state=null, proposal=null, busy=false;
+function renderDeviceChoices(info, connected=!!state?.connected) {
+  const detected = new Set((Array.isArray(info?.detected) ? info.detected : []).map(device => device?.kind));
+  if (connected) detected.add('axefx3');
+  const choice = el('deviceChoice'), previous = choice.value;
+  const options = [['axefx3', 'Axe-Fx III'], ['fm9', 'FM9']]
+    .filter(([kind]) => detected.has(kind));
+  choice.replaceChildren(...options.map(([kind, label]) => new Option(label, kind)));
+  if (!options.length) choice.append(new Option(tcText("No device detected"), ''));
+  choice.value = options.some(([kind]) => kind === previous) ? previous
+    : connected ? 'axefx3' : options[0]?.[0] || '';
+  choice.disabled = busy || !options.length;
+  el('variant').hidden = choice.value !== 'axefx3';
+}
 let audioReference=null;
 let audioReferenceKey='';
 let namAccount=null,namSelection=null,namPreview=null;
@@ -189,7 +202,9 @@ function controls(){
   captureLabel.hidden=!state?.nam_selection_supported||(state?.route_options_supported&&el('buildRoute').value!=='nam');
   captureSlot.disabled=busy||!state?.nam_selection_supported;
   for(const id of ['refresh','generate','cabImport','prompt','scenes','wah','cabKind','cabFile','discard','variant','deviceChoice','connectDevice','newDesign','audioFile','audioStart','audioLength','namQuery','namFormat','namSearch','namLogin','namWithRequest','editRequest','toReview','backPlan','toConfirm','backReview','returnRequest']) el(id).disabled=busy;
-  el('connectDevice').disabled=busy||(!!state?.connected&&!switchingDevice);
+  el('deviceChoice').disabled=busy||!el('deviceChoice').value;
+  el('variant').hidden=el('deviceChoice').value!=='axefx3';
+  el('connectDevice').disabled=busy||!el('deviceChoice').value||(!!state?.connected&&!switchingDevice);
   el('wahMode').disabled=busy||!el('wah').value;
   const fw33=state?.firmware==='33.00-beta.20261006';
   const awaitingRoute=chooseRoute&&!el('buildRoute').value&&!adjusting;
@@ -353,7 +368,17 @@ async function refresh(){
   resetIntake();
   const priorState=state,priorRoute=el('buildRoute').value,priorScenes=el('scenes').value;
   navigationPreview=null;el('navigationDialog').close();
-  clearRouteExploration();invalidate();clearNamSlots();state=null;state=await api('state');
+  clearRouteExploration();invalidate();clearNamSlots();state=null;
+  try { state=await api('state'); }
+  finally {
+    // Passive discovery also updates choices when the device read fails.
+    let deviceInfo = null;
+    try {
+      const response = await fetch('/api/device');
+      if (response.ok) deviceInfo = await response.json();
+    } catch { /* The verified connected III stays usable without discovery. */ }
+    renderDeviceChoices(deviceInfo);
+  }
   if(!adjusting&&priorState?.connected&&state.connected&&priorState.preset===state.preset&&priorState.firmware===state.firmware&&priorState.profile?.variant===state.profile?.variant&&priorRoute){
     el('buildRoute').value=priorRoute;el('scenes').value=priorScenes;
     el('routeReason').textContent=tcText("Build route and scene count preserved. Explore routes again before creating a new plan; nothing was sent.");

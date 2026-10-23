@@ -23,10 +23,13 @@ const path=require('node:path');
     page.on('pageerror',e=>errors.push(e.message));
     let failPlan=false,failSend=false,failRead=false,addedExtras=false;
     let disconnected=false,routeProblem='',failedTransport='',invalidPlanReply=false,largePlan=false,holdPlan=null;
+    let detectedKinds = ['axefx3', 'fm9'];
     let variant=null,fw33=false,namRoute=false,selected=null,slotsFull=false,slotsFail=false;
     const installs=[],stores=[],previews=[],historyResumes=[];
     await page.route('**/*',async route=>{
       const req=route.request(),url=new URL(req.url()),name=url.pathname.split('/').pop();
+      if(url.pathname==='/api/device')return route.fulfill({json:{
+        detected:detectedKinds.map(kind=>({kind})),active:disconnected?'fm9':'axefx3'}});
       if(url.pathname.startsWith('/language/'))return route.fulfill({contentType:name.endsWith('.json')?'application/json':'text/javascript',body:fs.readFileSync(path.join(__dirname,'../ui/languages',name))});
       if(url.pathname==='/')return route.fulfill({contentType:'text/html',body:'<title>FM9 test workspace</title>'});
       if(url.pathname==='/api/controllers/disconnect'){
@@ -783,6 +786,21 @@ const path=require('node:path');
     assert(await page.locator('#connectDevice').isEnabled());assert.match(await page.textContent('#connectDevice'),/FM9/);
     await page.selectOption('#deviceChoice','axefx3');
     assert(await page.locator('#connectDevice').isDisabled());
+    const sendsBeforeDiscovery = sends.length;
+    detectedKinds=['axefx3'];
+    await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    assert.deepEqual(await page.locator('#deviceChoice option').evaluateAll(nodes=>nodes.map(n=>n.value)),['axefx3']);
+    assert(await page.locator('#variant').isVisible());
+    disconnected=true;detectedKinds=[];
+    await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    assert(await page.locator('#deviceChoice').isDisabled());
+    assert(await page.locator('#connectDevice').isDisabled());
+    assert(await page.locator('#variant').isHidden());
+    assert.equal(await page.locator('#deviceChoice option[value="fm9"]').count(),0);
+    assert.equal(await page.inputValue('#prompt'),longDraft);
+    disconnected=false;detectedKinds=['axefx3','fm9'];
+    await page.click('#refresh');await page.locator('#refresh:not([disabled])').waitFor();
+    assert.equal(sends.length,sendsBeforeDiscovery);
     await page.click('#engage');await page.locator('#refresh:not([disabled])').waitFor();await page.selectOption('#buildRoute','amp');
     let releasePlan;holdPlan=new Promise(resolve=>{releasePlan=resolve;});
     await page.click('#engage');await page.locator('#pane-plan:not([hidden])').waitFor();

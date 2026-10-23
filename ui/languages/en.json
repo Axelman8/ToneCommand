@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "catalog_version": "1.5.16-lang.3",
-  "catalog_sha256": "cc589f30aca95129666cbbbb990c5a1430ec98fb0414520568bac6bf4ce25bfe",
+  "catalog_sha256": "4bab830ad47d84ae5f0ba3c459f8cddc5551c35d1758d75dad8950d82562f107",
   "locale": "en",
   "name": "English",
   "translations": {
@@ -201,6 +201,7 @@
     "Design a preset with text": "Design a preset with text",
     "Design check, not listening evidence. ": "Design check, not listening evidence. ",
     "Design checked again. Select scenes and describe your adjustment; nothing stored.": "Design checked again. Select scenes and describe your adjustment; nothing stored.",
+    "Detecting devices...": "Detecting devices...",
     "Devices": "Devices",
     "Diagnostics": "Diagnostics",
     "Disconnect": "Disconnect",
@@ -346,6 +347,7 @@
     "No candidates found. Try an amp name or another search term.": "No candidates found. Try an amp name or another search term.",
     "No chain read yet": "No chain read yet",
     "No copy kept: it is gone.": "No copy kept: it is gone.",
+    "No device detected": "No device detected",
     "No different tonal character; only other settings.": "No different tonal character; only other settings.",
     "No empty slots. Choose an occupied slot only if you deliberately want to replace the existing NAM.": "No empty slots. Choose an occupied slot only if you deliberately want to replace the existing NAM.",
     "No preset, scene, parameter, controller, IR or NAM writes are enabled. Do not choose MK2 to work around a blocked feature. Keep external monitoring muted. Close Axe-Edit before connecting.": "No preset, scene, parameter, controller, IR or NAM writes are enabled. Do not choose MK2 to work around a blocked feature. Keep external monitoring muted. Close Axe-Edit before connecting.",
@@ -493,6 +495,7 @@
     "Send binding": "Send binding",
     "Sending changes the edit buffer only. Store requires separate confirmation and overwrites only the current permitted slot.": "Sending changes the edit buffer only. Store requires separate confirmation and overwrites only the current permitted slot.",
     "Sending with verification. Keep external audio muted.": "Sending with verification. Keep external audio muted.",
+    "Set up a MIDI device": "Set up a MIDI device",
     "Settings": "Settings",
     "Shared as instructions, not preset files. PROPOSE validates every step against your device, then enters the normal Plan-Review-Confirm-Send flow.": "Shared as instructions, not preset files. PROPOSE validates every step against your device, then enters the normal Plan-Review-Confirm-Send flow.",
     "Show the signal chain": "Show the signal chain",
