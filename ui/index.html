@@ -3913,7 +3913,8 @@
           your hardware or enable sound editing, Store, NAM or controllers.</p>
         <p class="hint" id="axefx3chassisstatus" role="status" aria-live="polite"></p>
       </div>
-      <div class="console" data-label="FRACTAL FM3">
+      <button id="deviceManualSetup" type="button" aria-expanded="false" aria-controls="fm3hardware">Set up a MIDI device</button>
+      <div class="console" id="fm3hardware" data-label="FRACTAL FM3" hidden>
         <p>The FM3 has no MIDI over USB. Use a USB MIDI interface connected to
           its 5-pin MIDI IN and MIDI OUT, and choose that interface's port below.
           The FM3's USB is for FM3-Edit, Fractal-Bot and Cab-Lab.</p>
@@ -6747,13 +6748,24 @@ function deviceShort(dev) {
   const kind = dev && dev.active;
   return DEVICE_SHORT[kind] || (kind ? String(kind).toUpperCase() : 'FM9');
 }
+function visibleDeviceChoices(dev) {
+  const choices = dev?.available || [];
+  if (!Array.isArray(dev?.detected)) return choices;
+  const detected = new Set(dev.detected.map(item => item.kind));
+  // The backend keeps FM9 as a fallback driver, not physical discovery.
+  // Configured network devices do not announce themselves over USB.
+  return choices.filter(item => item.kind !== 'fm9' || detected.has('fm9')
+    || (dev.active === 'fm9' && dev.connected));
+}
 function renderDevice(dev) {
   const changed = !deviceState || deviceState.active !== dev.active;
   deviceState = dev;
   renderAxeFxChassis(dev);
+  renderFM3Settings(dev);
   if (changed && typeof renderExamples === 'function') renderExamples();
   const wrap = $('devwrap');
-  if (!dev || !dev.available || dev.available.length < 2) { wrap.hidden = true; $('devpop').hidden = true; return; }
+  const choices = visibleDeviceChoices(dev);
+  if (!choices.length || (choices.length < 2 && !dev.ambiguous)) { wrap.hidden = true; $('devpop').hidden = true; return; }
   wrap.hidden = false;
   const pill = $('device');
   pill.className = 'pill' + (dev.ambiguous ? ' owed' : '');
@@ -6762,11 +6774,12 @@ function renderDevice(dev) {
 }
 function renderDevicePop(error) {
   const dev = deviceState || {};
+  const choices = visibleDeviceChoices(dev);
   const pop = $('devpop');
-  pop.innerHTML = `<div class="devhint">${dev.ambiguous
+  pop.innerHTML = `<div class="devhint">${dev.ambiguous && choices.length > 1
       ? 'More than one device is reachable. Say which this build is for.'
       : 'Which device this build is for.'}</div>`
-    + (dev.available || []).map(d =>
+    + choices.map(d =>
         `<button data-kind="${esc(d.kind)}" class="${!dev.ambiguous && d.kind === dev.active ? 'active' : ''}">`
         + `${esc(d.label)}${!dev.ambiguous && d.kind === dev.active ? ' · active' : ''}</button>`).join('')
     + (error ? `<div class="deverr">${esc(error)}</div>` : '');
@@ -6822,6 +6835,19 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 // --- #209: the device catalog, live ------------------------------------------
 let axeFxChassisBusy = false;
+let fm3ManualSetup = false;
+function renderFM3Settings(dev) {
+  const relevant = dev?.active === 'fm3' || dev?.selected === 'fm3'
+    || dev?.available?.some(item => item.kind === 'fm3');
+  $('fm3hardware').hidden = !relevant && !fm3ManualSetup;
+  $('deviceManualSetup').hidden = !!relevant;
+  $('deviceManualSetup').setAttribute('aria-expanded', String(fm3ManualSetup));
+}
+$('deviceManualSetup').onclick = () => {
+  fm3ManualSetup = !fm3ManualSetup;
+  renderFM3Settings(deviceState);
+  if (fm3ManualSetup) loadFM3Port(); // Enumerate names only, never save/connect.
+};
 function renderAxeFxChassis(dev) {
   const select = $('axefx3chassis');
   const reachable = dev?.active === 'axefx3' || dev?.selected === 'axefx3'
@@ -7050,7 +7076,7 @@ async function refresh() {
     // The device block AND the link text come from the same poll: a stale
     // answer (one that started before a selection) must touch neither.
     const freshDevice = pollGen === deviceGen;
-    if (s.device && freshDevice) renderDevice(s.device);
+    if (s.device && freshDevice) renderDevice({...s.device, connected: !!s.connected});
     // #209: who else is on the bus; a supported arrival opens the plug-in card
     if (s.device && Array.isArray(s.device.detected)) renderDetected(s.device.detected);
     if (!s.connected) throw new Error(s.error || 'no link');
@@ -12567,7 +12593,10 @@ function openDrawer(name) {
   if (!(name in DRAWERS)) return;
   drawerOpen = name;
   if (name === 'storage') renderArtists();
-  if (name === 'devices') loadFM3Port();
+  if (name === 'devices') {
+    renderFM3Settings(deviceState);
+    if (!$('fm3hardware').hidden) loadFM3Port();
+  }
   $('drawer').hidden = false;
   $('drawer').dataset.draw = name;
   $('drawtitle').textContent = DRAWERS[name][0];

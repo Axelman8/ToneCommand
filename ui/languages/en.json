@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "catalog_version": "1.5.16-lang.2",
-  "catalog_sha256": "8d51cec6b656b9eae025937cbed3c87b15a237c8626876b3cd6be4e064477adf",
+  "catalog_sha256": "80c9a2a331496b623abde170bd45dc35d3764705470e52f04d77123fbc04316e",
   "locale": "en",
   "name": "English",
   "translations": {
@@ -488,6 +488,7 @@
     "Send binding": "Send binding",
     "Sending changes the edit buffer only. Store requires separate confirmation and overwrites only the current permitted slot.": "Sending changes the edit buffer only. Store requires separate confirmation and overwrites only the current permitted slot.",
     "Sending with verification. Keep external audio muted.": "Sending with verification. Keep external audio muted.",
+    "Set up a MIDI device": "Set up a MIDI device",
     "Settings": "Settings",
     "Shared as instructions, not preset files. PROPOSE validates every step against your device, then enters the normal Plan-Review-Confirm-Send flow.": "Shared as instructions, not preset files. PROPOSE validates every step against your device, then enters the normal Plan-Review-Confirm-Send flow.",
     "Show the signal chain": "Show the signal chain",

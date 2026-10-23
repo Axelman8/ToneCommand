@@ -11,7 +11,7 @@ const path = require('node:path');
     const page = await browser.newPage({viewport: {width: 1440, height: 1000}});
     const errors = [], posts = [];
     let kind = 'axefx3', chassis = 'mk1', rejectChoice = false;
-    let selected = null, iiiAvailable = true, connected = true;
+    let selected = null, iiiAvailable = true, fm3Available = true, connected = true;
     const profilePosts = [];
     const state = () => ({connected, read_only: true,
       navigation_read_only: kind === 'axefx3',
@@ -27,7 +27,7 @@ const path = require('node:path');
         ...(kind === 'axefx3' ? {axefx3:{chassis,preset_count:chassis === 'mk1' ? 512 : 1024,declared:true,read_only:true}} : {}), label: kind === 'fm3' ? 'Fractal FM3' : 'Fractal Axe-Fx III',
         available: [{kind: 'fm9', label: 'Fractal FM9'},
           ...(iiiAvailable ? [{kind:'axefx3', label:'Fractal Axe-Fx III'}] : []),
-          {kind:'fm3',label:'Fractal FM3'}],
+          ...(fm3Available ? [{kind:'fm3',label:'Fractal FM3'}] : [])],
         ambiguous: false, detected: []}});
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/*', async route => {
@@ -148,6 +148,22 @@ const path = require('node:path');
       await page.evaluate(() => refresh());
       assert(await page.locator('#axefx3hardware').isHidden());
     }
+    assert.equal(await page.locator('#prompt').inputValue(), 'Keep this unsent request');
+    kind = 'axefx3'; selected = null; fm3Available = false;
+    await page.evaluate(() => refresh());
+    assert(await page.locator('#fm3hardware').isHidden());
+    assert(await page.locator('#deviceManualSetup').isVisible());
+    await page.locator('#deviceManualSetup').click();
+    assert(await page.locator('#fm3hardware').isVisible());
+    await page.locator('#deviceManualSetup').click();
+    assert(await page.locator('#fm3hardware').isHidden());
+    fm3Available = true;
+    await page.evaluate(() => refresh());
+    assert(await page.locator('#fm3hardware').isVisible());
+    assert(await page.locator('#deviceManualSetup').isHidden());
+    fm3Available = false;
+    await page.evaluate(() => refresh());
+    assert(await page.locator('#fm3hardware').isHidden());
     assert.equal(await page.locator('#prompt').inputValue(), 'Keep this unsent request');
     assert.equal(profilePosts.length, 4, 'Visibility changes must not select a device');
     assert.deepEqual(errors, []);
