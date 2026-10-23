@@ -14,7 +14,7 @@ const path = require('node:path');
     const state = () => ({connected: true, read_only: true,
       navigation_read_only: kind === 'axefx3',
       read_only_reason: 'Axe-Fx III support is read-only. Change presets on the unit.',
-      preset: {number: 320, editor: 321, name: 'Read Test'},
+      preset: {number: 320, editor: 320, name: 'Read Test'},
       scene: {number: 1, name: 'Scene 1'}, firmware: '33.00',
       scenes: Array.from({length: 8}, (_, i) => ({number: i + 1, name: 'Scene ' + (i + 1)})),
       blocks: [{effect_id: 58, label: 'Amp 1', family: 'DISTORT', instance: 1,

@@ -159,6 +159,7 @@ DEVICE_KINDS = {
 #: Chosen explicitly, by kind, through /api/device/select. None means no
 #: choice has been made, which is only a problem when there is a choice.
 _selected_kind: dict = {"kind": None}
+_axefx3_chassis: dict = {"value": "mk1"}  # Conservative, process-local declaration.
 
 
 def _headrush_configured() -> bool:
@@ -250,7 +251,7 @@ def device_target() -> tuple[str | None, list[dict]]:
     return None, avail
 
 
-def _build_context(kind: str) -> DeviceContext:
+def _build_context(kind: str, *, axefx3_chassis=None) -> DeviceContext:
     """A connected context for `kind`. The FM9 keeps its lazy path (the
     adapter is None until get_fm9 connects it); a HeadRush is connected here,
     through the committed client, against the simulator when asked."""
@@ -259,7 +260,8 @@ def _build_context(kind: str) -> DeviceContext:
         return _default_context
     if kind == "axefx3":
         from devices.axefx3.adapter import AxeFxIII, ReadOnlyRegistry
-        return DeviceContext(kind, ReadOnlyRegistry(), AxeFxIII(), DEVICE_KINDS[kind])
+        chassis = axefx3_chassis or _axefx3_chassis['value']
+        return DeviceContext(kind, ReadOnlyRegistry(), AxeFxIII(chassis=chassis), DEVICE_KINDS[kind])
     if kind == "headrush":
         from devices.headrush import registry as hr_registry
         from devices.headrush.adapter import HeadrushAdapter
@@ -305,6 +307,16 @@ def _build_context(kind: str) -> DeviceContext:
     raise KeyError(kind)
 
 
+def _axefx3_read_profile() -> dict:
+    ctx = device_context()
+    if ctx.kind != 'axefx3':
+        return {}
+    from devices.axefx3 import protocol
+    chassis = getattr(ctx.adapter, 'chassis', _axefx3_chassis['value'])
+    return {'axefx3': {'chassis': chassis, 'preset_count': protocol.preset_count(chassis),
+                      'declared': True, 'read_only': True}}
+
+
 def device_block() -> dict:
     """#139: what the header renders on every poll: the active device, its
     label, every reachable kind and whether a choice is still owed. Derived
@@ -313,7 +325,7 @@ def device_block() -> dict:
     active = device_context().kind
     return {"active": active, "label": DEVICE_KINDS.get(active, active),
             "selected": kind, "available": avail, "ambiguous": kind is None,
-            "detected": detected_devices()}
+            "detected": detected_devices(), **_axefx3_read_profile()}
 
 
 @app.get("/api/device")
@@ -321,7 +333,7 @@ def api_device():
     kind, avail = device_target()
     return {"selected": kind, "active": device_context().kind,
             "available": avail,
-            "ambiguous": kind is None}
+            "ambiguous": kind is None, **_axefx3_read_profile()}
 
 
 @app.post("/api/device/select")
@@ -330,6 +342,15 @@ def api_device_select(body: dict):
     frozen), while a reviewed plan is pending (it was planned for the other
     device), and for a kind this process cannot reach."""
     kind = str(body.get("kind") or "")
+    chassis = body.get('chassis', _axefx3_chassis['value'])
+    if kind == 'axefx3':
+        from devices.axefx3 import protocol
+        try:
+            protocol.preset_count(chassis)
+        except ValueError as exc:
+            return JSONResponse({'error': str(exc)}, status_code=400)
+    elif 'chassis' in body:
+        return JSONResponse({'error': 'The chassis choice is only for Axe-Fx III'}, status_code=400)
     avail = {d["kind"] for d in available_devices()}
     if kind not in avail:
         return JSONResponse({"error": f"no device {kind!r} here; available: "
@@ -338,7 +359,9 @@ def api_device_select(body: dict):
         if _gig_mode["on"]:
             return JSONResponse({"error": "GIG LOCK is on: the target device "
                                           "cannot change"}, status_code=423)
-        if _plan_revisions and kind != device_context().kind:
+        changed_chassis = (kind == 'axefx3' and
+                           chassis != getattr(device_context().adapter, 'chassis', _axefx3_chassis['value']))
+        if _plan_revisions and (kind != device_context().kind or changed_chassis):
             return JSONResponse(
                 {"error": "a reviewed plan is pending for the current device; "
                           "send or discard it before switching"},
@@ -348,7 +371,8 @@ def api_device_select(body: dict):
             # in words (and logged for Report a problem) and the current
             # device is left exactly as it was.
             try:
-                ctx = _build_context(kind)
+                ctx = (_build_context(kind, axefx3_chassis=chassis)
+                       if kind == 'axefx3' else _build_context(kind))
             except Exception as e:      # noqa: BLE001  any failure to open is reported, never raised
                 note_connection(False, f"{DEVICE_KINDS.get(kind, kind)}: {e}")
                 return JSONResponse({"error": f"could not open the {DEVICE_KINDS.get(kind, kind)}: {e}"},
@@ -361,9 +385,18 @@ def api_device_select(body: dict):
                 except Exception:      # noqa: BLE001  a dead handle is being dropped anyway
                     pass
             select_device_context(ctx)
+            _preset_cache['slots'] = None
             note_connection(True)
+        if kind == 'axefx3':
+            adapter = device_context().adapter
+            if adapter is not None:
+                adapter.set_chassis(chassis)
+            _axefx3_chassis['value'] = chassis
+            if changed_chassis:
+                _preset_cache['slots'] = None
         _selected_kind["kind"] = kind
-    return {"ok": True, "selected": kind, "active": device_context().kind}
+    return {"ok": True, "selected": kind, "active": device_context().kind,
+            **_axefx3_read_profile()}
 
 
 @app.get("/api/fm3/port")
@@ -5695,20 +5728,33 @@ def api_set_store_slots(body: StoreSlotsBody):
         }
 
 
+def _preset_cache_owner():
+    ctx = device_context()
+    return (ctx.kind, id(ctx.adapter), getattr(ctx.adapter, 'chassis', None))
+
+
+def _preset_cache_matches():
+    owner = _preset_cache.get('owner')
+    # Legacy unowned caches remain compatible for other devices, never for III.
+    return (owner == _preset_cache_owner() if owner is not None
+            else device_context().kind != 'axefx3')
+
+
 @app.get("/api/presets")
 def api_presets(refresh: bool = False):
     """Every slot name, read by number without disturbing the loaded preset."""
-    if _preset_cache["slots"] is not None and not refresh:
+    if _preset_cache["slots"] is not None and not refresh and _preset_cache_matches():
         return {"slots": _preset_cache["slots"], "cached": True}
     with _lock:
         try:
             fm9 = get_fm9()
+            owner = _preset_cache_owner()
             slots = []
-            for s in fm9.scan_slots(0, 511):
+            for s in fm9.scan_slots(0, getattr(fm9, 'preset_count', 512) - 1):
                 slots.append({
                     "number": s.number,                       # wire
-                    "editor": proto.editor_number(s.number),  # what the unit shows
-                    "label": proto.slot_label(s.number),      # both, for prompts
+                    "editor": getattr(s, 'editor', proto.editor_number(s.number)),
+                    "label": getattr(s, 'label', proto.slot_label(s.number)),
                     "name": s.name,
                     "empty": proto.is_empty_slot_name(s.name),
                 })
@@ -5721,6 +5767,7 @@ def api_presets(refresh: bool = False):
             drop_fm9()
             return JSONResponse({"error": str(e)}, status_code=500)
     _preset_cache["slots"] = slots
+    _preset_cache['owner'] = owner
     return {"slots": slots, "cached": False}
 
 
@@ -5733,27 +5780,29 @@ def api_presets_stream(refresh: bool = False):
     unit is empty". The count is real progress, measured off the wire.
     """
     def work(emit, cancel):
-        if _preset_cache["slots"] is not None and not refresh:
+        if _preset_cache["slots"] is not None and not refresh and _preset_cache_matches():
             emit("result", {"slots": _preset_cache["slots"], "cached": True})
             return
         slots = []
         with _lock:
             try:
                 fm9 = get_fm9()
-                for s in fm9.scan_slots(0, 511):
+                owner = _preset_cache_owner()
+                total = getattr(fm9, 'preset_count', 512)
+                for s in fm9.scan_slots(0, total - 1):
                     if cancel.is_set():
                         # Nobody is watching and a partial list must never be
                         # cached as though it were the unit.
                         return
                     slots.append({
                         "number": s.number,
-                        "editor": proto.editor_number(s.number),
-                        "label": proto.slot_label(s.number),
+                        "editor": getattr(s, 'editor', proto.editor_number(s.number)),
+                        "label": getattr(s, 'label', proto.slot_label(s.number)),
                         "name": s.name,
                         "empty": proto.is_empty_slot_name(s.name),
                     })
                     if (s.number + 1) % 16 == 0:
-                        emit("progress", {"read": s.number + 1, "total": 512})
+                        emit("progress", {"read": s.number + 1, "total": total})
             except FM9NotFound:
                 drop_fm9()
                 emit("error", "FM9 not connected")
@@ -5765,6 +5814,7 @@ def api_presets_stream(refresh: bool = False):
                 emit("error", str(e))
                 return
         _preset_cache["slots"] = slots
+        _preset_cache['owner'] = owner
         emit("result", {"slots": slots, "cached": False})
 
     return _stream_response(work, final=("result", "error"))

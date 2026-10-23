@@ -48,6 +48,13 @@ only for status labels; unknown IDs remain numeric. `snapshot` delegates this
 context to a read-only status reader rather than the FM9's grid/parameter path.
 Preset/scene navigation, sound changes, NAM and account integration are outside
 this slice of #270. See `docs/AXEFX3-READONLY.md` for independent acceptance.
+The Devices panel declares preset-name capacity, defaulting to Mark I/512.
+Mark II/Turbo explicitly allow 1024 name reads at both output boundaries.
+The choice is process-local, never hardware autodetection or a write release.
+Shared name scans derive their bound from the adapter and scope their cache
+to the selected context/connection/chassis; FM9 retains its 512-name default.
+Name-list formatting uses each adapter's slot labels: the III displays wire
+numbers directly, while FM9 keeps its existing one-based display numbering.
 
 | Layer | Files | Knows about |
 |---|---|---|
@@ -86,7 +93,7 @@ locally, and the only way to catch a layout regression is a screenshot.
 **Fix:** split into `ui/index.html`, `ui/app.css`, and JavaScript modules by
 concern. Served as static files. No behaviour change, mechanical, testable.
 
-### 2. `server.py` is 8,581 lines and 115 routes
+### 2. `server.py` is 8,631 lines and 115 routes
 
 Every concern in one module: device polling, planning, applying, settings,
 recipes, sharing, snapshots, profiles, slot admin. Eight pieces of

@@ -150,7 +150,7 @@ def test_reads_and_coherent_snapshot_keep_unknown_effect_ids(device):
     dev, ports = device
     got = snapshot(dev)
     assert got["connected"] and got["read_only"] and got["navigation_read_only"]
-    assert got["preset"] == dict(number=320, editor=321, name="Read Test")
+    assert got["preset"] == dict(number=320, editor=320, name="Read Test")
     assert got["scene"] == dict(number=1, name="Scene 1")
     assert got["firmware"] == "33.00" and len(got["scenes"]) == 8
     assert got["blocks"][1]["bypassed"] and got["blocks"][1]["channel"] == "B"
@@ -251,7 +251,7 @@ def client(device, monkeypatch):
     monkeypatch.setattr(server, "_plan_revisions", {})
     monkeypatch.setattr(server, "_gig_mode", {"on": False})
     monkeypatch.setattr(server, "detected_devices", lambda: [{"kind": "axefx3"}])
-    monkeypatch.setattr("devices.axefx3.adapter.AxeFxIII", lambda: dev)
+    monkeypatch.setattr("devices.axefx3.adapter.AxeFxIII", lambda **kwargs: dev)
     with TestClient(server.app) as http:
         assert http.post("/api/device/select", json={"kind": "axefx3"}).status_code == 200
         yield http, ports
@@ -283,7 +283,7 @@ def test_failed_device_selection_keeps_old_context(monkeypatch):
     monkeypatch.setattr(server, "_plan_revisions", {})
     monkeypatch.setattr(server, "_gig_mode", {"on": False})
     monkeypatch.setattr(server, "detected_devices", lambda: [{"kind": "axefx3"}])
-    def busy():
+    def busy(**kwargs):
         raise OSError("port occupied")
     monkeypatch.setattr("devices.axefx3.adapter.AxeFxIII", busy)
     with TestClient(server.app) as http:
