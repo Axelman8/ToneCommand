@@ -3901,6 +3901,18 @@
       <button class="mclose" id="drawclose" title="close">&#10005;</button></div>
 
     <div class="drawpane" id="drawer-devices" hidden>
+      <div class="console" data-nofold data-label="AXE-FX III">
+        <label for="axefx3chassis">Hardware type (declared, not detected)</label>
+        <select id="axefx3chassis" disabled style="display:block;width:100%;margin:10px 0">
+          <option value="mk1">Mark I - 512 presets</option>
+          <option value="mk2">Mark II - 1024 presets</option>
+          <option value="turbo">Turbo - 1024 presets</option>
+        </select>
+        <p class="hint">Choose the type of your connected Axe-Fx III to connect/read it.
+          This sets the preset-name read range for this session. It does not detect
+          your hardware or enable sound editing, Store, NAM or controllers.</p>
+        <p class="hint" id="axefx3chassisstatus" role="status" aria-live="polite"></p>
+      </div>
       <div class="console" data-label="FRACTAL FM3">
         <p>The FM3 has no MIDI over USB. Use a USB MIDI interface connected to
           its 5-pin MIDI IN and MIDI OUT, and choose that interface's port below.
@@ -4481,6 +4493,7 @@ function loadPresets(refresh) {
 }
 
 async function _loadPresets(refresh) {
+  const scanGen = deviceGen;
   // A device with named parameters has no 512-slot library. The IR-2 has two
   // stored patches, which is what its footswitch toggles, so that is what the
   // selector offers. Scanning 512 FM9 slots against it returned nothing and
@@ -4500,7 +4513,7 @@ async function _loadPresets(refresh) {
     renderPresets(false);
     return allSlots;
   }
-  presetScan = {read: 0, total: 512};
+  presetScan = {read: 0, total: deviceState?.axefx3?.preset_count || 512};
   renderPresetScan();
   try {
     const r = await fetch('/api/presets/stream' + (refresh ? '?refresh=true' : ''));
@@ -4508,6 +4521,7 @@ async function _loadPresets(refresh) {
     let got = null;
     for await (const [ev, d] of sseFrom(r)) {
       if (ev === 'progress') {
+        if (scanGen !== deviceGen) continue;
         presetScan = {read: d.read, total: d.total};
         renderPresetScan();
       }
@@ -4515,6 +4529,7 @@ async function _loadPresets(refresh) {
       else if (ev === 'result') { got = d; break; }
     }
     if (!got) throw new Error('the scan ended before it finished');
+    if (scanGen !== deviceGen) return;  // An old device/profile scan cannot restore stale names.
     allSlots = got.slots || [];
     if (!$('ppop').hidden) renderPresets(true);
   } catch (e) {
@@ -6725,6 +6740,7 @@ function deviceShort(dev) {
 function renderDevice(dev) {
   const changed = !deviceState || deviceState.active !== dev.active;
   deviceState = dev;
+  renderAxeFxChassis(dev);
   if (changed && typeof renderExamples === 'function') renderExamples();
   const wrap = $('devwrap');
   if (!dev || !dev.available || dev.available.length < 2) { wrap.hidden = true; $('devpop').hidden = true; return; }
@@ -6765,6 +6781,7 @@ async function selectDevice(kind) {
     if (gen !== deviceGen) return;   // a newer selection is in flight
     const dev = Object.assign({}, deviceState || {}, {active: d.active, selected: d.selected, ambiguous: false,
       label: ((deviceState && deviceState.available) || []).filter(x => x.kind === d.active).map(x => x.label)[0] || d.active});
+    if (d.axefx3) dev.axefx3 = d.axefx3; else delete dev.axefx3;
     renderDevice(dev);
     $('devpop').hidden = true;
     if ($('link').classList.contains('on')) $('linktext').textContent = `${deviceShort(dev)} · LINKED`;
@@ -6794,6 +6811,40 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 // --- #209: the device catalog, live ------------------------------------------
+let axeFxChassisBusy = false;
+function renderAxeFxChassis(dev) {
+  const select = $('axefx3chassis');
+  const reachable = dev?.active === 'axefx3' || dev?.available?.some(item => item.kind === 'axefx3');
+  select.disabled = axeFxChassisBusy || !reachable || !!presetScanPromise;
+  if (!axeFxChassisBusy) select.value = dev?.axefx3?.chassis || 'mk1';
+}
+$('axefx3chassis').onchange = async () => {
+  if (axeFxChassisBusy || presetScanPromise) { renderAxeFxChassis(deviceState); return; }
+  const chassis = $('axefx3chassis').value;
+  axeFxChassisBusy = true;
+  ++deviceGen;
+  renderAxeFxChassis(deviceState);
+  try {
+    const response = await fetch('/api/device/select', {method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify({kind:'axefx3',chassis})});
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || 'Hardware choice was not confirmed.');
+    renderDevice({...deviceState, active:result.active, selected:result.selected,
+      ambiguous:false, label:'Fractal Axe-Fx III', axefx3:result.axefx3});
+    allSlots = [];
+    $('axefx3chassisstatus').textContent = 'Declared hardware: ' + chassis.toUpperCase()
+      + '. Read-only preset-name range: 0..' + (result.axefx3.preset_count - 1)
+      + '. Use RESCAN to read names; no sound was changed.';
+  } catch (error) {
+    $('axefx3chassisstatus').textContent = 'Could not confirm the hardware choice. Reopen Devices to check. '
+      + String(error.message || error);
+  } finally {
+    axeFxChassisBusy = false;
+    renderAxeFxChassis(deviceState);
+    await refresh();
+  }
+};
+
 // The server names every device it recognises on the MIDI bus (by port name
 // only; nothing is sent to it). A supported device that ARRIVES while the
 // page is open gets a card that walks the real steps to Ready; one that was

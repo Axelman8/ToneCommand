@@ -5,6 +5,10 @@ Notable changes to ToneCommand. Dates are UTC.
 ## Unreleased
 
 ### Added
+- Declared Axe-Fx III hardware type in Devices: Mark I reads 512 preset names;
+  Mark II/Turbo read 1024. The default remains Mark I. This only expands
+  read-only name requests, scopes their cache and updates scan progress.
+  Sound editing, navigation, Store, NAM and controllers remain unavailable.
 - Experimental Axe-Fx III reading through the existing Devices selector:
   firmware major/minor, preset and scene names, block bypass/channel status.
   No navigation, parameter reads or writes, grid editing, NAM or account

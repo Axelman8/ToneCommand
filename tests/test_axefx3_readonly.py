@@ -251,7 +251,7 @@ def client(device, monkeypatch):
     monkeypatch.setattr(server, "_plan_revisions", {})
     monkeypatch.setattr(server, "_gig_mode", {"on": False})
     monkeypatch.setattr(server, "detected_devices", lambda: [{"kind": "axefx3"}])
-    monkeypatch.setattr("devices.axefx3.adapter.AxeFxIII", lambda: dev)
+    monkeypatch.setattr("devices.axefx3.adapter.AxeFxIII", lambda **kwargs: dev)
     with TestClient(server.app) as http:
         assert http.post("/api/device/select", json={"kind": "axefx3"}).status_code == 200
         yield http, ports
@@ -283,7 +283,7 @@ def test_failed_device_selection_keeps_old_context(monkeypatch):
     monkeypatch.setattr(server, "_plan_revisions", {})
     monkeypatch.setattr(server, "_gig_mode", {"on": False})
     monkeypatch.setattr(server, "detected_devices", lambda: [{"kind": "axefx3"}])
-    def busy():
+    def busy(**kwargs):
         raise OSError("port occupied")
     monkeypatch.setattr("devices.axefx3.adapter.AxeFxIII", busy)
     with TestClient(server.app) as http:

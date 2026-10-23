@@ -8,6 +8,13 @@ from fm9 import protocol as shared
 
 MODEL = 0x10
 FUNCTIONS = frozenset({0x08, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x13})
+PRESET_COUNTS = {'mk1': 512, 'mk2': 1024, 'turbo': 1024}
+
+
+def preset_count(chassis):
+    if not isinstance(chassis, str) or chassis not in PRESET_COUNTS:
+        raise ValueError('Choose mk1, mk2 or turbo explicitly; no automatic chassis detection')
+    return PRESET_COUNTS[chassis]
 
 
 def envelope(function, payload):
@@ -21,8 +28,9 @@ def valid_reply(data):
             and shared.checksum(data[:-1]) == data[-1])
 
 
-def allowed(frame):
+def allowed(frame, chassis='mk1'):
     """Exact read forms, including checksum, ranges and payload lengths."""
+    limit = preset_count(chassis)
     if (len(frame) < 8 or frame[0] != 0xF0 or frame[-1] != 0xF7
             or not valid_reply(frame[1:-1])):
         return False
@@ -33,7 +41,7 @@ def allowed(frame):
         return payload == [127]
     if function == 0x0D:
         return len(payload) == 2 and (payload == [127, 127]
-                                     or shared.decode14(*payload) < 512)
+                                     or shared.decode14(*payload) < limit)
     if function == 0x0E:
         return len(payload) == 1 and payload[0] in (*range(8), 127)
     if function in (0x0A, 0x0B):
