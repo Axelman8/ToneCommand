@@ -11,8 +11,9 @@ import tomllib
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '1.5.16-lang.1'
+VERSION = '1.5.16-lang.3'
 ASSETS = ('en.json', 'template.json', 'manifest.json')
+LOCALE_FILE = re.compile(r'([a-z]{2,3}(?:-[A-Z]{2})?)\.json\Z')
 PROTECTED = re.compile(r'\b(mute[ds]?|overwrite|permanent|firmware|safety|never|read.only|limiter|confirmation|readback|unsaved|discard|reviewed)\b|\bI confirm\b', re.I)
 TECHNICAL = re.compile(r'^(?:External \d+|Axe-Fx III|FM[39]|MK[12]|NAM|Off|On|Fast Pos|dB|Hz|kHz|ms|BPM)$')
 
@@ -81,13 +82,36 @@ def documents(root=ROOT):
     english = dict(base, locale='en', name='English', translations=translations,
                    protected_keys=[k for k in keys if PROTECTED.search(k) or TECHNICAL.fullmatch(k)])
     template = dict(base, locale='xx', name='Your language', translations={})
+    localized = {}
+    for file in sorted((root / 'ui/languages').glob('*.json')):
+        match = LOCALE_FILE.fullmatch(file.name)
+        if match and match[1] != 'en':
+            pack = json.loads(file.read_text(encoding='utf-8'))
+            validate_translations(pack, english, match[1])
+            localized[file.name] = dict(pack, **base)
+    languages = [dict(locale='en', name='English')]
+    languages.extend(dict(locale=pack['locale'], name=pack['name']) for pack in localized.values())
     vendor = root / 'ui/languages/i18next.min.js'
     manifest = dict(base, app_version=tomllib.loads((root / 'pyproject.toml').read_text(encoding='utf-8'))['project']['version'],
-                    base_language='en', available=['en'], engine='i18next', engine_version='26.5.5',
+                    base_language='en', available=[item['locale'] for item in languages], languages=languages,
+                    engine='i18next', engine_version='26.5.5',
                     engine_sha256=hashlib.sha256(vendor.read_bytes()).hexdigest(),
                     key_count=len(keys), packs_url='https://github.com/Axelman8/ToneCommand/releases',
                     coverage='Initial shipped markup and marked FX3/controller messages; live plans and device/user text excluded.')
-    return dict(zip(ASSETS, (english, template, manifest)))
+    return dict(zip(ASSETS, (english, template, manifest))) | localized
+
+
+def validate_translations(pack, catalog, locale):
+    if (not isinstance(pack, dict) or pack.get('schema') != 1 or pack.get('locale') != locale
+            or not isinstance(pack.get('name'), str) or not 0 < len(pack['name'].strip()) <= 60
+            or not isinstance(pack.get('translations'), dict) or not pack['translations']):
+        raise ValueError('Invalid bundled language: ' + locale)
+    for key, value in pack['translations'].items():
+        if (key not in catalog['translations'] or not isinstance(value, str) or not value.strip()
+                or len(value) > 12000 or '$t(' in value
+                or (key in catalog['protected_keys'] and key != value)
+                or sorted(re.findall(r'\{\{(\w+)\}\}', key)) != sorted(re.findall(r'\{\{(\w+)\}\}', value))):
+            raise ValueError('Invalid translation key/placeholders in ' + locale + ': ' + key)
 
 
 def refresh(root=ROOT):
@@ -101,7 +125,7 @@ def check(root=ROOT):
     for name, expected in documents(root).items():
         if json.loads((folder / name).read_text(encoding='utf-8')) != expected:
             raise ValueError('Language assets are stale; run python -m tools.language_packs --refresh: ' + name)
-    print('English catalog, template and release manifest match the source.')
+    print('English catalog, bundled languages and release manifest match the source.')
 
 
 def build(root=ROOT, destination=None):
@@ -117,7 +141,7 @@ def build(root=ROOT, destination=None):
     output = folder / ('ToneCommand-Language-Packs-' + VERSION + '.zip')
     if output.exists():
         raise FileExistsError('Refusing to replace an existing language release ZIP')
-    files = {name: (root / 'ui/languages' / name).read_bytes() for name in ASSETS}
+    files = {name: (root / 'ui/languages' / name).read_bytes() for name in documents(root)}
     files['LANGUAGE-PACKS.md'] = (root / 'docs/LANGUAGE-PACKS.md').read_bytes()
     files['SOURCE.json'] = json.dumps(dict(source_commit=revision, version=VERSION,
         files={name: hashlib.sha256(data).hexdigest() for name, data in files.items()}), indent=2).encode()

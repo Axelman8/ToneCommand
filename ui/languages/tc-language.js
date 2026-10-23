@@ -3,9 +3,13 @@
   'use strict';
   const STORAGE = 'tonecommand.language.v1';
   const LIMIT = 2 * 1024 * 1024;
-  let catalog = null, selected = 'en', imported = null;
-  const registered = [];
+  const LOCALE = /^[a-z]{2,3}(?:-[A-Z]{2})?$/;
+  let catalog = null, selected = 'en', available = ['en'], revision = 0;
+  const registered = [], loaded = new Map();
   const attrs = ['title', 'placeholder', 'aria-label'];
+  const select = document.getElementById('tc-language-select');
+  let status = document.getElementById('tc-language-status');
+  let picker = null, controlsReady = false;
   const engine = window.i18next?.createInstance();
   if (engine) engine.init({lng: 'en', fallbackLng: 'en', initAsync: false,
     keySeparator: false, nsSeparator: false, returnNull: false,
@@ -13,29 +17,32 @@
     interpolation: {escapeValue: false}, saveMissing: false});
 
   function text(key, values = {}) {
+    if (catalog?.protected_keys.includes(key)) return key.replace(/\{\{(\w+)\}\}/g,
+      (_, name) => String(values[name] ?? '{{' + name + '}}'));
     return engine ? engine.t(key, values) : key.replace(/\{\{(\w+)\}\}/g,
       (_, name) => String(values[name] ?? '{{' + name + '}}'));
   }
   function placeholders(value) {
     return [...value.matchAll(/\{\{(\w+)\}\}/g)].map(m => m[1]).sort().join('|');
   }
-  function validate(pack) {
+  function validate(pack, locale) {
     if (!catalog) throw new Error('The English catalog is unavailable. Keep using English.');
     if (!pack || Object.getPrototypeOf(pack) !== Object.prototype || pack.schema !== 1
-        || typeof pack.locale !== 'string' || !/^[a-z]{2,3}(?:-[A-Z]{2})?$/.test(pack.locale)
-        || pack.locale === 'en' || typeof pack.name !== 'string' || !pack.name.trim()
-        || pack.name.length > 60 || pack.catalog_version !== catalog.catalog_version
+        || typeof pack.locale !== 'string' || !LOCALE.test(pack.locale) || pack.locale === 'en'
+        || (locale && pack.locale !== locale) || typeof pack.name !== 'string'
+        || !pack.name.trim() || pack.name.length > 60
+        || pack.catalog_version !== catalog.catalog_version
         || pack.catalog_sha256 !== catalog.catalog_sha256
         || !pack.translations || Object.getPrototypeOf(pack.translations) !== Object.prototype)
-      throw new Error('Invalid or incompatible language pack. Download the matching release.');
+      throw new Error('Invalid or incompatible bundled language. Keep using English.');
     const entries = Object.entries(pack.translations);
-    if (!entries.length) throw new Error('This is an empty translator template, not a translated pack.');
+    if (!entries.length) throw new Error('The bundled language has no translations.');
     for (const [key, value] of entries) {
       if (!Object.hasOwn(catalog.translations, key) || typeof value !== 'string'
           || !value.trim() || value.length > 12000 || /\$t\(/.test(value)
           || (catalog.protected_keys.includes(key) && value !== key)
           || placeholders(value) !== placeholders(key))
-        throw new Error('A translation has an unknown key or changed placeholders. Pack not installed.');
+        throw new Error('A bundled translation has invalid keys or placeholders. Keep using English.');
     }
     return pack;
   }
@@ -48,7 +55,7 @@
       const value = node.nodeValue, key = value.trim();
       if (!key || !/[A-Za-z]/.test(key)) continue;
       if (parent.tagName === 'OPTION' && !parent.hasAttribute('value'))
-        parent.setAttribute('value', parent.value); // Label changes must never alter a wire enum.
+        parent.setAttribute('value', parent.value);
       registered.push({node, key, prefix: value.slice(0, value.indexOf(key)),
         suffix: value.slice(value.indexOf(key) + key.length), last: value});
     }
@@ -64,7 +71,7 @@
     for (const entry of registered) {
       if (!entry.node.isConnected) continue;
       const current = entry.attr ? entry.node.getAttribute(entry.attr) : entry.node.nodeValue;
-      if (current !== entry.last) continue; // A live reading/plan now owns this node.
+      if (current !== entry.last) continue;
       if (!catalog || !Object.hasOwn(catalog.translations, entry.key)) continue;
       const translated = text(entry.key);
       entry.last = entry.attr ? translated : entry.prefix + translated + entry.suffix;
@@ -72,86 +79,153 @@
       else entry.node.nodeValue = entry.last;
     }
     document.documentElement.lang = selected;
+    syncControls();
     window.dispatchEvent(new CustomEvent('tc-language-changed', {detail: {locale: selected}}));
   }
-  async function choose(locale) {
-    if (locale !== 'en' && (!imported || imported.locale !== locale))
-      throw new Error('Import this language pack first.');
-    selected = locale;
-    if (engine) await engine.changeLanguage(locale);
-    apply();
-    try { localStorage.setItem(STORAGE, JSON.stringify({locale: selected, pack: imported})); }
-    catch { /* Session-only choice when browser storage is unavailable. */ }
+  async function jsonAsset(name) {
+    const response = await fetch('/language/' + name);
+    if (!response.ok) throw new Error('Bundled language unavailable. Keep using English.');
+    const raw = await response.text();
+    if (raw.length > LIMIT) throw new Error('Bundled language is too large.');
+    return JSON.parse(raw);
   }
-  function mount() {
-    const dialog = document.createElement('dialog');
-    dialog.id = 'tc-language-dialog';
-    dialog.style.cssText = 'max-width:560px;width:85vw;background:#101923;color:#eee;border:1px solid #40dfff;padding:24px;max-height:80vh;overflow:auto';
-    dialog.innerHTML = '<h2>Interface language</h2><p>English is the base language. Missing translations stay English. User text, AI replies, Fractal names and technical identifiers are not translated.</p>'
-      + '<label>Language <select aria-label="Interface language"><option value="en">English</option></select></label>'
-      + '<p><label>Import language pack (.json) <input type="file" accept=".json,application/json"></label></p>'
-      + '<p><a href="/language/en.json" download="en.json">Download English catalog</a> | '
-      + '<a href="/language/template.json" download="template.json">Translator template</a> | '
-      + '<a href="https://github.com/Axelman8/ToneCommand/releases" target="_blank" rel="noopener noreferrer">GitHub language packs</a></p>'
-      + '<p role="status"></p><button type="button">Close</button>';
-    document.body.append(dialog);
-    const select = dialog.querySelector('select'), status = dialog.querySelector('[role=status]');
-    const refresh = () => {
-      select.replaceChildren(new Option('English', 'en'));
-      if (imported) select.append(new Option(imported.name, imported.locale));
-      select.value = selected;
-    };
-    dialog.querySelector('button').onclick = () => dialog.close();
-    select.onchange = async () => {
-      try { await choose(select.value); status.textContent = text('Interface language changed. Existing plans and unsent input are unchanged.'); }
-      catch (error) { status.textContent = error.message; }
-    };
-    dialog.querySelector('input').onchange = async event => {
-      const file = event.target.files[0];
-      if (!file) return;
-      try {
-        if (file.size > LIMIT) throw new Error('Language packs must be at most 2 MiB.');
-        const candidate = validate(JSON.parse(await file.text()));
-        const translations = Object.fromEntries(Object.entries(candidate.translations));
-        if (!engine) throw new Error('The local translation engine is unavailable. Keep using English.');
-        engine.addResourceBundle(candidate.locale, 'translation', translations, false, true);
-        imported = candidate;
-        await choose(candidate.locale); refresh();
-        status.textContent = text('Language pack imported. Missing entries use English.');
-      } catch (error) { status.textContent = error.message; refresh(); }
-      event.target.value = '';
-    };
+  async function load(locale) {
+    if (!available.includes(locale) || !LOCALE.test(locale))
+      throw new Error('This language is not bundled with the app.');
+    if (!loaded.has(locale)) loaded.set(locale, jsonAsset(locale + '.json')
+      .then(pack => validate(pack, locale))
+      .catch(error => { loaded.delete(locale); throw error; }));
+    return loaded.get(locale);
+  }
+  async function choose(locale, persist = true) {
+    const request = ++revision;
+    if (!engine) throw new Error('The local translation engine is unavailable. Keep using English.');
+    if (locale !== 'en') {
+      const pack = await load(locale);
+      if (request !== revision) return;
+      engine.addResourceBundle(locale, 'translation', pack.translations, false, true);
+    }
+    if (request !== revision) return;
+    selected = locale;
+    await engine.changeLanguage(locale);
+    if (request !== revision) return;
+    apply();
+    if (persist) {
+      try { localStorage.setItem(STORAGE, JSON.stringify({locale: selected})); }
+      catch { /* Session-only choice when browser storage is unavailable. */ }
+    }
+  }
+  function syncControls() {
+    if (select) select.value = selected;
+    picker?.querySelectorAll('input[type=radio]').forEach(input => {
+      input.checked = input.value === selected;
+      input.disabled = !engine || !controlsReady;
+    });
+  }
+  async function chooseFromControl(locale) {
+    try {
+      await choose(locale);
+      if (status) status.textContent = text('Interface language changed. Existing plans and unsent input are unchanged.');
+    } catch (error) {
+      syncControls();
+      if (status) status.textContent = error.message;
+    }
+  }
+  function renderChoices(languages) {
+    if (!picker) return;
+    const options = picker.querySelector('.tc-language-options');
+    options.replaceChildren(...languages.map(language => {
+      const label = document.createElement('label');
+      label.className = 'tc-language-choice';
+      const badge = document.createElement('span');
+      badge.className = 'tc-language-code'; badge.textContent = language.locale.toUpperCase();
+      badge.setAttribute('aria-hidden', 'true');
+      const name = document.createElement('span');
+      name.className = 'tc-language-name'; name.textContent = language.name;
+      const input = document.createElement('input');
+      input.type = 'radio'; input.name = 'tc-interface-language'; input.value = language.locale;
+      input.onchange = () => { if (input.checked) chooseFromControl(input.value); };
+      label.append(input, name, badge);
+      return label;
+    }));
+    syncControls();
+  }
+  function mountPicker() {
+    if (select) return; // The upstream Settings dropdown needs no extra dialog.
+    const style = document.createElement('link');
+    style.rel = 'stylesheet'; style.href = '/language/tc-language.css';
+    document.head.append(style);
+    picker = document.createElement('dialog');
+    picker.id = 'tc-language-dialog';
+    picker.setAttribute('aria-labelledby', 'tc-language-title');
+    picker.setAttribute('aria-describedby', 'tc-language-description');
+    picker.innerHTML = '<div class="tc-language-heading"><span class="tc-language-icon" aria-hidden="true">'
+      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c5 5 5 13 0 18-5-5-5-13 0-18Z"/></svg></span>'
+      + '<div><h2 id="tc-language-title">Interface language</h2><p id="tc-language-description">Choose the language for menus and controls.</p></div></div>'
+      + '<fieldset><legend>Choose your language</legend><div class="tc-language-options" data-no-translate></div></fieldset>'
+      + '<p class="tc-language-note">Missing translations stay in English. Your requests, plans and device names are not translated.</p>'
+      + '<p id="tc-language-status" role="status" aria-live="polite" data-no-translate></p>'
+      + '<div class="tc-language-footer"><span>Changes apply immediately.</span><button type="button" class="tc-language-close">Done</button></div>';
+    document.body.append(picker);
+    status = picker.querySelector('#tc-language-status');
+    picker.querySelector('button').onclick = () => picker.close();
     const trigger = document.createElement('button');
-    trigger.type = 'button'; trigger.className = 'pill'; trigger.textContent = 'LANGUAGE';
-    trigger.setAttribute('aria-label', 'Interface language');
-    trigger.onclick = () => { refresh(); dialog.showModal(); };
+    trigger.type = 'button'; trigger.className = 'tc-language-trigger';
+    trigger.textContent = 'Language'; trigger.setAttribute('aria-label', 'Interface language');
+    trigger.onclick = () => { syncControls(); picker.showModal(); };
     const settings = document.getElementById('drawer-settings');
     const header = document.querySelector('#hwbar .status, header, nav');
     (settings || header || document.body).append(trigger);
-    capture(dialog); capture(trigger);
+    renderChoices([{locale: 'en', name: 'English'}]);
   }
+  mountPicker();
   capture(document.body);
-  mount();
+  if (select) {
+    select.disabled = true;
+    select.onchange = () => chooseFromControl(select.value);
+  }
   const ready = (async () => {
+    let listReady = false;
     try {
-      const response = await fetch('/language/en.json');
-      if (!response.ok) throw new Error('English catalog unavailable');
-      const value = await response.json();
-      if (value.schema !== 1 || value.locale !== 'en' || !value.translations)
-        throw new Error('Invalid English catalog');
-      catalog = value;
+      const english = await jsonAsset('en.json');
+      if (english.schema !== 1 || english.locale !== 'en' || !english.translations
+          || Object.getPrototypeOf(english.translations) !== Object.prototype
+          || !Array.isArray(english.protected_keys)) throw new Error('Invalid English catalog.');
+      catalog = english;
       engine?.addResourceBundle('en', 'translation', catalog.translations, false, true);
-      try {
-        const saved = JSON.parse(localStorage.getItem(STORAGE) || 'null');
-        if (saved?.pack) {
-          imported = validate(saved.pack);
-          engine?.addResourceBundle(imported.locale, 'translation', imported.translations, false, true);
-          if (saved.locale === imported.locale) selected = imported.locale;
-        }
-      } catch { imported = null; selected = 'en'; }
-      if (engine) await engine.changeLanguage(selected);
+      const manifest = await jsonAsset('manifest.json');
+      if (manifest.schema !== 1 || manifest.catalog_sha256 !== catalog.catalog_sha256
+          || manifest.catalog_version !== catalog.catalog_version
+          || !Array.isArray(manifest.languages) || manifest.languages.length > 32
+          || !manifest.languages.some(item => item?.locale === 'en')
+          || manifest.languages.some(item => !item || typeof item.locale !== 'string'
+            || !LOCALE.test(item.locale) || typeof item.name !== 'string'
+            || !item.name.trim() || item.name.length > 60)
+          || new Set(manifest.languages.map(item => item.locale)).size !== manifest.languages.length)
+        throw new Error('Invalid bundled language list. Keep using English.');
+      available = manifest.languages.map(item => item.locale);
+      listReady = true;
+      controlsReady = true;
+      renderChoices(manifest.languages);
+      if (select) {
+        select.replaceChildren(...manifest.languages.map(item => new Option(item.name, item.locale)));
+        select.disabled = !engine;
+      }
+      let saved;
+      try { saved = JSON.parse(localStorage.getItem(STORAGE) || 'null'); }
+      catch { /* A damaged browser preference cannot prevent English startup. */ }
+      // Only the bundled locale is restored; legacy imported translations are ignored.
+      if (engine) await choose(available.includes(saved?.locale) ? saved.locale : 'en', false);
+      else apply();
+    } catch (error) {
+      selected = 'en';
+      if (engine) await engine.changeLanguage('en');
       apply();
-    } catch { selected = 'en'; /* English source remains fully usable offline. */ }
+      if (select) { select.value = 'en'; select.disabled = !engine || !listReady; }
+      controlsReady = listReady;
+      syncControls();
+      if (status) status.textContent = error.message;
+    }
   })();
   window.TCLanguage = Object.freeze({t: text, ready, validate,
     get locale() { return selected; }, get catalog() { return catalog; }});

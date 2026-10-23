@@ -44,7 +44,7 @@ def test_no_post_installs_or_downloaded_code():
     code = (ROOT / 'ui/languages/tc-language.js').read_text(encoding='utf-8')
     assert 'MutationObserver' not in code
     assert 'innerHTML = translations' not in code
-    assert "fetch('/language/en.json')" in code
+    assert "jsonAsset('en.json')" in code
     assert 'new Function' not in code and 'eval(' not in code
 
 
@@ -73,3 +73,52 @@ def test_markup_does_not_collect_scripts_or_user_input():
     markup.feed('<label>Name<input placeholder="Your name"></label>'
                 '<textarea>User text</textarea><script>secret()</script><style>style</style>')
     assert markup.keys == {'Name', 'Your name'}
+
+
+def test_bundled_languages_are_valid_and_discovered():
+    catalog = json.loads((ROOT / 'ui/languages/en.json').read_text(encoding='utf-8'))
+    manifest = json.loads((ROOT / 'ui/languages/manifest.json').read_text(encoding='utf-8'))
+    assert set(manifest['available']) == {'en', 'nl', 'de'}
+    for locale in ('nl', 'de'):
+        pack = json.loads((ROOT / f'ui/languages/{locale}.json').read_text(encoding='utf-8'))
+        packs.validate_translations(pack, catalog, locale)
+        assert pack['catalog_sha256'] == catalog['catalog_sha256']
+        assert len(pack['translations']) >= 150
+        assert f'{locale}.json' in ASSETS
+
+
+@pytest.mark.parametrize('translation', [{'not-a-key': 'wrong'}, {'Language': '$t(secret)'}])
+def test_invalid_bundled_translation_fails_closed(translation):
+    catalog = json.loads((ROOT / 'ui/languages/en.json').read_text(encoding='utf-8'))
+    with pytest.raises(ValueError, match='translation'):
+        packs.validate_translations(dict(schema=1, locale='nl', name='Nederlands',
+                                         translations=translation), catalog, 'nl')
+
+
+def test_protected_confirmation_cannot_be_translated():
+    catalog = json.loads((ROOT / 'ui/languages/en.json').read_text(encoding='utf-8'))
+    with pytest.raises(ValueError, match='translation'):
+        packs.validate_translations(dict(schema=1, locale='nl', name='Nederlands',
+            translations={catalog['protected_keys'][0]: 'Changed confirmation'}), catalog, 'nl')
+
+
+def test_new_locale_is_in_manifest_and_release_documents(tmp_path):
+    (tmp_path / 'ui').mkdir()
+    shutil.copytree(ROOT / 'ui/languages', tmp_path / 'ui/languages')
+    shutil.copyfile(ROOT / 'pyproject.toml', tmp_path / 'pyproject.toml')
+    (tmp_path / 'ui/languages/fr.json').write_text(json.dumps(dict(schema=1, locale='fr',
+        name='French', translations={'Language': 'Langue'})), encoding='utf-8')
+    with pytest.raises(ValueError, match='stale'):
+        packs.check(tmp_path)
+    packs.refresh(tmp_path)
+    packs.check(tmp_path)
+    assert 'fr.json' in packs.documents(tmp_path)
+
+
+def test_dialog_is_scoped_accessible_and_has_no_file_import():
+    code = (ROOT / 'ui/languages/tc-language.js').read_text(encoding='utf-8')
+    style = (ROOT / 'ui/languages/tc-language.css').read_text(encoding='utf-8')
+    assert 'aria-labelledby' in code and 'aria-describedby' in code
+    assert "input.type = 'radio'" in code
+    assert 'type="file"' not in code and 'GitHub language packs' not in code
+    assert '#tc-language-dialog' in style and 'prefers-reduced-motion' in style

@@ -37,4 +37,4 @@ jobs:
       - name: Build committed translation data only
         run: python -m tools.language_packs --build
       - name: Attach assets without replacing previous downloads
-        run: gh release upload "$RELEASE_TAG" dist/ToneCommand-Language-Packs-*.zip dist/ToneCommand-Language-Packs-*.sha256 ui/languages/en.json ui/languages/template.json ui/languages/manifest.json --repo "$GITHUB_REPOSITORY"
+        run: gh release upload "$RELEASE_TAG" dist/ToneCommand-Language-Packs-*.zip dist/ToneCommand-Language-Packs-*.sha256 ui/languages/en.json ui/languages/nl.json ui/languages/de.json ui/languages/template.json ui/languages/manifest.json --repo "$GITHUB_REPOSITORY"

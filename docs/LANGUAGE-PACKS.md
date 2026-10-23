@@ -1,17 +1,17 @@
 # Interface language packs
 
-English is ToneCommand's base interface language. Optional JSON packs translate
+English is ToneCommand's base interface language. Bundled JSON packs translate
 registered labels without changing preset data, protocol identifiers or device
 permissions. The translation engine, i18next 26.5.5, ships locally. No AI,
 translation account, CDN or external translation request is used.
 
-## Choose or import a language
+## Choose a language
 
-Open Settings, then LANGUAGE. On the FX3/controller/tester page the LANGUAGE
-button is in the header. English is always available. Download a matching pack
-from [the fork's releases](https://github.com/Axelman8/ToneCommand/releases),
-then import the extracted JSON file. Import only reviewed files from a trusted
-source. A ZIP is a download container, not an executable installer.
+Open Settings, then Language. On the FX3/controller page, use Language in the
+header. English, Nederlands and Deutsch are included; no download or manual
+file import is needed. Select a language card, then close with Done or Escape.
+Where the upstream Settings dropdown is present, the same bundled loader uses
+that dropdown without adding a second language control.
 
 The choice is kept in this browser profile. If browser storage is disabled it
 is session-only. Changing language makes no network request to an AI or device,
@@ -19,11 +19,13 @@ does not reload the page and does not discard input, plans or consent. It also
 does not grant permission for a hardware operation. Untranslated text remains
 English; no browser-language autodetection silently changes the app.
 
-This first release supplies English and a translator template, not a completed
-Dutch, German or other translation. Coverage is initial shipped markup and
+Dutch and German cover core labels and the language picker, not every message.
+Coverage is initial shipped markup and
 marked FX3/controller messages. Unmarked dynamic FM9 messages remain English.
 Existing plans, AI replies, user input, preset/cab/model names and raw technical
 details are not machine translated. Native file pickers follow the browser/OS.
+Only the locale is remembered. Legacy imported translation data is ignored;
+selecting its locale uses the bundled reviewed translation instead.
 
 ## Create a translation
 
@@ -34,12 +36,13 @@ details are not machine translated. Native file pickers follow the browser/OS.
 4. Do not change entries listed in `protected_keys`. Critical confirmations and
    exact technical identifiers remain English in this first release. Translating
    those requires a separately reviewed application/catalog update.
-5. Test import, fallback and layout without connecting a device. Submit only
+5. Place the reviewed locale file in `ui/languages/`, refresh the catalog and
+   test selection, fallback and layout without connecting a device. Submit only
    the JSON and a short coverage note, never presets, accounts, recordings or
    hardware captures. Translations are text, never HTML or JavaScript.
 
 Partial packs are allowed. Unknown keys, incompatible catalogs, changed
-placeholders and files larger than 2 MiB are refused. New model/parameter names
+placeholders and files larger than 2 MiB are refused by the loader. New model/parameter names
 must not be added as translation keys merely to change what TC sends.
 
 ## Release maintenance
@@ -67,3 +70,11 @@ A changed catalog needs an updated pack with the new hash; stale imports fall
 back to English rather than silently approving changed safety instructions.
 MK1 and MK2 can share the same catalog, but language support never unlocks
 MK1 writes or NAM installation. Hardware acceptance remains separate.
+The already-published MK1 test ZIP is unchanged; a future kit needs its own
+rebuild and installer test before it can include this update.
+
+The picker is styled only within its own dialog. Changing language does not
+submit a request, replace the full FX3 adapter or alter NAM/controller support.
+Browser checks: `node tests/language_packs.browser.cjs` covers the upstream
+dropdown, and `node tests/language_picker.browser.cjs` covers the FX3 cards,
+keyboard navigation, narrow layout and preservation of drafts/plans/consent.

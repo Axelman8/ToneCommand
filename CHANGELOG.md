@@ -4,6 +4,11 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Bundle English, Dutch and German with the full FX3 workspace, reusing the
+  upstream local language loader. Replace the manual-import dialog with a
+  styled, keyboard-accessible language picker. Keep existing FX3/NAM/controller
+  functions and hardware permissions unchanged; retain English fallback and
+  protected confirmations, with no translation of live plans or device data.
 - Standardize fixed FX3 interface labels and request guidance on English, and
   register optional language packs without changing hardware permissions.
 - Reconcile upstream 1.5.16 device discovery, rig reading, package data and
