@@ -5,12 +5,18 @@ Notable changes to ToneCommand. Dates are UTC.
 ## Unreleased
 
 ### Added
+- Declared Axe-Fx III hardware type in Devices: Mark I reads 512 preset names;
+  Mark II/Turbo read 1024. The default remains Mark I. This only expands
+  read-only name requests, scopes their cache and updates scan progress.
+  Sound editing, navigation, Store, NAM and controllers remain unavailable.
 - Experimental Axe-Fx III reading through the existing Devices selector:
   firmware major/minor, preset and scene names, block bypass/channel status.
   No navigation, parameter reads or writes, grid editing, NAM or account
   workflow is enabled by this contribution. See docs/AXEFX3-READONLY.md.
 
 ### Fixed
+- Axe-Fx III preset numbers now match Axe-Edit's zero-based numbering in
+  current status and both name-list endpoints. FM9 numbering is unchanged.
 - Release an already opened MIDI input when opening its output fails or is
   interrupted, on both mido and supriya. Successful pair ownership and the
   FM3's exact input/output binding stay unchanged.
