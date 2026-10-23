@@ -529,9 +529,12 @@ def build_home(readme: str, release: dict) -> None:
 
     hero = f"""
 <aside class="newsbar">
-  <p><strong>New</strong> ToneCommand is multi-device: full support for the
-  Fractal FM9 and the <a href="/devices/">BOSS IR-2</a> (load your own cabinet
-  IRs onto it). Plug either in by USB and it is recognised.</p>
+  <p><strong>New in 1.6.0</strong> The <a href="/devices/#fractal-axe-fx-iii-read-only">Fractal Axe-Fx III</a>
+  joins the arsenal: plug it in and ToneCommand reads its presets, scenes and
+  blocks (read-only for now, Mark I, Mark II and Turbo). And ToneCommand speaks
+  Dutch and German: pick a language in Settings. Thanks to
+  <a href="https://github.com/Axelman8">@Axelman8</a> for both.
+  <a href="https://github.com/monzta1/ToneCommand/releases/tag/v1.6.0">What's new</a></p>
 </aside>
 
 <section class="hero2">
@@ -549,7 +552,7 @@ def build_home(readme: str, release: dict) -> None:
       <a class="btn" href="#watch-it-happen">Watch it happen</a>
       <a class="btn" href="/recipes/">Browse recipes</a>
     </p>
-    <p class="version">Free and open source, Apache-2.0 · macOS, Windows and Linux · <a href="/devices/">FM9 and BOSS IR-2 in full; HeadRush, ToneX</a> · current release <a href="/download/">{html.escape(release['version'])}</a></p>
+    <p class="version">Free and open source, Apache-2.0 · macOS, Windows and Linux · <a href="/devices/">FM9 and BOSS IR-2 in full; Axe-Fx III, HeadRush, ToneX</a> · current release <a href="/download/">{html.escape(release['version'])}</a></p>
   </div>
   <figure class="hero-panel">
     <img src="{img_url('ui-full.png')}" alt="{html.escape(caps.get('ui-full.png', 'The ToneCommand interface'))}" width="2000" height="1299" fetchpriority="high">
