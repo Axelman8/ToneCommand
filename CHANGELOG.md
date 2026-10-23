@@ -4,6 +4,12 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+### Added
+- Isolated Axe-Fx III name-edit previews and an explicit developer-only MK2
+  writer for the measured FW33 beta identity, with single-use review, exact
+  final-output permits and independent name/status readback. No Store or
+  normal GUI/planner capability is enabled; the normal adapter stays read-only.
+
 ## 1.6.0 (2026-10-23)
 
 ### Added
