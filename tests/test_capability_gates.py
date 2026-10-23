@@ -294,6 +294,7 @@ def _table(sim) -> list[dict]:
     rows = [
         ("GET", "/", {}, None, None),
         ("GET", "/logo.png", {}, None, None),
+        ("GET", "/language/{asset}", {"asset": "en.json"}, None, None),
         ("GET", "/api/link/stream", {}, None, None),
         ("POST", "/api/reconnect", {}, None, None),
         ("GET", "/api/state", {}, None, None),

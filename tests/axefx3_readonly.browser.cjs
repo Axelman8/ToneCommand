@@ -36,6 +36,13 @@ const path = require('node:path');
         body: fs.readFileSync(path.join(__dirname, '../ui/index.html'), 'utf8')});
       if (url.pathname === '/logo.png') return route.fulfill({contentType: 'image/png',
         body: fs.readFileSync(path.join(__dirname, '../ui/logo.png'))});
+      if (url.pathname.startsWith('/language/')) {
+        const asset = url.pathname.split('/').pop();
+        const file = path.join(__dirname, '../ui/languages', asset);
+        if (!fs.existsSync(file)) return route.fulfill({status:404, body:''});
+        return route.fulfill({contentType:asset.endsWith('.js') ? 'text/javascript' : 'application/json',
+          body:fs.readFileSync(file)});
+      }
       if (url.pathname === '/api/state') return route.fulfill({json: state()});
       if (url.pathname === '/api/device') return route.fulfill({json: state().device});
       if (url.pathname.endsWith('/stream')) return route.fulfill({contentType: 'text/event-stream', body: ''});
@@ -45,6 +52,7 @@ const path = require('node:path');
       return route.fulfill({json: {}});
     });
     await page.goto('http://127.0.0.1:8909/');
+    await page.evaluate(() => TCLanguage.ready);
     await page.waitForFunction(() => document.body.classList.contains('readonly-navigation'));
     assert.equal(await page.locator('#scenes .sc:disabled').count(), 8);
     assert.match(await page.locator('#blocks').innerText(), /Block 206/);
@@ -57,6 +65,16 @@ const path = require('node:path');
       await page.setViewportSize({width, height: 1000});
       assert(await page.locator('#blocks').isVisible());
       assert.equal(await page.locator('#scenes .sc:disabled').count(), 8);
+      await page.evaluate(() => openDrawer('settings'));
+      assert(await page.locator('#tc-language-select').isVisible());
+      await page.locator('#tc-language-select').selectOption('nl');
+      await page.waitForFunction(() => TCLanguage.locale === 'nl');
+      assert.equal(await page.locator('#shset').innerText(), 'INSTELLINGEN');
+      assert.equal(await page.locator('#tc-language-settings input[type=file]').count(), 0);
+      assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      await page.locator('#tc-language-select').selectOption('en');
+      await page.waitForFunction(() => TCLanguage.locale === 'en');
+      await page.evaluate(() => closeDrawer());
     }
     // Existing FM3 navigation must not inherit the III-only lockout.
     kind = 'fm3';

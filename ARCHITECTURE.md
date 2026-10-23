@@ -30,6 +30,16 @@ invariant this codebase is organised around.
 
 ## Layers, in dependency order
 
+Interface languages are local data, not AI or device actions. `fm9/language.py`
+serves an asset allowlist including bundled locale files. A single dropdown in
+Settings selects a shipped language. The local i18next engine translates registered
+initial markup and explicitly marked messages; user input, live device readings
+and existing plans are not scanned. English is the source and fallback. Bundled
+JSON is matched to its catalog hash and rendered as text. Only the locale choice
+is stored in the browser; old imported translation data is not restored. Language
+changes cannot alter option values or critical English confirmations. Catalog
+and bundled-file checks live in `tools/language_packs.py`.
+
 Experimental Axe-Fx III reading is isolated in `devices/axefx3`. The existing
 Devices selector creates a separate adapter with a strict final output wrapper;
 only product 0x10 basic read forms reach MIDI. It neither inherits FM9 nor
@@ -83,7 +93,7 @@ locally, and the only way to catch a layout regression is a screenshot.
 **Fix:** split into `ui/index.html`, `ui/app.css`, and JavaScript modules by
 concern. Served as static files. No behaviour change, mechanical, testable.
 
-### 2. `server.py` is 8,627 lines and 114 routes
+### 2. `server.py` is 8,631 lines and 115 routes
 
 Every concern in one module: device polling, planning, applying, settings,
 recipes, sharing, snapshots, profiles, slot admin. Eight pieces of

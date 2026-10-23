@@ -4024,6 +4024,14 @@
     </div>
 
     <div class="drawpane" id="drawer-settings" hidden>
+      <div class="console" data-nofold data-label="LANGUAGE" id="tc-language-settings">
+        <label class="flabel" for="tc-language-select">Language</label>
+        <select id="tc-language-select" aria-label="Interface language" data-no-translate>
+          <option value="en">English</option>
+        </select>
+        <p class="hint">Missing translations stay English. Preset names, AI replies and technical identifiers are unchanged.</p>
+        <p class="hint" id="tc-language-status" role="status" data-no-translate></p>
+      </div>
       <div class="console" data-label="WHO PLANS YOUR TONES" id="aimodal">
         <div class="airow">
           <!-- One question, answered by picking a name. The plumbing that
@@ -4199,6 +4207,8 @@
 </div>
 
 
+<script src="/language/i18next.min.js"></script>
+<script src="/language/tc-language.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 

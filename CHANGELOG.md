@@ -5,6 +5,11 @@ Notable changes to ToneCommand. Dates are UTC.
 ## Unreleased
 
 ### Added
+- English-first interface language packs, using a locally bundled i18next
+  engine and one Language dropdown in Settings. English, Dutch and German
+  ship with the app; Dutch/German cover core labels, with English fallback
+  elsewhere. No separate dialog, import/download step, AI translation or
+  hardware action. See docs/LANGUAGE-PACKS.md for coverage and contributions.
 - Declared Axe-Fx III hardware type in Devices: Mark I reads 512 preset names;
   Mark II/Turbo read 1024. The default remains Mark I. This only expands
   read-only name requests, scopes their cache and updates scan progress.
