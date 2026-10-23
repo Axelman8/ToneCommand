@@ -4,6 +4,11 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+### Fixed
+- Hide the Axe-Fx III hardware-type box in Devices unless a III is available,
+  active or selected. It starts hidden and disappears when no longer relevant;
+  showing or hiding it never connects a device or changes the current request.
+
 ## 1.6.0 (2026-10-23)
 
 ### Added

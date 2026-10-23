@@ -3901,7 +3901,7 @@
       <button class="mclose" id="drawclose" title="close">&#10005;</button></div>
 
     <div class="drawpane" id="drawer-devices" hidden>
-      <div class="console" data-nofold data-label="AXE-FX III">
+      <div class="console" id="axefx3hardware" data-nofold data-label="AXE-FX III" hidden>
         <label for="axefx3chassis">Hardware type (declared, not detected)</label>
         <select id="axefx3chassis" disabled style="display:block;width:100%;margin:10px 0">
           <option value="mk1">Mark I - 512 presets</option>
@@ -6824,7 +6824,9 @@ document.addEventListener('DOMContentLoaded', () => {
 let axeFxChassisBusy = false;
 function renderAxeFxChassis(dev) {
   const select = $('axefx3chassis');
-  const reachable = dev?.active === 'axefx3' || dev?.available?.some(item => item.kind === 'axefx3');
+  const reachable = dev?.active === 'axefx3' || dev?.selected === 'axefx3'
+    || dev?.available?.some(item => item.kind === 'axefx3');
+  $('axefx3hardware').hidden = !reachable;
   select.disabled = axeFxChassisBusy || !reachable || !!presetScanPromise;
   if (!axeFxChassisBusy) select.value = dev?.axefx3?.chassis || 'mk1';
 }
