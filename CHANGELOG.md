@@ -4,6 +4,8 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+## 1.6.0 (2026-10-23)
+
 ### Added
 - English-first interface language packs, using a locally bundled i18next
   engine and one Language dropdown in Settings. English, Dutch and German
