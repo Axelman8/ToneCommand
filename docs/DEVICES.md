@@ -15,10 +15,11 @@ header and a build is refused until you say which device it is for.
 | **BOSS IR-2** | Full, all 7 parameters, plus IR install | From the unit | Amp voicing, tone stack, ambience. Announces its own knob moves. Load your own cab IRs |
 | **Fractal FM3** | Read-only, through a USB MIDI interface (unreleased after 1.5.9) | From the unit | No MIDI over USB: choose the interface on its 5-pin MIDI ports in the Devices FM3 card (#221). Unverified on a real FM3 |
 | **HeadRush** | Rigs and parameters | From the unit | Core-verified. One verification rerun and one acked-too-early defect still open (#33, #166) |
+| **Fractal Axe-Fx III** | Read-only (new in 1.6.0) | From the unit | Presets, scenes, firmware, block bypass and channels. Mark I, Mark II and Turbo. Verified on a Mark II against Axe-Edit |
 | **IK Multimedia ToneX** | None, by design | Observed | Captures listed, nothing written. The upload path is undecoded (#27) and stays closed |
 
 Wanted next, each with hardware as the only real blocker: full FM3 control
-(#40), Axe-Fx III (#190), AM4 (#41), VP4 (#191), Kemper, Boss ES-5. A device
+(#40), Axe-Fx III editing (#190), AM4 (#41), VP4 (#191), Kemper, Boss ES-5. A device
 ToneCommand recognises but cannot drive yet is named when it is plugged in,
 with a link to its issue, instead of being silently ignored. The picker is
 device-agnostic, so an adapter that registers correctly appears in it with no
@@ -35,7 +36,7 @@ claim is [PROTOCOL.md](PROTOCOL.md).
 
 Other FM9 variants share the model byte and should behave identically but are
 untested. The FM3 is a different case (below); the Axe-Fx III uses a different
-model byte and is not supported yet.
+model byte and has its own read-only adapter (below).
 
 ## Fractal FM3 (through a MIDI interface, read-only)
 
@@ -134,6 +135,29 @@ ToneCommand reports none rather than inventing one.
 The protocol was decoded on hardware on 2026-09-29. Frames, addresses,
 evidence and the remaining unknowns are recorded in the project's protocol
 ledger.
+
+## Fractal Axe-Fx III (read-only)
+
+New in 1.6.0, contributed by [@Axelman8](https://github.com/Axelman8). Choose
+the Axe-Fx III in **Devices** and ToneCommand reads, from the unit:
+
+- the current preset and scene;
+- preset names and scene names;
+- the firmware version;
+- which blocks are on or bypassed, and their channels.
+
+Pick your model in **Devices**: a Mark I has 512 presets, a Mark II or Turbo
+has 1024. Mark I is the default, so a Mark II or Turbo owner picks theirs once
+to see the upper 512. Preset numbers count from 0, matching Axe-Edit.
+
+It is read-only by construction: every message to the III is checked against
+an exact list of read requests before it leaves, and changing sounds,
+switching presets, storing, NAM and firmware traffic are all refused. Editing
+is tracked in #190.
+
+Verified on a Mark II against Axe-Edit III. Not yet checked on a Mark I or a
+Turbo, and the firmware readout shows a different number from Axe-Edit's on a
+beta firmware. Details: [AXEFX3-READONLY.md](https://github.com/monzta1/ToneCommand/blob/main/docs/AXEFX3-READONLY.md).
 
 ## HeadRush
 
