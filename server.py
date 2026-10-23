@@ -154,6 +154,7 @@ DEVICE_KINDS = {
     "ir2": "BOSS IR-2",
     # #212: read-only through the FM9 module, addressed as an FM3.
     "fm3": "Fractal FM3",
+    "axefx3": "Fractal Axe-Fx III",
 }
 #: Chosen explicitly, by kind, through /api/device/select. None means no
 #: choice has been made, which is only a problem when there is a choice.
@@ -181,6 +182,9 @@ _CONFIGURED = {"headrush": _headrush_configured, "tonex": _tonex_configured}
 def available_devices() -> list[dict]:
     import os
     out = [{"kind": "fm9", "label": DEVICE_KINDS["fm9"]}]
+    if device_context().kind == "axefx3" or any(
+            d["kind"] == "axefx3" for d in detected_devices()):
+        out.append({"kind": "axefx3", "label": DEVICE_KINDS["axefx3"]})
     if _headrush_configured():
         out.append({"kind": "headrush", "label": DEVICE_KINDS["headrush"]})
     # #163: the ToneX is read-only here (captures listed, nothing written)
@@ -253,6 +257,9 @@ def _build_context(kind: str) -> DeviceContext:
     import os
     if kind == "fm9":
         return _default_context
+    if kind == "axefx3":
+        from devices.axefx3.adapter import AxeFxIII, ReadOnlyRegistry
+        return DeviceContext(kind, ReadOnlyRegistry(), AxeFxIII(), DEVICE_KINDS[kind])
     if kind == "headrush":
         from devices.headrush import registry as hr_registry
         from devices.headrush.adapter import HeadrushAdapter
@@ -1910,6 +1917,9 @@ def scene_names(fm9: DeviceAdapter) -> list[dict]:
 
 
 def snapshot(fm9: DeviceAdapter) -> dict:
+    if device_context().kind == "axefx3":
+        from devices.axefx3.adapter import snapshot as readonly_snapshot
+        return readonly_snapshot(fm9, _gig_mode["on"])
     preset = fm9.current_preset()
     if preset is None:
         # Nothing came back. An open port is not a connected device: pulling
@@ -2463,7 +2473,7 @@ def api_state():
             snap = snapshot(get_fm9())
             snap["device"] = device
             # #212: the page offers no sound-changing control for this device.
-            snap["read_only"] = device_context().kind == "fm3"
+            snap["read_only"] = device_context().kind in ("fm3", "axefx3")
             note_connection(True)
             return snap
         except FM9NotFound as e:
@@ -3318,6 +3328,9 @@ def _plan_for(body: PromptBody, on_count=None, cancel=None, on_status=None):
     if kind == "fm3":
         from fm9.device import FM3_READ_ONLY
         return {"error": FM3_READ_ONLY, "read_only": True}
+    if kind == "axefx3":
+        from devices.axefx3.adapter import READ_ONLY
+        return {"error": READ_ONLY, "read_only": True}
     # #84: a new plan reads the rig as it is; an audition still hanging in
     # the edit buffer would be read as the player's cab. Put it back first.
     with _lock:

@@ -6,11 +6,19 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ### Added
 - English-first interface language packs, using a locally bundled i18next
-  engine. Import version-matched JSON from Settings without AI translation,
-  hardware access, a CDN or changing protocol identifiers. Missing entries
-  stay English. See docs/LANGUAGE-PACKS.md for coverage and release updates.
+  engine and one Language dropdown in Settings. English, Dutch and German
+  ship with the app; Dutch/German cover core labels, with English fallback
+  elsewhere. No separate dialog, import/download step, AI translation or
+  hardware action. See docs/LANGUAGE-PACKS.md for coverage and contributions.
+- Experimental Axe-Fx III reading through the existing Devices selector:
+  firmware major/minor, preset and scene names, block bypass/channel status.
+  No navigation, parameter reads or writes, grid editing, NAM or account
+  workflow is enabled by this contribution. See docs/AXEFX3-READONLY.md.
 
 ### Fixed
+- Release an already opened MIDI input when opening its output fails or is
+  interrupted, on both mido and supriya. Successful pair ownership and the
+  FM3's exact input/output binding stay unchanged.
 - **The bottom shelf is one row again.** It was laid out for eight
   buttons; since DEVICES made nine, SETTINGS sat on a row of its own. Each
   button now gets an equal bay, however many there are.

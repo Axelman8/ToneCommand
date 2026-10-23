@@ -20,6 +20,70 @@ from fm9.sim import SimFM9
 ROOT = Path(__file__).resolve().parent.parent
 
 
+@pytest.mark.parametrize("hint", ["fm9", "axe-fx", "fm3"])
+@pytest.mark.parametrize("failure", [RuntimeError("output busy"), KeyboardInterrupt()])
+def test_mido_partial_open_releases_input_and_preserves_failure(monkeypatch, hint, failure):
+    from types import SimpleNamespace
+    opened, closed = [], []
+    inp = SimpleNamespace(close=lambda: closed.append("input"))
+    monkeypatch.setattr(T, "backend", lambda env: "mido")
+    monkeypatch.setattr(T.mido, "get_input_names", lambda: [hint + " IN"])
+    monkeypatch.setattr(T.mido, "get_output_names", lambda: [hint + " OUT"])
+    monkeypatch.setattr(T.mido, "open_input", lambda name: opened.append(name) or inp)
+
+    def fail(name):
+        opened.append(name)
+        raise failure
+
+    monkeypatch.setattr(T.mido, "open_output", fail)
+    with pytest.raises(type(failure)) as caught:
+        T.open_ports(hint, env={})
+    assert caught.value is failure
+    assert opened == [hint + " IN", hint + " OUT"]
+    assert closed == ["input"]
+
+
+@pytest.mark.parametrize("failure", [RuntimeError("output busy"), KeyboardInterrupt()])
+def test_supriya_partial_open_releases_input_and_preserves_failure(monkeypatch, failure):
+    from types import SimpleNamespace
+    opened, closed = [], []
+    inp = SimpleNamespace(close=lambda: closed.append("input"))
+    module = object()
+    monkeypatch.setattr(T, "backend", lambda env: "supriya")
+    monkeypatch.setattr(T.SupriyaIn, "open", lambda sm, hint: opened.append((sm, hint, "in")) or inp)
+
+    def fail(sm, hint):
+        opened.append((sm, hint, "out"))
+        raise failure
+
+    monkeypatch.setattr(T.SupriyaOut, "open", fail)
+    with pytest.raises(type(failure)) as caught:
+        T.open_ports("fm9", env={}, supriya_module=module)
+    assert caught.value is failure
+    assert opened == [(module, "fm9", "in"), (module, "fm9", "out")]
+    assert closed == ["input"]
+
+
+@pytest.mark.parametrize("binding", ["mido", "supriya"])
+def test_successful_pair_stays_open_until_caller_closes_it(monkeypatch, binding):
+    from types import SimpleNamespace
+    closed = []
+    inp = SimpleNamespace(close=lambda: closed.append("input"))
+    out = SimpleNamespace(close=lambda: closed.append("output"))
+    monkeypatch.setattr(T, "backend", lambda env: binding)
+    monkeypatch.setattr(T.mido, "get_input_names", lambda: ["FM9 IN"])
+    monkeypatch.setattr(T.mido, "get_output_names", lambda: ["FM9 OUT"])
+    monkeypatch.setattr(T.mido, "open_input", lambda name: inp)
+    monkeypatch.setattr(T.mido, "open_output", lambda name: out)
+    monkeypatch.setattr(T.SupriyaIn, "open", lambda sm, hint: inp)
+    monkeypatch.setattr(T.SupriyaOut, "open", lambda sm, hint: out)
+    assert T.open_ports("fm9", env={}, supriya_module=object()) == (inp, out)
+    assert closed == []
+    inp.close()
+    out.close()
+    assert closed == ["input", "output"]
+
+
 # --- REQ-001: selection and the seam ------------------------------------------------------------
 
 def _imports(monkeypatch, available: set[str]):

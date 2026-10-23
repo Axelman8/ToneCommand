@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "catalog_version": "1.5.16-lang.1",
-  "catalog_sha256": "6f8ee786653fa227b1d9bd803c2eb3332ee6cbb6aea9e707936f22b82e74dd68",
+  "catalog_version": "1.5.16-lang.2",
+  "catalog_sha256": "fe5e0372293f0e7a165ba4fdace896c30bb94ca0ac7e1624e2b07f23b8131562",
   "locale": "en",
   "name": "English",
   "translations": {
@@ -316,6 +316,7 @@
     "Marshall Plexi": "Marshall Plexi",
     "Measured AMP/CAB test chain: existing/default models retained, no model or IR selection.": "Measured AMP/CAB test chain: existing/default models retained, no model or IR selection.",
     "Measured AMP/CAB test chain: scene 1/A only. Models are retained and reserve blocks stay bypassed. No new controllers.": "Measured AMP/CAB test chain: scene 1/A only. Models are retained and reserve blocks stay bypassed. No new controllers.",
+    "Missing translations stay English. Preset names, AI replies and technical identifiers are unchanged.": "Missing translations stay English. Preset names, AI replies and technical identifiers are unchanged.",
     "My external audio is muted and will remain muted throughout the build.": "My external audio is muted and will remain muted throughout the build.",
     "My speakers/headphones are externally muted and will remain muted while sending. TC cannot measure this and has no physical volume limiter.": "My speakers/headphones are externally muted and will remain muted while sending. TC cannot measure this and has no physical volume limiter.",
     "NAM + suitable effects": "NAM + suitable effects",

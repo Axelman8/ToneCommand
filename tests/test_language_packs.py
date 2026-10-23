@@ -44,8 +44,67 @@ def test_no_post_installs_or_downloaded_code():
     code = (ROOT / 'ui/languages/tc-language.js').read_text(encoding='utf-8')
     assert 'MutationObserver' not in code
     assert 'innerHTML = translations' not in code
-    assert "fetch('/language/en.json')" in code
+    assert "jsonAsset('en.json')" in code
     assert 'new Function' not in code and 'eval(' not in code
+    assert 'showModal' not in code and 'type="file"' not in code
+    assert 'Axelman8' not in code
+
+
+def test_settings_has_one_native_language_choice_and_no_import_dialog():
+    page = (ROOT / 'ui/index.html').read_text(encoding='utf-8')
+    settings = page.split('id="drawer-settings"', 1)[1]
+    assert settings.count('id="tc-language-select"') == 1
+    assert page.count('id="tc-language-select"') == 1
+    assert 'tc-language-dialog' not in page
+    assert not (ROOT / '.github/workflows/language-packs.yml').exists()
+
+
+def test_bundled_dutch_and_german_are_data_only_and_match_the_catalog():
+    english = json.loads((ROOT / 'ui/languages/en.json').read_text(encoding='utf-8'))
+    manifest = json.loads((ROOT / 'ui/languages/manifest.json').read_text(encoding='utf-8'))
+    assert manifest['available'] == ['en', 'de', 'nl']
+    assert manifest['languages'] == [dict(locale='en', name='English'),
+                                    dict(locale='de', name='Deutsch'), dict(locale='nl', name='Nederlands')]
+    assert 'packs_url' not in manifest
+    for locale in ('nl', 'de'):
+        assert locale + '.json' in ASSETS
+        pack = json.loads((ROOT / ('ui/languages/' + locale + '.json')).read_text(encoding='utf-8'))
+        packs.validate_translations(pack, english, locale)
+        assert pack['catalog_sha256'] == english['catalog_sha256']
+        assert len(pack['translations']) >= 150
+        assert pack['translations']['SETTINGS'] != 'SETTINGS'
+
+
+@pytest.mark.parametrize('translations', [
+    {'not-a-key': 'bad'}, {'{{v0}} ms (shared A)': 'bad'}, {'Language': '$t(unsafe)'},
+    {'Language': ''}, {'Language': 1}, {'Language': ' '},
+])
+def test_invalid_bundled_entries_are_refused(translations):
+    english = json.loads((ROOT / 'ui/languages/en.json').read_text(encoding='utf-8'))
+    with pytest.raises(ValueError, match='translation'):
+        packs.validate_translations(dict(schema=1, locale='nl', name='Nederlands',
+                                         translations=translations), english, 'nl')
+
+
+def test_protected_confirmation_cannot_be_translated():
+    english = json.loads((ROOT / 'ui/languages/en.json').read_text(encoding='utf-8'))
+    with pytest.raises(ValueError, match='translation'):
+        packs.validate_translations(dict(schema=1, locale='nl', name='Nederlands',
+            translations={english['protected_keys'][0]: 'Translated confirmation'}), english, 'nl')
+
+
+def test_new_bundled_locale_needs_only_a_file_and_refreshed_metadata(tmp_path):
+    (tmp_path / 'ui').mkdir()
+    shutil.copytree(ROOT / 'ui/languages', tmp_path / 'ui/languages')
+    shutil.copyfile(ROOT / 'pyproject.toml', tmp_path / 'pyproject.toml')
+    (tmp_path / 'ui/languages/fr.json').write_text(json.dumps(dict(schema=1, locale='fr',
+        name='Français', translations={'Language': 'Langue'})), encoding='utf-8')
+    with pytest.raises(ValueError, match='stale'):
+        packs.check(tmp_path)
+    packs.refresh(tmp_path)
+    packs.check(tmp_path)
+    manifest = json.loads((tmp_path / 'ui/languages/manifest.json').read_text(encoding='utf-8'))
+    assert dict(locale='fr', name='Français') in manifest['languages']
 
 
 def test_vendor_hash_and_license():

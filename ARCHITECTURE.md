@@ -31,12 +31,23 @@ invariant this codebase is organised around.
 ## Layers, in dependency order
 
 Interface languages are local data, not AI or device actions. `fm9/language.py`
-serves a fixed asset allowlist. The bundled i18next engine translates registered
+serves an asset allowlist including bundled locale files. A single dropdown in
+Settings selects a shipped language. The local i18next engine translates registered
 initial markup and explicitly marked messages; user input, live device readings
-and existing plans are not scanned. English is the source and fallback. Imported
-JSON is matched to its catalog hash, rendered as text, stored only in the browser
-and cannot alter option values or critical English confirmations. Catalog and
-release ZIP checks live in `tools/language_packs.py`.
+and existing plans are not scanned. English is the source and fallback. Bundled
+JSON is matched to its catalog hash and rendered as text. Only the locale choice
+is stored in the browser; old imported translation data is not restored. Language
+changes cannot alter option values or critical English confirmations. Catalog
+and bundled-file checks live in `tools/language_packs.py`.
+
+Experimental Axe-Fx III reading is isolated in `devices/axefx3`. The existing
+Devices selector creates a separate adapter with a strict final output wrapper;
+only product 0x10 basic read forms reach MIDI. It neither inherits FM9 nor
+loads its parameter/model/cab catalogs. The shared block-name table is used
+only for status labels; unknown IDs remain numeric. `snapshot` delegates this
+context to a read-only status reader rather than the FM9's grid/parameter path.
+Preset/scene navigation, sound changes, NAM and account integration are outside
+this slice of #270. See `docs/AXEFX3-READONLY.md` for independent acceptance.
 
 | Layer | Files | Knows about |
 |---|---|---|
@@ -75,7 +86,7 @@ locally, and the only way to catch a layout regression is a screenshot.
 **Fix:** split into `ui/index.html`, `ui/app.css`, and JavaScript modules by
 concern. Served as static files. No behaviour change, mechanical, testable.
 
-### 2. `server.py` is 8,568 lines and 115 routes
+### 2. `server.py` is 8,581 lines and 115 routes
 
 Every concern in one module: device polling, planning, applying, settings,
 recipes, sharing, snapshots, profiles, slot admin. Eight pieces of

@@ -1,4 +1,6 @@
 """Local, allowlisted language assets. No AI, network, settings or MIDI."""
+import re
+
 from fastapi import HTTPException
 from fastapi.responses import FileResponse
 from fm9.paths import resource_path
@@ -11,6 +13,9 @@ ASSETS = {
     'template.json': 'application/json',
     'manifest.json': 'application/json',
 }
+for _path in resource_path('ui', 'languages').glob('*.json'):
+    if re.fullmatch(r'[a-z]{2,3}(?:-[A-Z]{2})?\.json', _path.name):
+        ASSETS[_path.name] = 'application/json'
 
 
 def register(app):

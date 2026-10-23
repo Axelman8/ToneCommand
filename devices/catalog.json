@@ -8,6 +8,6 @@
     {"kind": "fm3", "label": "Fractal FM3", "ports": ["\\bfm3\\b"], "adapter": "fm3", "issue": 40, "verified": false, "read_only": true},
     {"kind": "am4", "label": "Fractal AM4", "ports": ["\\bam4\\b"], "adapter": null, "issue": 41, "verified": false},
     {"kind": "vp4", "label": "Fractal VP4", "ports": ["\\bvp4\\b"], "adapter": null, "issue": 191, "verified": false},
-    {"kind": "axefx3", "label": "Fractal Axe-Fx III", "ports": ["\\baxe-?fx\\s*(iii|3)\\b"], "adapter": null, "issue": 190, "verified": false}
+    {"kind": "axefx3", "label": "Fractal Axe-Fx III", "ports": ["\\baxe-?fx\\s*(iii|3)\\b"], "adapter": "axefx3", "issue": 190, "verified": false, "read_only": true}
   ]
 }
