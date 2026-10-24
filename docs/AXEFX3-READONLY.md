@@ -17,8 +17,14 @@ effect type or NAM map. No amp, cab or parameter values are inferred.
 Firmware major/minor is not an exact beta build identifier or proof that any
 write works. MK1 and MK2 are not detected or distinguished by these reads.
 In **Devices > Axe-Fx III**, declare Mark I (512 presets), Mark II (1024) or
-Turbo (1024). The default is conservatively Mark I. The declaration is local
-to this server session and is not an automatic hardware identification.
+Turbo (1024). The default is conservatively Mark I. The box is hidden unless
+a III is available, active or selected.
+Opening Devices or changing this box's visibility does not connect anything.
+The FM3 settings card is likewise hidden when irrelevant. A generic
+"Set up a MIDI device" action can reveal its configuration intentionally,
+since a first-time FM3 behind a MIDI interface cannot identify itself over USB.
+The hardware declaration is local to this server session and is not an
+automatic hardware identification.
 Only stored-name requests expand: wire slots 0..511 for Mark I, 0..1023 for
 Mark II/Turbo. Select the actual chassis, not MK2 as a workaround on a Mark I.
 The write boundary is identical for all choices and does not inspect NAM or

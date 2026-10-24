@@ -4,6 +4,14 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+### Fixed
+- Hide the Axe-Fx III hardware-type box in Devices unless a III is available,
+  active or selected. It starts hidden and disappears when no longer relevant;
+  showing or hiding it never connects a device or changes the current request.
+- Hide the FM3 settings card unless relevant or explicitly opened through
+  the generic MIDI setup action. A new FM3 behind an unrecognised MIDI
+  interface can still be configured without displaying absent hardware.
+
 ## 1.6.0 (2026-10-23)
 
 ### Added
