@@ -13,12 +13,13 @@ await page.route('**/*',async route=>{const req=route.request(),url=new URL(req.
  if(url.pathname==='/api/settings')return route.fulfill({json:{planning:'Choose your own AI backend',settings:{backend:'codex'},backends:[]}});
  if(url.pathname==='/api/connect'){connected=true;return route.fulfill({json:{connected:true}});}
  if(url.pathname==='/api/disconnect'){connected=false;return route.fulfill({json:{connected:false}});}
- if(url.pathname==='/api/state')return route.fulfill({json:{connected,preset:99,scene:1}});
+ if(url.pathname==='/api/state')return route.fulfill({json:{connected,preset:99,scene:1,version:'development test',source_commit:'a'.repeat(40),source_branch:'my-mk1-work',source_dirty:true,source_digest:'b'.repeat(64),development:true}});
  if(url.pathname==='/api/discard')return route.fulfill({json:{discarded:true}});
  if(url.pathname==='/api/plan')return route.fulfill({json:question?{question:'Fuzz is outside this trial. Use AMP/CAB and ambience?'}:{token:'review-token-for-test-123456',target:99,backend:'codex',model:'fake',routing:'Input -> Amp -> Cab -> Chorus -> Delay -> Reverb -> Output',actions:['Choose Hipower Brilliant','Delay 440ms; feedback25%'],design:{name:'AI Floyd',summary:'Spacious album-inspired lead, not a proven match.',amp:'Hipower Brilliant',cab:'Greenback',gain:3.5,chorus:true,delay_ms:440,delay_feedback:25,reverb_mix:12}}});
  if(url.pathname==='/api/send')return route.fulfill({status:fail?409:200,json:fail?{detail:'Readback mismatch; partial edits may remain'}:{verified:true,stored:false,actions:74,note:'Disconnect MIDI and compare with Axe-Edit before audition.'}});
  return route.fulfill({status:404,json:{detail:'Not available'}});});
 await page.goto('http://127.0.0.1:8909/');await page.locator('#generate:not([disabled])').waitFor();
+assert((await page.textContent('#buildVersion')).includes('DEVELOPMENT / NOT VALIDATED | my-mk1-work | MODIFIED'));
 assert.equal(requests.filter(r=>r.method==='POST').length,0);
 await page.click('#connect');await page.waitForFunction(()=>document.getElementById('deviceStatus').textContent.includes('99'));
 await page.fill('#target','99');await page.fill('#prompt','Pink Floyd Wish You Were Here, one lead scene');

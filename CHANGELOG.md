@@ -4,6 +4,10 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Add an explicit MK1 Git-checkout development launcher and VS Code workspace.
+  Independent forks can start edited source without a release ZIP manifest;
+  commit/branch/dirty/source-hash provenance and source-drift checks retain the
+  experimental review/output boundaries. No new MK1 hardware capability claim.
 - Add a separate experimental MK1 AI trial entry point: text request, one
   scene, constrained AMP/Factory cab plus optional chorus/delay/reverb, explicit
   review/consent and readback. Exact previously reported MK1 firmware fingerprint

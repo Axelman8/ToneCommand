@@ -15,7 +15,7 @@ async function api(path,body){const response=await fetch('/api/'+path,body===und
 async function run(action){if(busy)return;busy=true;controls();el('messages').textContent='Working...';
   try{await action();el('messages').textContent='Ready.';}catch(error){el('messages').textContent=error.message;}
   finally{busy=false;controls();}}
-async function read(){const state=await api('state');el('buildVersion').textContent=(state.version||'')+' | '+(state.source_commit||'development').slice(0,12);el('deviceStatus').textContent=state.connected?
+async function read(){const state=await api('state');el('buildVersion').textContent=(state.version||'')+' | '+(state.source_commit||'development').slice(0,12)+(state.development?' | DEVELOPMENT / NOT VALIDATED | '+state.source_branch+' | '+(state.source_dirty?'MODIFIED':'clean')+' | source '+state.source_digest.slice(0,12):'');el('deviceStatus').textContent=state.connected?
   'MK1 connected | Preset '+state.preset+' | Scene '+state.scene+(state.uncertain?' | STOP: uncertain writes':''):'Not connected';}
 el('saveSettings').onclick=()=>run(async()=>{invalidate();await api('settings',{backend:el('backend').value,
   model:el('aiModel').value,baseUrl:el('aiUrl').value,apiKey:el('aiKey').value});el('aiKey').value='';el('aiStatus').textContent='AI settings saved locally. No hardware action.';});

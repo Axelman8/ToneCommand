@@ -1,3 +1,11 @@
+> **Unofficial MK1 development branch (`development/mk1`).**
+> Want to fork and develop independently in VS Code? Start with
+> [the MK1 developer guide](docs/MK1-DEVELOPMENT.md) and open
+> `MK1-Development.code-workspace`. Install with `Install-MK1-Development.cmd`
+> and start with `Start-MK1-Development.cmd`, not the general server below.
+> Experimental one-scene AMP/CAB + FX; not full MK1 acceptance or a NAM release.
+> Existing published test ZIPs and the MK2 installation remain separate.
+
 <p align="center">
   <img src="docs/img/social-preview.png"
        alt="ToneCommand. Program, connect, command your tone."

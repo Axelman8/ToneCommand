@@ -110,13 +110,24 @@ def ask(prompt, baseline):
         schema=Reply.model_json_schema(), validate=validate)
 
 
-def create_app(factory=trial.Device, ask_ai=ask):
+def create_app(factory=trial.Device, ask_ai=ask, *, source_info=None, check_source=None):
     app = FastAPI(title='ToneCommand MK1 experimental AI builder')
     lock = threading.Lock()
     manifest = ROOT/'MK1-AI-PACKAGE.json'
-    source = json.loads(manifest.read_text(encoding='utf-8'))['source_commit'] if manifest.exists() else 'development-checkout'
+    source = (source_info['source_commit'] if source_info is not None else
+              json.loads(manifest.read_text(encoding='utf-8'))['source_commit'] if manifest.exists() else 'development-checkout')
     state = dict(dev=None, review=None, attempts=[], version=VERSION, source_commit=source)
+    provenance = deepcopy(source_info or dict(source_commit=source, development=False))
+    state.update(provenance)
     app.state.trial = state
+
+    def verify_source():
+        if check_source is not None:
+            try:
+                check_source()
+            except (ValueError, OSError) as error:
+                state['review'] = None
+                raise HTTPException(409, str(error)) from None
 
     @app.exception_handler(RequestValidationError)
     async def invalid(_request, _error):
@@ -171,6 +182,7 @@ def create_app(factory=trial.Device, ask_ai=ask):
     @app.post('/api/connect')
     def connect():
         with lock:
+            verify_source()
             if state['dev'] is not None:
                 raise HTTPException(409, 'Already connected; do not open a second MIDI owner')
             dev = factory()
@@ -194,9 +206,10 @@ def create_app(factory=trial.Device, ask_ai=ask):
     @app.get('/api/state')
     def status():
         with lock:
+            verify_source()
             dev = state['dev']
             if dev is None:
-                return dict(connected=False, version=VERSION, source_commit=source)
+                return dict(connected=False, version=VERSION, **provenance)
             try:
                 dev.identity()
                 preset = dev.current_preset()
@@ -205,7 +218,7 @@ def create_app(factory=trial.Device, ask_ai=ask):
             if not preset:
                 raise HTTPException(409, 'Current preset unreadable; no navigation attempted')
             return dict(connected=True, preset=preset[0], scene=dev.current_scene(),
-                        version=VERSION, source_commit=source, uncertain=dev.uncertain)
+                        version=VERSION, **provenance, uncertain=dev.uncertain)
 
     @app.post('/api/discard')
     def discard():
@@ -219,6 +232,7 @@ def create_app(factory=trial.Device, ask_ai=ask):
             raise HTTPException(409, 'TC is busy; your request was not submitted again')
         try:
             state['review'] = None
+            verify_source()
             dev = device()
             baseline = dev.observe(body.expected_preset)
             if baseline['grid'] or set(baseline['blocks']) - {200, 201} or dev.outp.owner:
@@ -227,6 +241,7 @@ def create_app(factory=trial.Device, ask_ai=ask):
             if result.get('clarification'):
                 return dict(question=result['clarification'], sent=False)
             design = trial.Design.model_validate(result['design'])
+            verify_source()
             if dev.observe(body.expected_preset) != baseline:
                 raise ValueError('Device changed during planning. Nothing sent; review the state.')
             token = secrets.token_urlsafe(32)
@@ -235,7 +250,8 @@ def create_app(factory=trial.Device, ask_ai=ask):
             return dict(token=token, design=design.model_dump(), scene=1,
                         target=body.expected_preset, backend=result.get('backend'), model=result.get('model'),
                         routing='Input 1 -> Amp 1 -> Cab 1 -> Chorus 1 -> Delay 1 -> Reverb 1 -> Output 1',
-                        actions=[s.label for s in trial.steps(design)], sent=False, stored=False)
+                        actions=[s.label for s in trial.steps(design)], sent=False, stored=False,
+                        source=deepcopy(provenance))
         except (ValueError, RuntimeError, OSError) as error:
             raise HTTPException(409, str(error)) from None
         finally:
@@ -250,6 +266,7 @@ def create_app(factory=trial.Device, ask_ai=ask):
                 raise HTTPException(409, 'Review expired or consumed; nothing resent')
             if not (body.target_confirmed and body.external_audio_muted and body.experimental_mk1_consent):
                 raise HTTPException(409, 'Confirm target, muted monitoring and experimental MK1 writes')
+            verify_source()
             dev = device()
             executor = trial.Execution(dev, review['target'], review['design'],
                                        review['baseline'], review['expires'])
@@ -257,7 +274,7 @@ def create_app(factory=trial.Device, ask_ai=ask):
                           target=review['target'], verified=False, stored=False)
             state['attempts'].append(record)
             try:
-                result = executor.run(muted=True, target_confirmed=True)
+                result = executor.run(muted=True, target_confirmed=True, check_source=check_source)
                 record.update(result)
                 return dict(**result, editor_check_required=True,
                     note='Keep monitoring muted. Disconnect MIDI, verify in Axe-Edit, then audition at low physical level. No Store.')
@@ -269,7 +286,7 @@ def create_app(factory=trial.Device, ask_ai=ask):
 
     @app.get('/api/report')
     def report():
-        return dict(version=VERSION, source_commit=source, experimental=True, mk1_production_write_release=False,
+        return dict(version=VERSION, **provenance, experimental=True, mk1_production_write_release=False,
                     attempts=deepcopy(state['attempts']),
                     note='No prompt, credentials, preset names, raw frames or model payloads included.')
 
@@ -301,8 +318,12 @@ def main():
     except (ValueError, OSError, KeyError):
         raise SystemExit('Package integrity could not be verified. Extract the named MK1 AI trial ZIP to a NEW folder; do not use the generic Source code download or an old checkout.') from None
     configure()
+    serve_app(create_app())
+
+
+def serve_app(app, *, no_browser=False):
+    """One exclusive local listener; no reload or automatic second instance."""
     import uvicorn
-    app = create_app()
     sock = socket.socket()
     try:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
@@ -313,7 +334,8 @@ def main():
             while not server.started:
                 time.sleep(.2)
             webbrowser.open('http://127.0.0.1:8909/')
-        threading.Thread(target=browser, daemon=True).start()
+        if not no_browser:
+            threading.Thread(target=browser, daemon=True).start()
         server.run(sockets=[sock])
     finally:
         dev = app.state.trial['dev']

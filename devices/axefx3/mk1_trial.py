@@ -317,7 +317,7 @@ class Execution:
             wanted['names'][0] = (1, 'First Sound')
         return wanted == after
 
-    def run(self, *, muted=False, target_confirmed=False):
+    def run(self, *, muted=False, target_confirmed=False, check_source=None):
         if muted is not True or target_confirmed is not True:
             raise PermissionError('Confirm the target and fully muted external monitoring')
         with self.dev._lock:
@@ -327,11 +327,15 @@ class Execution:
                 raise PermissionError('State changed since review')
             if time.monotonic() >= self.expires:
                 raise PermissionError('Review expired during preflight')
+            if check_source is not None:
+                check_source()
             self.active = True
             try:
                 for self.index, step in enumerate(self.sequence):
                     if self.dev.observe(self.target) != self.expected:
                         raise ValueError('Unexpected state change before the next frame')
+                    if check_source is not None:
+                        check_source()
                     if ((step.name == 'DELAY_TIME' and self.expected['bulk'][70][9] != 0) or
                             (step.name == 'CHORUS_RATE' and self.expected['bulk'][78][3] != 0)):
                         raise ValueError('Default effect tempo is not NONE; no guessed tempo write')

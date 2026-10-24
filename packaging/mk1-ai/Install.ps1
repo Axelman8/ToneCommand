@@ -1,3 +1,4 @@
+param([switch]$Development)
 $ErrorActionPreference = 'Stop'
 $trialRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 Set-Location -LiteralPath $trialRoot
@@ -12,6 +13,12 @@ if ($LASTEXITCODE -ne 0) { throw 'Extract into a new folder and use Python3.12 6
 if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed; do not connect the unit.' }
 $env:PYTHONUTF8='1'
 $env:TONECOMMAND_SIM='1'
-& $trialPython -m pytest tests/test_mk1_ai_trial.py tests/test_mk1_tester.py -q
+$trialTests = @('tests/test_mk1_ai_trial.py', 'tests/test_mk1_tester.py')
+if ($Development) { $trialTests += 'tests/test_mk1_development.py' }
+& $trialPython -m pytest @trialTests -q
 if ($LASTEXITCODE -ne 0) { throw 'Offline safety tests failed. Do not start the hardware trial.' }
-Write-Host 'Offline checks passed. Run Start-MK1-AI-Trial.cmd. No hardware was accessed by this installer.'
+if ($Development) {
+    Write-Host 'Offline checks passed. Run Start-MK1-Development.cmd in this Git clone. No hardware was accessed.'
+} else {
+    Write-Host 'Offline checks passed. Run Start-MK1-AI-Trial.cmd. No hardware was accessed by this installer.'
+}
