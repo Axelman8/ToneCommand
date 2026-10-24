@@ -460,6 +460,21 @@
    "function": "api_state",
    "ordinal": 1,
    "disposition": "re-raises CapabilityDeclined: wraps _named_param_state, whose named_params() is itself a gated method (#198). Everything else answers 200 with the reason rather than 500, because the page polls this every second and a device that cannot be read is an OFFLINE pill, not a broken page."
+  },
+  {
+   "function": "_badge_text",
+   "ordinal": 1,
+   "disposition": "unreachable: version and git lookups for the page's server-rendered badge (#282); no device handle in the try body"
+  },
+  {
+   "function": "report_page",
+   "ordinal": 1,
+   "disposition": "unreachable: builds the scrubbed diagnostics package for /report (#282); it only enumerates MIDI port names, no device handle in the try body"
+  },
+  {
+   "function": "main",
+   "ordinal": 1,
+   "disposition": "unreachable: reads the version for the startup line (#282) before the server starts; no device handle in the try body"
   }
  ]
 }

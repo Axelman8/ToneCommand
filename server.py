@@ -19,8 +19,8 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
-from fastapi.responses import (FileResponse, JSONResponse, Response,
-                               StreamingResponse)
+from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
+                               Response, StreamingResponse)
 from pydantic import BaseModel
 
 # #177: a plain wheel install has no config/, ui/ or recipes/; say so in one
@@ -2310,9 +2310,105 @@ def check_revision(body: ApplyBody):
     return None
 
 
+def _badge_text() -> str:
+    """#282: the version badge text, the same rule as the page's
+    versionBadgeText (#264), computed here so a page whose script never runs
+    still says what is running."""
+    from fm9 import updates as _updates
+    try:
+        cur = _updates.current_version()
+        st = _updates.repo_state(ROOT)
+        head = _updates.head_info(ROOT)
+    except Exception:      # noqa: BLE001  a version badge must never fail the page
+        return ""
+    if not cur:
+        return ""
+    text = f"v{cur}"
+    release = f"v{cur}" in head["tags"]
+    extra = [x for x in (st["branch"], head["commit"]) if x]
+    if st["git"] and not release and extra:
+        text += " + " + " ".join(extra)
+    return text
+
+
+_SERVER_VERSION_SLOT = re.compile(r"(<span\b[^>]*\bdata-server-version\b[^>]*>)(</span>)")
+
+
 @app.get("/")
 def index():
-    return FileResponse(resource_path("ui", "index.html"))
+    """The page, with the running version filled in by the server (#282),
+    so it shows even when the page's own script fails to run."""
+    import html as _html
+    page = resource_path("ui", "index.html").read_text(encoding="utf-8")
+    badge = _html.escape(_badge_text())
+    page = _SERVER_VERSION_SLOT.sub(lambda m: m.group(1) + badge + m.group(2), page)
+    return HTMLResponse(page, headers={"Cache-Control": "no-cache"})
+
+
+_REPORT_PAGE = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ToneCommand: report a problem</title>
+<style>
+  body {{ margin: 0; padding: 24px 16px; background: #05080d; color: #c9dcea;
+         font: 16px/1.5 ui-monospace, Menlo, Consolas, monospace; }}
+  main {{ max-width: 860px; margin: 0 auto; }}
+  h1 {{ font-size: 20px; letter-spacing: 0.12em; color: #2fe6ff; margin: 0 0 8px; }}
+  p {{ margin: 0 0 14px; }}
+  .muted {{ color: #7d98ad; }}
+  textarea {{ width: 100%; box-sizing: border-box; background: #0b1520;
+             color: #c9dcea; border: 1px solid #1a7f96; border-radius: 6px;
+             padding: 10px; font: inherit; font-size: 14px; }}
+  button, .go {{ display: inline-block; margin: 6px 10px 18px 0; padding: 10px 16px;
+                background: #0b1520; color: #2fe6ff; border: 1px solid #2fe6ff;
+                border-radius: 6px; font: inherit; text-decoration: none; cursor: pointer; }}
+</style>
+</head>
+<body>
+<main>
+<h1>REPORT A PROBLEM</h1>
+<p>ToneCommand {version}. This page works even when the main page does not.</p>
+<p class="muted">Nothing is sent from here. Read the report below, then open a
+GitHub issue with it yourself, or copy it and paste it anywhere.</p>
+<form method="get" action="/report">
+  <label for="note">What were you doing? (optional)</label>
+  <textarea id="note" name="note" rows="3">{note}</textarea>
+  <button type="submit">ADD TO THE REPORT</button>
+</form>
+<label for="report">What will be included</label>
+<textarea id="report" rows="18" readonly>{text}</textarea>
+<p><a class="go" href="{url}" target="_blank" rel="noopener">OPEN A GITHUB ISSUE WITH THIS REPORT</a>
+<a class="go" href="/">BACK TO TONECOMMAND</a></p>
+</main>
+</body>
+</html>
+"""
+
+
+@app.get("/report")
+def report_page(note: str = ""):
+    """#282: Report a problem without the page's script. The main page's
+    button lives in the same script it would be reporting on, so a page that
+    fails to start (1.5.3's, #281) could never offer it. This is plain
+    server-built HTML: the same scrubbed package as the button, a form for the
+    player's note, and a link they open themselves. Nothing is sent from here.
+    """
+    import html as _html
+    from fm9 import diagnostics
+    note = (note or "")[:2000]
+    try:
+        pkg = diagnostics.package_for_sharing(note=note)
+        text = pkg["title"] + "\n\n" + pkg["body"]
+        url = pkg["url"]
+    except Exception as e:      # noqa: BLE001  the report page must survive a broken install
+        text = f"The report could not be built: {type(e).__name__}"
+        url = f"https://github.com/{diagnostics.REPO}/issues/new"
+    page = _REPORT_PAGE.format(version=_html.escape(_badge_text() or "(version not read)"),
+                               note=_html.escape(note), text=_html.escape(text),
+                               url=_html.escape(url, quote=True))
+    return HTMLResponse(page, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/logo.png")
@@ -8584,6 +8680,16 @@ def main():
         raise ValueError("TONECOMMAND_PORT must be an integer from 1 to 65535") from exc
     if not 1 <= port <= 65535:
         raise ValueError("TONECOMMAND_PORT must be an integer from 1 to 65535")
+    # #282: the terminal is the one place every player sees, even when the
+    # page fails to start, so it names the version and the fallback report.
+    from fm9 import updates as _updates
+    try:
+        _version = _updates.current_version()
+    except Exception:      # noqa: BLE001  a startup banner must never stop the server
+        _version = "(version not read)"
+    print(f"ToneCommand {_version}: open http://127.0.0.1:{port}\n"
+          f"If the page does not respond: http://127.0.0.1:{port}/report",
+          flush=True)
     uvicorn.run(app, host="127.0.0.1", port=port)
 
 

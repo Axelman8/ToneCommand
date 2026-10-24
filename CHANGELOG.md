@@ -4,6 +4,17 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+### Fixed
+- **A page that fails to start can still say what is running and send a
+  report (#282).** In #281 a page rendered but nothing responded, and its
+  version badge and Report a problem button were both inside the script that
+  had failed. Now the server fills in the version badge itself; a notice
+  appears if the page's script never finishes, naming the version and linking
+  a new plain `/report` page that needs no script (the same scrubbed report,
+  a note box, and the GitHub link you open yourself); the terminal prints the
+  version and the `/report` address at startup; and Settings has a REPORT A
+  PROBLEM button, so it no longer waits for an error in the chat.
+
 ## 1.6.1 (2026-10-24)
 
 ### Added
