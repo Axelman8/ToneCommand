@@ -264,9 +264,9 @@ def test_normal_readonly_output_and_registry_stay_readonly():
 
 def test_uncertainty_handler_is_recorded_in_the_component_audit():
     root=Path(__file__).resolve().parents[1]
-    audit=json.loads((root/'tests/data/broad_except_audit.json').read_text())
+    audit=json.loads((root/'tests/data/broad_except_audit.json').read_text(encoding='utf-8'))
     records=[r for r in audit['component_blocks'] if r['file']=='devices/axefx3/amp_writer.py']
-    tree=ast.parse((root/'devices/axefx3/amp_writer.py').read_text())
+    tree=ast.parse((root/'devices/axefx3/amp_writer.py').read_text(encoding='utf-8'))
     broad=[n for n in ast.walk(tree) if isinstance(n,ast.ExceptHandler)
            and isinstance(n.type,ast.Name) and n.type.id=='Exception']
     assert len(broad)==len(records)==1 and records[0]['function']=='AmpWriter.apply_amp'
