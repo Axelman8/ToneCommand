@@ -1,11 +1,15 @@
 {
   "schema": 1,
-  "catalog_version": "1.5.16-lang.3",
-  "catalog_sha256": "4bab830ad47d84ae5f0ba3c459f8cddc5551c35d1758d75dad8950d82562f107",
+  "catalog_version": "1.5.16-lang.4",
+  "catalog_sha256": "3e655f028d5c5cc3117d9319a142d4197717389324dd62c92c816a0c872932b7",
   "locale": "nl",
   "name": "Nederlands",
   "coverage": "Core request, Settings and navigation labels; untranslated and protected text stays English.",
   "translations": {
+    "Account connected.": "Account verbonden.",
+    "Not an access token or password": "Geen access token of wachtwoord",
+    "Key saved. Click SIGN IN.": "Sleutel opgeslagen. Klik op SIGN IN.",
+    "Enter your publishable client key first.": "Vul eerst je openbare clientsleutel in.",
     "Choose your language": "Kies je taal",
     "Choose the language for menus and controls.": "Kies de taal voor menu's en bediening.",
     "Missing translations stay in English. Your requests, plans and device names are not translated.": "Ontbrekende vertalingen blijven Engels. Je verzoeken, plannen en apparaatnamen worden niet vertaald.",

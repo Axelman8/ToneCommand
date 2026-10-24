@@ -4,6 +4,9 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Use English source text for the Tone3000 account status and publishable-key
+  placeholder, with Dutch/German translations. Switching language repaints the
+  cached account status locally without login, API calls or device actions.
 - Show only detected FM9/III choices in the FX3 header, retaining a verified
   connected III when discovery fails. Hide irrelevant hardware cards; keep
   first-time FM3 MIDI setup behind an explicit generic setup action. Passive

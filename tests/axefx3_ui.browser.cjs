@@ -25,6 +25,7 @@ const path=require('node:path');
     let disconnected=false,routeProblem='',failedTransport='',invalidPlanReply=false,largePlan=false,holdPlan=null;
     let detectedKinds = ['axefx3', 'fm9'];
     let variant=null,fw33=false,namRoute=false,selected=null,slotsFull=false,slotsFail=false;
+    let namConfigured=true,namConnected=true,namAccountReason='';
     const installs=[],stores=[],previews=[],historyResumes=[];
     await page.route('**/*',async route=>{
       const req=route.request(),url=new URL(req.url()),name=url.pathname.split('/').pop();
@@ -59,7 +60,7 @@ const path=require('node:path');
           added:ampRefreshMode==='new'?[{ordinal:336,name:'<img src=x onerror=alert(1)> New amp'}]:[],changed:[],removed:[]};
         if(ampRefreshMode==='error'){status=409;result={detail:'Firmware changed; RESCAN first'};}
       }
-      if(url.pathname==='/api/axefx3/tone3000/status')result={configured:true,connected:true,selected,installation_supported:fw33&&variant==='mk2'};
+      if(url.pathname==='/api/axefx3/tone3000/status')result={configured:namConfigured,connected:namConnected,reason:namAccountReason,selected,installation_supported:fw33&&variant==='mk2'};
       if(url.pathname==='/api/axefx3/tone3000/tones')result={data:[{id:42,title:'<img src=x onerror=alert(1)> Plexi',creator:{username:'test'}}]};
       if(url.pathname==='/api/axefx3/tone3000/tones/42')result={tone:{title:'Capture',description:'Untrusted creator claim'},models:[{id:7,name:'Synthetic A2'}]};
       if(url.pathname==='/api/axefx3/tone3000/select'){selected={model:{id:7,name:'Synthetic A2'}};result={selected};}
@@ -357,7 +358,47 @@ const path=require('node:path');
     await page.setViewportSize({width:1440,height:1000});
     await page.selectOption('#variant','mk2');await page.locator('#variant:not([disabled])').waitFor();
     assert.equal(await page.inputValue('#variant'),'mk2');
-    await page.click('#namPanel summary');await page.fill('#namQuery','Marshall Plexi');await page.click('#namSearch');
+    await page.click('#namPanel summary');
+    await page.waitForFunction(()=>document.getElementById('namStatus').textContent==='Account connected.');
+    const namDraft=await page.inputValue('#prompt');
+    const namConsent=await page.locator('#muted').isChecked();
+    await page.fill('#namKey','unsent-publishable-key-draft');
+    const namLanguageCases=[
+      ['en','Account connected.','Not an access token or password'],
+      ['nl','Account verbonden.','Geen access token of wachtwoord'],
+      ['de','Konto verbunden.','Kein Access-Token oder Passwort'],
+      ['en','Account connected.','Not an access token or password'],
+    ];
+    for(const [locale,status,placeholder] of namLanguageCases){
+      const requestCount=requestAttempts.length;
+      await page.locator('.tc-language-trigger').click();
+      await page.locator('#tc-language-dialog input[value="'+locale+'"]').check();
+      await page.waitForFunction(value=>TCLanguage.locale===value,locale);
+      await page.waitForFunction(value=>document.getElementById('namStatus').textContent===value,status);
+      assert.equal(await page.getAttribute('#namKey','placeholder'),placeholder);
+      assert.equal(await page.inputValue('#namKey'),'unsent-publishable-key-draft');
+      assert.equal(await page.inputValue('#prompt'),namDraft);
+      assert.equal(await page.locator('#muted').isChecked(),namConsent);
+      assert.equal(requestAttempts.length,requestCount); // No account refresh or POST on language change.
+      await page.locator('.tc-language-close').click();
+    }
+    const refreshNamStatus=async()=>{
+      await page.click('#namPanel summary');await page.click('#namPanel summary');
+      await page.locator('#namSearch:not([disabled])').waitFor();
+    };
+    namConnected=false;
+    await refreshNamStatus();
+    await page.waitForFunction(()=>document.getElementById('namStatus').textContent==='Key saved. Click SIGN IN.');
+    namConfigured=false;
+    await refreshNamStatus();
+    await page.waitForFunction(()=>document.getElementById('namStatus').textContent==='Enter your publishable client key first.');
+    namConfigured=true;namConnected=true;namAccountReason='<img src=x> Mijn eigen tekst';
+    await refreshNamStatus();
+    await page.waitForFunction(()=>document.getElementById('namStatus').textContent==='Account connected. <img src=x> Mijn eigen tekst');
+    assert.equal(await page.locator('#namStatus img').count(),0);
+    namAccountReason='';await refreshNamStatus();
+    await page.fill('#namKey','');
+    await page.fill('#namQuery','Marshall Plexi');await page.click('#namSearch');
     await page.locator('#namResults button').waitFor();
     assert.equal(await page.locator('#namResults img').count(),0);
     assert.match(await page.locator('#namResults button').textContent(),/Plexi/);

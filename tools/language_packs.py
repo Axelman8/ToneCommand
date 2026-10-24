@@ -11,7 +11,7 @@ import tomllib
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '1.5.16-lang.3'
+VERSION = '1.5.16-lang.4'
 ASSETS = ('en.json', 'template.json', 'manifest.json')
 LOCALE_FILE = re.compile(r'([a-z]{2,3}(?:-[A-Z]{2})?)\.json\Z')
 PROTECTED = re.compile(r'\b(mute[ds]?|overwrite|permanent|firmware|safety|never|read.only|limiter|confirmation|readback|unsaved|discard|reviewed)\b|\bI confirm\b', re.I)

@@ -122,3 +122,21 @@ def test_dialog_is_scoped_accessible_and_has_no_file_import():
     assert "input.type = 'radio'" in code
     assert 'type="file"' not in code and 'GitHub language packs' not in code
     assert '#tc-language-dialog' in style and 'prefers-reduced-motion' in style
+
+
+def test_tone3000_fixed_status_uses_english_source_and_bundled_translations():
+    script = (ROOT / 'ui/axefx3.js').read_text(encoding='utf-8')
+    page = (ROOT / 'ui/axefx3.html').read_text(encoding='utf-8')
+    assert 'Account verbonden.' not in script
+    assert 'Geen access token of wachtwoord' not in page
+    assert 'tcText("Account connected.")' in script
+    assert "addEventListener('tc-language-changed',renderAccountStatus)" in script
+    assert 'placeholder="Not an access token or password"' in page
+    for locale, status, placeholder in (
+        ('en', 'Account connected.', 'Not an access token or password'),
+        ('nl', 'Account verbonden.', 'Geen access token of wachtwoord'),
+        ('de', 'Konto verbunden.', 'Kein Access-Token oder Passwort'),
+    ):
+        pack = json.loads((ROOT / f'ui/languages/{locale}.json').read_text(encoding='utf-8'))
+        assert pack['translations']['Account connected.'] == status
+        assert pack['translations']['Not an access token or password'] == placeholder

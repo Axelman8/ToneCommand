@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "catalog_version": "1.5.16-lang.3",
-  "catalog_sha256": "4bab830ad47d84ae5f0ba3c459f8cddc5551c35d1758d75dad8950d82562f107",
+  "catalog_version": "1.5.16-lang.4",
+  "catalog_sha256": "3e655f028d5c5cc3117d9319a142d4197717389324dd62c92c816a0c872932b7",
   "locale": "en",
   "name": "English",
   "translations": {
@@ -64,6 +64,7 @@
     "AUDITION ON FM9": "AUDITION ON FM9",
     "AXE-FX III DESIGN": "AXE-FX III DESIGN",
     "Access key, when this service requires one": "Access key, when this service requires one",
+    "Account connected.": "Account connected.",
     "Activity": "Activity",
     "Add the sound reference in SONG / AUDIO or your request first.": "Add the sound reference in SONG / AUDIO or your request first.",
     "Adjusted: {{v0}}. Protected: {{v1}}. The full design is reapplied with verification, not a minimal live patch.": "Adjusted: {{v0}}. Protected: {{v1}}. The full design is reapplied with verification, not a minimal live patch.",
@@ -355,6 +356,7 @@
     "No supported Wah or Volume blocks found. Add them on the Fractal or in Axe-Edit first; this panel does not change the signal route.": "No supported Wah or Volume blocks found. Add them on the Fractal or in Axe-Edit first; this panel does not change the signal route.",
     "No unverified extra pedals": "No unverified extra pedals",
     "No verified current mix was read.": "No verified current mix was read.",
+    "Not an access token or password": "Not an access token or password",
     "Not connected": "Not connected",
     "Not connected yet.": "Not connected yet.",
     "Not connected yet. Close Axe-Edit and other TC sessions before connecting.": "Not connected yet. Close Axe-Edit and other TC sessions before connecting.",

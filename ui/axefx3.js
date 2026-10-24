@@ -557,9 +557,14 @@ function showCaptures(result){
   }
   if(!result.candidates?.length)el('namResults').textContent=tcText("No candidates found. TC does not invent a capture.");
 }
+function renderAccountStatus(){
+  if(!namAccount)return;
+  el('namStatus').textContent=namAccount.connected?tcText("Account connected.")+(namAccount.reason?' '+namAccount.reason:''):namAccount.configured?tcText("Key saved. Click SIGN IN."):tcText("Enter your publishable client key first.");
+}
+window.addEventListener('tc-language-changed',renderAccountStatus);
 async function accountStatus(){
   namAccount=await api('tone3000/status');namSelection=namAccount.selected;
-  el('namStatus').textContent=namAccount.connected?'Account verbonden. '+(namAccount.reason||''):namAccount.configured?tcText("Key saved. Click SIGN IN."):tcText("Enter your publishable client key first.");
+  renderAccountStatus();
   el('namSelected').textContent=namSelection?.model?tcText("Selected: {{v0}}. Selection is not installation.", {v0:(namSelection.model.name)}):tcText("No NAM model selected yet.");
   controls();
 }
