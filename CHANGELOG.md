@@ -4,6 +4,11 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Add a separate experimental MK1 AI trial entry point: text request, one
+  scene, constrained AMP/Factory cab plus optional chorus/delay/reverb, explicit
+  review/consent and readback. Exact previously reported MK1 firmware fingerprint
+  only. Candidate write encodings still require MK1 hardware acceptance; no
+  production capability promotion, Store, NAM, User2 or controller writes.
 - Update the MK1 read-only evaluation to 1.5.16-fx3.3-mk1-test.2 with English
   interface labels, local JSON language-pack support and installer checks.
   This does not enable MK1 writes, NAM or account workflows.
