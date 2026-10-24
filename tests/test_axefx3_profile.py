@@ -132,3 +132,68 @@ def test_fm9_spec_and_unknown_controls_cannot_enter_the_axe_writer():
         reg.spec("DISTORT", 3, 3)
     with pytest.raises(ValueError):
         reg.spec("CHORUS", 2, 2)
+
+
+@pytest.mark.parametrize('variant,count', [(None,512),('mk1',512),('mk2',1024)])
+def test_preset_capacity_is_separate_from_write_permission(variant,count):
+    from devices.axefx3 import profile
+    reg=Registry('32.06')
+    result=profile.apply(reg,variant)
+    assert profile.preset_count(reg)==count==result['preset_count']
+    assert result['variant_verified'] is False
+    for number in (0,511,count-1):assert profile.validate_preset(reg,number)==number
+    for number in (-1,count,True,'512',None):
+        with pytest.raises(ValueError):profile.validate_preset(reg,number)
+
+
+@pytest.mark.parametrize('number',[511,512,1023])
+def test_mk2_name_queries_use_full_fourteen_bit_address_without_wrap(number):
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+    from devices.axefx3.adapter import AxeFxIII
+    dev=object.__new__(AxeFxIII)
+    dev.reg=Registry('32.06');dev.reg.hardware_variant='mk2'
+    dev._request=Mock(return_value=None)
+    dev.slot_name(number)
+    frame=dev._request.call_args.args[0]
+    assert frame==protocol.envelope(0x0d,list(fm9_protocol.encode14(number)))
+    assert fm9_protocol.decode14(*frame[6:8])==number
+    assert len(frame)==10 and frame[4]==0x10
+
+
+@pytest.mark.parametrize('variant,count',[(None,512),('mk1',512),('mk2',1024)])
+def test_default_name_scan_matches_chassis_and_invalid_slots_never_query(variant,count):
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+    from devices.axefx3.adapter import AxeFxIII
+    dev=object.__new__(AxeFxIII)
+    dev.reg=Registry('32.06');dev.reg.hardware_variant=variant
+    dev.slot_name=Mock(side_effect=lambda n:SimpleNamespace(number=n))
+    assert [s.number for s in dev.scan_slots()]==list(range(count))
+    dev.slot_name.reset_mock()
+    for start,end in ((0,count),(-1,5),(True,5),(5,4)):
+        with pytest.raises(ValueError):list(dev.scan_slots(start,end))
+    dev.slot_name.assert_not_called()
+    dev._request=Mock()
+    with pytest.raises(ValueError):AxeFxIII.slot_name(dev,count)
+    dev._request.assert_not_called()
+
+
+def test_upper_preset_api_inputs_do_not_clip_to_the_lower_bank():
+    from devices.axefx3 import tone_ui,nam_ui,navigation
+    for number in (512,1023):
+        assert tone_ui.Request(prompt='One lead scene',scenes=1,expected_preset=number).expected_preset==number
+        assert nam_ui.StoreTarget(expected_preset=number).expected_preset==number
+        assert navigation.Prepare(kind='preset',value=number,expected_preset=number,expected_scene=1).value==number
+    for number in (-1,1024,True):
+        with pytest.raises(ValueError):tone_ui.Request(prompt='One lead scene',scenes=1,expected_preset=number)
+
+
+def test_one_checkout_menu_uses_existing_install_and_safety_paths():
+    from pathlib import Path
+    root=Path(__file__).resolve().parents[1]
+    menu=(root/'ToneCommand.cmd').read_text(encoding='utf-8')
+    assert 'packaging\\mk1-ai\\Install.ps1' in menu and '-Development' in menu
+    assert 'packaging\\mk1-ai\\Development.ps1' in menu
+    assert 'tools\\start_tonecommand.ps1' in menu
+    assert '-Connect' not in menu and 'git reset' not in menu and 'pip install' not in menu

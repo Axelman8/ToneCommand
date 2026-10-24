@@ -438,7 +438,7 @@ el('presetSearch').oninput=renderPresets;
 el('presetClose').onclick=()=>el('presetDialog').close();
 el('target').onclick=()=>run(async()=>{
   el('presetSearch').value='';presetLibrary=[];el('presetChoices').replaceChildren();el('presetDialog').showModal();
-  el('presetScanStatus').textContent=tcText("Reading preset names 000-511. Nothing is selected...");
+  el('presetScanStatus').textContent=tcText("Reading state...")+` 000-${(state.profile?.preset_count||512)-1}`;
   let result;
   try{result=await api('navigation/presets');}
   catch(error){el('presetScanStatus').textContent=error.message;throw error;}

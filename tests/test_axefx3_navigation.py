@@ -122,3 +122,60 @@ def test_fw33_manual_scene_permit_does_not_promote_build_scope():
     device._navigation_frame_permit=tuple(frame);fw33.check_frame(device,frame)
     with pytest.raises(PermissionError):fw33.check_frame(device,protocol.envelope(0x0c,[6]))
     assert fw33_profile.NAM_SCENES=={1,2}
+
+
+@pytest.mark.parametrize('variant,count',[('mk1',512),('mk2',1024),(None,512)])
+def test_default_api_library_and_state_report_documented_capacity(api,dev,variant,count):
+    from devices.axefx3 import profile
+    client,_=api;setup(dev);profile.apply(dev.reg,variant)
+    result=client.get('/api/axefx3/navigation/presets')
+    assert result.status_code==200,result.text
+    assert result.json()['preset_count']==count
+    assert [s['number'] for s in result.json()['slots']]==list(range(count))
+    assert client.get('/api/axefx3/state').json()['profile']['preset_count']==count
+    dev.outp.send.assert_not_called()
+
+
+@pytest.mark.parametrize('variant,number,allowed',[('mk1',511,True),('mk1',512,False),
+    ('mk2',512,True),('mk2',1023,True),('mk2',1024,False)])
+def test_navigation_review_upper_bounds_are_chassis_bound(api,dev,variant,number,allowed):
+    from devices.axefx3 import profile
+    client,_=api;setup(dev);profile.apply(dev.reg,variant)
+    result=client.post('/api/axefx3/navigation/prepare',json=dict(kind='preset',value=number,
+        expected_preset=324,expected_scene=1))
+    assert (result.status_code==200)==allowed,result.text
+    if allowed:assert result.json()['destination']['number']==number
+    dev.outp.send.assert_not_called()
+
+
+@pytest.mark.parametrize('number,bank,pc',[(511,3,127),(512,4,0),(1023,7,127)])
+def test_mk2_upper_bank_selection_is_one_cc_pc_pair_with_readback(dev,monkeypatch,number,bank,pc):
+    from devices.axefx3 import profile
+    setup(dev);profile.apply(dev.reg,'mk2');monkeypatch.setattr(navigation.time,'sleep',lambda _:None)
+    dev.current_preset.side_effect=[(324,'Empty'),(number,'Loaded')]
+    assert navigation.switch_preset(dev,number,(324,'Empty'),external_audio_muted=True,
+                                    confirm_discard_edits=True)==(number,'Loaded')
+    assert [(c.args[0].type,c.args[0].bytes()) for c in dev.outp.send.call_args_list]==[
+        ('control_change',[0xb0,0,bank]),('program_change',[0xc0,pc])]
+
+
+def test_switching_chassis_after_review_does_not_allow_mk1_upper_navigation(dev,monkeypatch):
+    from devices.axefx3 import profile
+    setup(dev);profile.apply(dev.reg,'mk2')
+    reviews=navigation.Reviews()
+    review=reviews.prepare(dev,navigation.Prepare(kind='preset',value=1023,expected_preset=324,expected_scene=1))
+    profile.apply(dev.reg,'mk1')
+    with pytest.raises(ValueError):
+        reviews.select(dev,navigation.Select(token=review['token'],external_audio_muted=True,confirm_discard_edits=True))
+    dev.outp.send.assert_not_called()
+
+
+def test_capacity_does_not_authorize_store_to_an_unlisted_slot(dev):
+    from devices.axefx3 import profile,store_review
+    from fm9.device import get_store_slots
+    setup(dev);profile.apply(dev.reg,'mk2')
+    original=set(get_store_slots())
+    assert 1023 not in original
+    with pytest.raises(ValueError,match='allowlist'):store_review.Stores().prepare(dev,1023)
+    assert set(get_store_slots())==original
+    dev.outp.send.assert_not_called()

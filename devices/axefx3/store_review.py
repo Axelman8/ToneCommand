@@ -13,6 +13,8 @@ class Stores:
 
     def prepare(self,dev,expected_preset):
         self.pending=None
+        from .profile import validate_preset
+        validate_preset(dev.reg, expected_preset)
         if getattr(dev.reg,'hardware_variant',None) != 'mk2':
             raise ValueError('FW33 Store requires the declared measured MK2 profile')
         if type(expected_preset) is not int or expected_preset not in get_store_slots():

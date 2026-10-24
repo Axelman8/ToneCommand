@@ -78,3 +78,7 @@ backups/
 
 # #261: DDLP profiles learned on this machine (reviewed ones live in devices/profiles)
 devices/learned/
+
+# MK1 evaluator results and local custom scenarios are private.
+test-results/
+notes/

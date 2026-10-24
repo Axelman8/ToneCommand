@@ -4,6 +4,13 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Consolidate MK1 development and the MK2 workspace in one source branch,
+  with one Windows menu using the existing dependency installer and launchers.
+- Make FX3 preset capacity chassis-aware: MK1/unknown 000-511, declared MK2
+  000-1023, including scans, navigation, planning input and local history.
+  Store allowlists and separate permanent-write confirmations remain unchanged.
+  Upper-MK2 native read/navigation acceptance remains pending; permanent Store
+  above 511 is not enabled by this capacity change.
 - Use English source text for the Tone3000 account status and publishable-key
   placeholder, with Dutch/German translations. Switching language repaints the
   cached account status locally without login, API calls or device actions.
@@ -16,6 +23,23 @@ Notable changes to ToneCommand. Dates are UTC.
   styled, keyboard-accessible language picker. Keep existing FX3/NAM/controller
   functions and hardware permissions unchanged; retain English fallback and
   protected confirmations, with no translation of live plans or device data.
+- Add an explicit MK1 Git-checkout development launcher and VS Code workspace.
+  Independent forks can start edited source without a release ZIP manifest;
+  commit/branch/dirty/source-hash provenance and source-drift checks retain the
+  experimental review/output boundaries. No new MK1 hardware capability claim.
+- Add a separate experimental MK1 AI trial entry point: text request, one
+  scene, constrained AMP/Factory cab plus optional chorus/delay/reverb, explicit
+  review/consent and readback. Exact previously reported MK1 firmware fingerprint
+  only. Candidate write encodings still require MK1 hardware acceptance; no
+  production capability promotion, Store, NAM, User2 or controller writes.
+- Update the MK1 read-only evaluation to 1.5.16-fx3.3-mk1-test.2 with English
+  interface labels, local JSON language-pack support and installer checks.
+  This does not enable MK1 writes, NAM or account workflows.
+- Add a separate Windows MK1 read-only evaluation launcher, source ZIP builder,
+  English first-use guide, VS Code tasks and local report export. Exact read
+  queries are enforced at the MIDI output; preset/scene writes, NAM memory,
+  controller changes and account workflows remain blocked. This test package
+  does not release MK1 writes or change the production adapter's write gates.
 - Standardize fixed FX3 interface labels and request guidance on English, and
   register optional language packs without changing hardware permissions.
 - Reconcile upstream 1.5.16 device discovery, rig reading, package data and

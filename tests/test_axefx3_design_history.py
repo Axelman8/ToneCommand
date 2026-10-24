@@ -29,6 +29,17 @@ def test_successful_send_persists_only_design_and_evidence(monkeypatch):
     entries=history.entries();assert len(entries['designs'])==1 and not entries['hardware_written']
 
 
+def test_mk2_history_can_identify_upper_preset_without_enabling_mk1(monkeypatch):
+    d,p,reviews,result=sent(monkeypatch)
+    record=history.load(result['history']['id'])
+    record['preset']=1023
+    assert history.validate(record)['preset']==1023
+    record['variant']='mk1'
+    with pytest.raises(ValueError):history.validate(record)
+    record['variant']='mk2';record['preset']=1024
+    with pytest.raises(ValueError):history.validate(record)
+
+
 def test_numeric_reference_survives_cold_resume_without_private_source_or_authority(monkeypatch):
     from test_axefx3_audio_comparison import reading
     d=device(monkeypatch);p=plan(d);reviews=tone_review.Reviews()

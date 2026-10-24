@@ -28,6 +28,15 @@ def test_identical_graph_has_no_changes_and_cannot_send():
     assert not report['stored'] and 'token' not in report and 'actions' not in report
 
 
+def test_upper_mk2_snapshot_cannot_be_reused_as_mk1():
+    from devices.axefx3 import profile
+    current=state();current['preset']=(1023,'Upper MK2')
+    reg=Registry(fw33_profile.KEY);profile.apply(reg,'mk2')
+    assert graph_plan.review(current,spec(),reg)['operations']==[]
+    profile.apply(reg,'mk1')
+    with pytest.raises(ValueError,match='identity'):graph_plan.review(current,spec(),reg)
+
+
 def test_insertion_reports_existing_moves_not_delete_and_recreate():
     report=graph_plan.review(state(),spec(('Input','Amp','Drive','Cab','Output')),Registry(fw33_profile.KEY))
     moved=[o for o in report['operations'] if o['kind']=='move_block']

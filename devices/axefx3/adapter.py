@@ -288,9 +288,8 @@ class AxeFxIII:
         return blocks
 
     def slot_name(self, preset):
-        # Keep the historical tested range; do not infer extra slots.
-        if type(preset) is not int or preset not in range(512):
-            raise ValueError("Preset must be in the verified range 0..511")
+        from .profile import validate_preset
+        validate_preset(self.reg, preset)
         def parse(data):
             got = shared.parse_patch_name_full(data)
             return got if got is not None and got.number == preset else None
@@ -300,8 +299,13 @@ class AxeFxIII:
         got = self.slot_name(preset)
         return got.empty if got else None
 
-    def scan_slots(self, start=0, end=511):
-        if type(start) is not int or type(end) is not int or not 0 <= start <= end < 512:
+    def scan_slots(self, start=0, end=None):
+        from .profile import preset_count, validate_preset
+        if end is None:
+            end = preset_count(self.reg)-1
+        validate_preset(self.reg, start)
+        validate_preset(self.reg, end)
+        if start > end:
             raise ValueError("Invalid preset name range")
         def walk():
             for number in range(start, end + 1):
@@ -451,6 +455,8 @@ class AxeFxIII:
         """
         if external_audio_muted is not True or type(expected_preset) is not int:
             raise PermissionError("External mute confirmation and an explicit preset are required")
+        from .profile import validate_preset
+        validate_preset(self.reg, expected_preset)
         with self._lock:
             if self._edit_target is not None:
                 raise PermissionError("An edit session is already active")

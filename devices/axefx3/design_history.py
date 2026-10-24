@@ -45,7 +45,7 @@ def validate(data):
         allowed.add('scene_contract')
         if isinstance(plan,dict) and 'reference_measurements' in plan:allowed.add('reference_measurements')
     if (not isinstance(data,dict) or set(data)!=fields or type(data['version']) is not int or data['version'] not in (1,2,3)
-            or type(data['preset']) is not int or data['preset'] not in range(512)
+            or type(data['preset']) is not int or data['preset'] not in range(1024)
             or data['firmware']!=fw33_profile.KEY or data['variant']!='mk2'
             or not isinstance(data['created'],str) or len(data['created'])>40
             or not isinstance(data['plan'],dict) or set(data['plan'])!=allowed

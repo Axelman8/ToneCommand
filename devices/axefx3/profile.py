@@ -2,12 +2,24 @@
 from . import fw33_profile
 
 
+def preset_count(reg):
+    """Documented capacity, not hardware write approval or a Store allowlist."""
+    return 1024 if getattr(reg, 'hardware_variant', None) == 'mk2' else 512
+
+
+def validate_preset(reg, number):
+    if type(number) is not int or number not in range(preset_count(reg)):
+        raise ValueError(f'Preset must be 0..{preset_count(reg)-1} for this chassis profile.')
+    return number
+
+
 def memory_policy(firmware, variant=None):
     # Only the old verified profile is known to retain both user IR banks.
     # Unknown/beta firmware is treated as NAM-era for storage protection.
     old = firmware == '32.06'
     user2 = old or variant == 'mk2'
     return dict(variant=variant, variant_verified=False,
+                preset_count=1024 if variant == 'mk2' else 512,
                 user2_cabs=user2, nam_storage='user2' if variant == 'mk1' and not old else
                 'separate' if variant == 'mk2' and not old else 'unverified',
                 nam_writes=firmware == fw33_profile.KEY and variant == 'mk2',

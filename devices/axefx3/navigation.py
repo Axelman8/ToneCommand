@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel,ConfigDict,Field,StrictInt,StrictBool
 from typing import Literal
 
-from . import protocol,fw33_profile,modifiers
+from . import protocol,fw33_profile,modifiers,profile
 from .controller_review import digest
 
 
@@ -19,6 +19,7 @@ def snapshot(dev):
     preset,scene=dev.current_preset(),dev.current_scene()
     if not supported(dev) or dev.firmware_label()!=dev.reg.firmware or not preset or type(scene) is not int or scene not in range(1,9):
         raise ValueError('Fresh verified device, preset and scene required.')
+    profile.validate_preset(dev.reg, preset[0])
     blocks,grid=dev.status_dump(),dev.read_grid()
     if blocks is None or grid is None:raise ValueError('Navigation state could not be read.')
     bulk={b.effect_id:dev.bulk_read(b.effect_id) for b in blocks if b.effect_id not in (200,201)}
@@ -34,7 +35,8 @@ def snapshot(dev):
 
 def switch_preset(dev,number,source,*,external_audio_muted,confirm_discard_edits):
     """Measured bank/PC path, only explicit UI confirmation. Never an AI action."""
-    if type(number) is not int or number not in range(512):raise ValueError('Preset must be 0..511.')
+    profile.validate_preset(dev.reg, number)
+    profile.validate_preset(dev.reg, source[0])
     if external_audio_muted is not True or confirm_discard_edits is not True:
         raise PermissionError('Confirm external mute and discarding the edit buffer.')
     if (not supported(dev) or dev.firmware_label()!=dev.reg.firmware or dev.current_preset()!=source
@@ -68,8 +70,8 @@ def switch_scene(dev,number,source,*,external_audio_muted):
 class Prepare(BaseModel):
     model_config=ConfigDict(extra='forbid')
     kind:Literal['preset','scene']
-    value:StrictInt=Field(ge=0,le=511)
-    expected_preset:StrictInt=Field(ge=0,le=511)
+    value:StrictInt=Field(ge=0,le=1023)
+    expected_preset:StrictInt=Field(ge=0,le=1023)
     expected_scene:StrictInt=Field(ge=1,le=8)
 
 
@@ -84,6 +86,8 @@ class Reviews:
     def __init__(self,clock=time.monotonic):self.clock=clock;self.pending=None
     def prepare(self,dev,body):
         self.pending=None
+        profile.validate_preset(dev.reg, body.expected_preset)
+        if body.kind == 'preset':profile.validate_preset(dev.reg, body.value)
         if body.kind=='scene' and body.value not in range(1,9):raise ValueError('Scene must be 1..8.')
         now=snapshot(dev)
         if now['preset'][0]!=body.expected_preset or now['scene']!=body.expected_scene:
@@ -125,11 +129,13 @@ class Reviews:
 def register(app,host,tone_reviews,planning_lock,editable,selected):
     reviews=Reviews()
     @app.get('/api/axefx3/navigation/presets')
-    def presets(start:int=0,end:int=511):
+    def presets(start:int=0,end:int|None=None):
         with host._lock:
             try:
                 dev=selected()
-                if not supported(dev) or dev.firmware_label()!=dev.reg.firmware or not 0<=start<=end<512:
+                count=profile.preset_count(dev.reg)
+                if end is None:end=count-1
+                if not supported(dev) or dev.firmware_label()!=dev.reg.firmware or not 0<=start<=end<count:
                     raise ValueError('Verified device and valid preset range required.')
                 origin=dev.current_preset()
                 if origin is None:raise ValueError('Current preset unreadable.')
@@ -137,7 +143,8 @@ def register(app,host,tone_reviews,planning_lock,editable,selected):
                 if len(slots)!=end-start+1 or [s.number for s in slots]!=list(range(start,end+1)):
                     raise ValueError('Incomplete preset scan. No preset is assumed empty.')
                 if dev.current_preset()!=origin:raise ValueError('Preset changed during scan.')
-                return dict(slots=[dict(number=s.number,name=s.name,empty=s.empty) for s in slots],readonly=True)
+                return dict(slots=[dict(number=s.number,name=s.name,empty=s.empty) for s in slots],readonly=True,
+                            preset_count=count)
             except (ValueError,RuntimeError,OSError) as exc:raise HTTPException(409,str(exc)) from exc
     @app.post('/api/axefx3/navigation/prepare')
     def prepare(body:Prepare):

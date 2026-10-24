@@ -23,7 +23,7 @@ AnnotatedSceneNumber = Annotated[StrictInt, Field(ge=1,le=8)]
 class Request(BaseModel):
     model_config = ConfigDict(extra='forbid')
     prompt: str = Field(min_length=3,max_length=12000)
-    expected_preset: StrictInt = Field(ge=0,le=511)
+    expected_preset: StrictInt = Field(ge=0,le=1023)
     scenes: StrictInt = Field(ge=1,le=8)
     wah_source: Literal['External 1','External 2'] | None = None
     wah_auto_engage: Literal['Off','Fast Pos'] | None = 'Fast Pos'
@@ -44,7 +44,7 @@ class Request(BaseModel):
 class Intake(BaseModel):
     model_config = ConfigDict(extra='forbid')
     prompt: str = Field(min_length=3,max_length=12000)
-    expected_preset: StrictInt = Field(ge=0,le=511)
+    expected_preset: StrictInt = Field(ge=0,le=1023)
     scenes: StrictInt = Field(ge=1,le=8)
     mode: Literal['auto','amp','nam','serial'] = 'auto'
     resolution: request_intake.Resolution = Field(default_factory=request_intake.Resolution)
@@ -65,7 +65,7 @@ class AmpRefresh(BaseModel):
 class Explore(BaseModel):
     model_config=ConfigDict(extra='forbid')
     prompt:str=Field(min_length=3,max_length=12000)
-    expected_preset:StrictInt=Field(ge=0,le=511)
+    expected_preset:StrictInt=Field(ge=0,le=1023)
     audio_reference:Measurements|None=None
     source_kind:Literal['tone','rig']='tone'
     scenes: StrictInt = Field(default=4,ge=1,le=8)
@@ -94,7 +94,7 @@ class CabImport(BaseModel):
 class ResumeDesign(BaseModel):
     model_config=ConfigDict(extra='forbid')
     record_id:str=Field(pattern='^[0-9a-f]{32}$')
-    expected_preset:StrictInt=Field(ge=0,le=511)
+    expected_preset:StrictInt=Field(ge=0,le=1023)
     external_audio_muted:StrictBool=False
     target_confirmed:StrictBool=False
 

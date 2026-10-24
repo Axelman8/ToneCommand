@@ -8,6 +8,7 @@ from fm9.protocol import GridCell, BlockStatus
 from . import topology
 from .controller_review import digest
 from .route_guard import GuardError, labels
+from .profile import preset_count
 
 
 def position(value):
@@ -69,7 +70,7 @@ def review(state,spec,reg):
     if not isinstance(state,dict) or not required<=set(state):
         raise GuardError('Complete device snapshot required, not a block list.')
     if (not isinstance(state['preset'],(tuple,list)) or len(state['preset'])!=2
-            or type(state['preset'][0]) is not int or state['preset'][0] not in range(512)
+            or type(state['preset'][0]) is not int or state['preset'][0] not in range(preset_count(reg))
             or type(state['scene']) is not int or state['scene'] not in range(1,9)
             or state['firmware']!=reg.firmware):
         raise GuardError('Snapshot identity is invalid or mismatches the registry.')

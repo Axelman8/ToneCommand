@@ -13,7 +13,7 @@ from . import tone3000, tone3000_routes, nam_install, store_review
 
 class StoreTarget(BaseModel):
     model_config=ConfigDict(extra='forbid')
-    expected_preset: StrictInt=Field(ge=0,le=511)
+    expected_preset: StrictInt=Field(ge=0,le=1023)
 
 
 class StoreConsent(BaseModel):

@@ -142,8 +142,8 @@ def resolve(reg, action):
 
 def prepare(dev, actions, required_route, expected_preset):
     """All validation is read-only, including before an empty-grid build."""
-    if type(expected_preset) is not int or expected_preset not in range(512):
-        raise ValueError("Explicit target preset in 0..511 required")
+    from .profile import validate_preset
+    validate_preset(dev.reg, expected_preset)
     limit=640 if dev.reg.firmware==fw33_profile.KEY else 512
     if not isinstance(actions, list) or not actions or len(actions) > limit:
         raise ValueError(f"Plan must contain 1..{limit} explicit actions")

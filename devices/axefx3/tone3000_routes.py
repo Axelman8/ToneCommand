@@ -72,7 +72,7 @@ class SuggestBody(Body):
 
 class InstallPreviewBody(Body):
     model_id: StrictInt = Field(gt=0)
-    expected_preset: StrictInt = Field(ge=0, le=511)
+    expected_preset: StrictInt = Field(ge=0, le=1023)
     slot: StrictInt = Field(ge=1,le=256)
 
 

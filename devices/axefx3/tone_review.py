@@ -6,6 +6,7 @@ from copy import deepcopy
 from . import executor, modifiers, route_guard, fw33_profile, nam_selector, nam_slots
 from .controller_review import digest
 from . import design_history
+from .profile import validate_preset
 
 
 def snapshot(dev, nam_slot=None, *, include_nam=True):
@@ -13,6 +14,7 @@ def snapshot(dev, nam_slot=None, *, include_nam=True):
         preset, scene, fw = dev.current_preset(), dev.current_scene(), dev.firmware_label()
         if not preset or type(scene) is not int or fw not in ('32.06',fw33_profile.KEY) or dev.reg.firmware != fw:
             raise ValueError('Current preset/scene or exact verified firmware is unavailable.')
+        validate_preset(dev.reg, preset[0])
         blocks, grid = dev.status_dump(), dev.read_grid()
         if blocks is None or grid is None:
             raise ValueError('Block/grid read failed; nothing sent.')

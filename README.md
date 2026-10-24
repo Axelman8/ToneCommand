@@ -1,3 +1,13 @@
+> **Unofficial FX3: one repository, one maintained source branch.**
+> Use `integration/axefx3-upstream-20261009` for both MK1 development and MK2.
+> Open this folder in VS Code and run **`ToneCommand.cmd`** for the single
+> install / MK1 / MK2 / offline-test menu. Dependencies use `pyproject.toml`;
+> no extra test ZIP or separate MK1 repository is required.
+> [MK1 setup, scope and testing](docs/MK1-DEVELOPMENT.md).
+> MK1 remains an experimental one-scene AMP/CAB + FX build, not full MK1/NAM
+> acceptance. Existing named-release downloads and launchers remain intact
+> for reproducibility; they are not additional independently maintained apps.
+
 <p align="center">
   <img src="docs/img/social-preview.png"
        alt="ToneCommand. Program, connect, command your tone."
