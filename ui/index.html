@@ -1795,6 +1795,17 @@
   .verbadge { color: var(--muted); font-size: var(--fs-badge, 0.7rem); letter-spacing: 0.08em;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .verbadge:empty { display: none; }
+  /* #282: shown only if the page's script never finishes. The script removes
+     it as its last statement; the delay keeps it from flashing while the
+     script is still starting. Plain HTML and CSS, so it works when nothing
+     else on the page does. It sits outside #shell, which narrow windows
+     hide, so it shows at every width. */
+  .bootfail { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 10000;
+    padding: 14px 18px; background: #2a0d14; border: 1px solid var(--red);
+    border-radius: 8px; color: var(--text); font-size: var(--fs-body);
+    line-height: 1.5; visibility: hidden; animation: bootfail-show 0s linear 6s forwards; }
+  .bootfail a { color: var(--cyan); }
+  @keyframes bootfail-show { to { visibility: visible; } }
   #hwbar .brand img { width: 40px; height: 40px; border-radius: 8px;
     filter: drop-shadow(0 0 12px rgba(90,140,255,0.35)); }
   #hwbar h1 { font-size: calc(1.15rem * var(--ui-scale, 1));
@@ -3492,6 +3503,13 @@
   review.</p>
 </div>
 
+  <div class="bootfail" id="bootfail" role="alert">
+    This page did not finish starting, so its buttons will not respond.
+    Running <span data-server-version></span>.
+    <a href="/report">Get a problem report</a> to send us, or restart
+    ToneCommand and reload this page.
+  </div>
+
 <div class="wrap" id="shell">
 
   <!-- LAYER 1: the hardware bar. Read before anything else, because every
@@ -3501,7 +3519,7 @@
       <img src="/logo.png" alt="" width="40" height="40">
       <span class="brandtext">
         <h1>TONE <span>//</span> COMMAND</h1>
-        <span class="verbadge" id="verbadge" title="the version running"></span>
+        <span class="verbadge" id="verbadge" title="the version running" data-server-version></span>
       </span>
     </a>
     <div class="hwtarget">
@@ -4145,6 +4163,9 @@
 
       <div class="console" data-nofold data-label="ABOUT">
         <div class="hint" id="aboutver">ToneCommand</div>
+        <div class="saverow">
+          <button class="small" id="aboutreport">REPORT A PROBLEM</button>
+        </div>
         <div id="aboutupd" hidden>
           <div class="hint updavail" id="aboutupdmsg"></div>
           <div class="saverow">
@@ -12761,6 +12782,10 @@ refresh();
 // somebody pressed NAMES, so it is refreshed from the filled cache after.
 loadPresets(false).then(() => loadSaveSlots(false));
 setInterval(refresh, 5000);
+if ($('aboutreport')) $('aboutreport').onclick = () => openReport();
+// #282: the last statement. If the script failed to parse or stopped on an
+// error before here, the notice stays and points at /report.
+$('bootfail')?.remove();
 </script>
 </body>
 </html>
