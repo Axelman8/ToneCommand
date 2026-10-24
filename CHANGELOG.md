@@ -10,6 +10,19 @@ Notable changes to ToneCommand. Dates are UTC.
   final-output permits and independent name/status readback. No Store or
   normal GUI/planner capability is enabled; the normal adapter stays read-only.
 
+### Fixed
+- Harden the opt-in Axe-Fx III name writer: transmit fresh MIDI messages from
+  checked bytes, recheck review expiry immediately before arming a write, and
+  report uncertain transport/readback failures consistently. Literal wire-byte
+  tests cover preset and scene names. The read-only output uses checked copies
+  too; no new write capability or permanent storage is enabled.
+- Hide the Axe-Fx III hardware-type box in Devices unless a III is available,
+  active or selected. It starts hidden and disappears when no longer relevant;
+  showing or hiding it never connects a device or changes the current request.
+- Hide the FM3 settings card unless relevant or explicitly opened through
+  the generic MIDI setup action. A new FM3 behind an unrecognised MIDI
+  interface can still be configured without displaying absent hardware.
+
 ## 1.6.0 (2026-10-23)
 
 ### Added

@@ -53,12 +53,12 @@ class _NameOutput(ReadOnlyOutput):
     def send(self, message):
         frame = [0xF0, *message.data, 0xF7] if message.type == 'sysex' else []
         if protocol.allowed(frame, self._chassis):
-            return super().send(message)
+            return super().send(mido.Message('sysex', data=frame[1:-1]))
         if self._permit != (threading.get_ident(), tuple(frame)):
             raise ReadOnly('No exact single-use reviewed name frame is armed')
         self.write_guard.check(frame[5])
         self._permit = None  # Consume BEFORE IO, even when the port raises.
-        self._port.send(message)
+        self._port.send(mido.Message('sysex', data=frame[1:-1]))
 
 
 @dataclass(frozen=True)
@@ -134,6 +134,8 @@ class NameWriter(AxeFxIII):
             self._identity()
             if expected == before:
                 return dict(verified=True, sent=False, stored=False, state=before)
+            if time.monotonic() >= review._expires:
+                raise ReadOnly('Review expired during preflight; make a new review')
             success = False
             try:
                 with self.outp._once(edit):
@@ -154,6 +156,14 @@ class NameWriter(AxeFxIII):
                         if edit.expected_after(after) != expected:
                             raise NameReadbackError('Other observed context changed after the write')
                 raise NameReadbackError('Name was not independently verified; no write retry')
+            except NameReadbackError:
+                raise
+            except Exception as error:
+                # Transport and verification can fail after the SET left the
+                # host. Never report that as a pre-write refusal or retry it.
+                raise NameReadbackError(
+                    'Name write may have been sent; verification failed; no write retry'
+                ) from error
             finally:
                 if not success:
                     self._uncertain = True

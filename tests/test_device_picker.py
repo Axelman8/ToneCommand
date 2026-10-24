@@ -2,6 +2,10 @@
 block; hidden with one device, a pill and popover with two; a build's 409
 opens it. The HeadRush side is the simulator (TONECOMMAND_HEADRUSH_SIM=1)."""
 import sys
+import json
+import os
+import shutil
+import subprocess
 from pathlib import Path
 
 sys.argv = ["x"]
@@ -11,6 +15,31 @@ from fastapi.testclient import TestClient
 import server
 
 PAGE = (Path(__file__).resolve().parent.parent / "ui" / "index.html").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize('active,connected,detected,wanted', [
+    ('fm9', False, [], []), ('fm9', True, [], ['fm9']),
+    ('axefx3', True, ['axefx3'], ['axefx3']),
+    ('axefx3', True, ['fm9', 'axefx3'], ['fm9', 'axefx3']),
+    ('headrush', True, [], ['headrush']),
+])
+def test_picker_does_not_present_the_absent_fallback_fm9(active, connected, detected, wanted):
+    node = shutil.which('node')
+    if not node:
+        if os.environ.get('CI'):
+            pytest.fail('Node is required for the shipped UI regression')
+        pytest.skip('Node is not installed')
+    kinds = ['fm9'] + ([] if active == 'fm9' else [active])
+    state = dict(active=active, connected=connected,
+                 available=[dict(kind=k) for k in kinds], detected=[dict(kind=k) for k in detected])
+    body = PAGE.split('function visibleDeviceChoices(dev) {', 1)[1].split('\n}', 1)[0]
+    script = "const assert=require('node:assert/strict'); const fetch=()=>{throw Error('IO')};\n" + (
+        'function visibleDeviceChoices(dev) {' + body + '\n}\n'
+        + 'assert.deepEqual(visibleDeviceChoices(' + json.dumps(state) + ').map(x=>x.kind),'
+        + json.dumps(wanted) + ');')
+    result = subprocess.run([node, '-e', script], capture_output=True, text=True,
+                            encoding='utf-8', timeout=15)
+    assert result.returncode == 0, result.stderr
 
 
 @pytest.fixture
@@ -38,7 +67,7 @@ def test_one_device_state_block_and_the_exact_link_text(client):
     assert "return DEVICE_SHORT[kind] || (kind ? String(kind).toUpperCase() : 'FM9');" in PAGE
     # with one device the pill stays hidden
     assert '<span class="devwrap" id="devwrap" hidden>' in PAGE
-    assert "if (!dev || !dev.available || dev.available.length < 2) { wrap.hidden = true; $('devpop').hidden = true; return; }" in PAGE
+    assert "if (!choices.length || (choices.length < 2 && !dev.ambiguous))" in PAGE
 
 
 # -- REQ-001: two devices, the pill and the popover ------------------------------
@@ -75,7 +104,7 @@ def test_page_markup_carries_the_pill_the_popover_and_the_select_call():
     # the stale-poll guard: a poll records the generation when it starts and only renders the block if unchanged
     assert "const pollGen = deviceGen;" in PAGE
     assert "const freshDevice = pollGen === deviceGen;" in PAGE
-    assert "if (s.device && freshDevice) renderDevice(s.device);" in PAGE
+    assert "if (s.device && freshDevice) renderDevice({...s.device, connected: !!s.connected});" in PAGE
     # the link text is guarded by the same generation: a stale poll renders the link from the fresh selection state
     assert "const gen = ++deviceGen;" in PAGE and "if (gen !== deviceGen) return;" in PAGE
     assert PAGE.index("const pollGen = deviceGen;") < PAGE.index("const r = await fetch('/api/state');")

@@ -39,6 +39,10 @@ The host lock does not make hardware edits atomic. Only the exact reviewed
 single-use frame is allowed at the separate final output boundary, bound
 to the executing thread. The permit is consumed before transport IO, even
 if the port raises. Direct SET calls, modified frames and replays fail.
+The review deadline is checked again after preflight, immediately before the
+permit is armed. Both the read-only output and the opt-in writer send a fresh
+plain MIDI message made from the checked frame, not the caller's message
+object or its potentially different serialization.
 
 After one write, it settles and retries read queries only, comparing the
 requested name and unchanged observed context. Any other observed change
@@ -46,6 +50,11 @@ stops immediately. Failed or uncertain writes invalidate further reviews on
 that connection. There is no write retry, automatic rollback or preset reload.
 An unchanged name is a verified no-op. A newly reviewed manual restoration
 is a separate operation, not automatic recovery.
+Normal exceptions during attempted transmission or subsequent verification
+surface as `NameReadbackError`, preserving the underlying cause. The write may
+already have happened, even if transport or identity checks fail. Do not infer
+that nothing was sent, retry the write, or automatically restore the preset.
+Preflight refusals, including expiry, still occur before a write is attempted.
 
 Close the adapter before an independent Axe-Edit comparison. This component
 neither selects presets/scenes nor stores anything to flash. Store and normal
@@ -56,7 +65,10 @@ review/SEND UI integration are separate future contributions.
 Independent fake-port tests cover both rename forms, all eight scene indices,
 explicit scene-name clearing, no-ops, target/state/identity changes, expiry,
 foreign and copied reviews, frame mutation, threads, replay and uncertain IO.
-The unchanged normal adapter still refuses all writes.
+Literal preset and scene rename fixtures assert the bytes reaching the fake
+port's serializer, independently of the shared builder and unpacker. Adversarial
+message subclasses, caller mutation, preflight deadline overruns and post-send
+identity/context failures are covered. The normal adapter still refuses all writes.
 
 On the owner's MK2, the extracted component renamed preset 323, active scene 1
 and inactive scene 8. Native readback matched; independent Axe-Edit III 1.15.01

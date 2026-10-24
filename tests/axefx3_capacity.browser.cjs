@@ -11,8 +11,9 @@ const path = require('node:path');
     const page = await browser.newPage({viewport: {width: 1440, height: 1000}});
     const errors = [], posts = [];
     let kind = 'axefx3', chassis = 'mk1', rejectChoice = false;
+    let selected = null, iiiAvailable = true, fm3Available = true, connected = true;
     const profilePosts = [];
-    const state = () => ({connected: true, read_only: true,
+    const state = () => ({connected, read_only: true,
       navigation_read_only: kind === 'axefx3',
       read_only_reason: 'Axe-Fx III support is read-only. Change presets on the unit.',
       preset: {number: 320, editor: kind === 'axefx3' ? 320 : 321, name: 'Read Test'},
@@ -22,9 +23,11 @@ const path = require('node:path');
         channel: 'A', bypassed: false}, {effect_id: 206, label: 'Block 206',
         family: 'UNKNOWN', instance: 1, channel: 'B', bypassed: true}],
       values: {}, params: {}, mods: [], cab_sel: null, gig_mode: false,
-      device: {active: kind, selected: kind,
+      device: {active: kind, selected: selected ?? kind,
         ...(kind === 'axefx3' ? {axefx3:{chassis,preset_count:chassis === 'mk1' ? 512 : 1024,declared:true,read_only:true}} : {}), label: kind === 'fm3' ? 'Fractal FM3' : 'Fractal Axe-Fx III',
-        available: [{kind: 'fm9', label: 'Fractal FM9'}, {kind:'axefx3', label:'Fractal Axe-Fx III'}, {kind:'fm3',label:'Fractal FM3'}],
+        available: [{kind: 'fm9', label: 'Fractal FM9'},
+          ...(iiiAvailable ? [{kind:'axefx3', label:'Fractal Axe-Fx III'}] : []),
+          ...(fm3Available ? [{kind:'fm3',label:'Fractal FM3'}] : [])],
         ambiguous: false, detected: []}});
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/*', async route => {
@@ -108,8 +111,63 @@ const path = require('node:path');
     assert.equal(await page.locator('#scenes .sc:disabled').count(), 0);
     assert(!await page.locator('body').evaluate(el => el.classList.contains('readonly-navigation')));
     assert.match(await page.locator('#blocks').innerText(), /presets and scenes switch/);
+    // The III-only box is absent until relevant, including before any poll.
+    const markup = fs.readFileSync(path.join(__dirname, '../ui/index.html'), 'utf8');
+    assert.match(markup, /<div[^>]*id="axefx3hardware"[^>]*hidden>/);
+    await page.locator('#prompt').fill('Keep this unsent request');
+    await page.evaluate(() => openDrawer('devices'));
+    for (const width of [1180, 1280, 1440]) {
+      await page.setViewportSize({width, height: 1000});
+      for (const active of ['fm9', 'fm3']) {
+        kind = active;
+        selected = null;
+        iiiAvailable = false;
+        await page.evaluate(() => refresh());
+        assert(await page.locator('#axefx3hardware').isHidden());
+        assert(await page.locator('#axefx3chassis').isDisabled());
+      }
+      // A detected III can be declared before connecting above slot 511.
+      iiiAvailable = true;
+      await page.evaluate(() => refresh());
+      assert(await page.locator('#axefx3hardware').isVisible());
+      assert(await page.locator('#axefx3chassis').isEnabled());
+      // A selected but disconnected III keeps the declaration accessible.
+      iiiAvailable = false;
+      selected = 'axefx3';
+      connected = false;
+      await page.evaluate(() => refresh());
+      assert(await page.locator('#axefx3hardware').isVisible());
+      // An active III remains relevant even if discovery temporarily drops it.
+      kind = 'axefx3';
+      selected = null;
+      connected = true;
+      await page.evaluate(() => refresh());
+      assert(await page.locator('#axefx3hardware').isVisible());
+      // Removing the III while another device is selected hides the whole box.
+      kind = 'fm9';
+      await page.evaluate(() => refresh());
+      assert(await page.locator('#axefx3hardware').isHidden());
+    }
+    assert.equal(await page.locator('#prompt').inputValue(), 'Keep this unsent request');
+    kind = 'axefx3'; selected = null; fm3Available = false;
+    await page.evaluate(() => refresh());
+    assert(await page.locator('#fm3hardware').isHidden());
+    assert(await page.locator('#deviceManualSetup').isVisible());
+    await page.locator('#deviceManualSetup').click();
+    assert(await page.locator('#fm3hardware').isVisible());
+    await page.locator('#deviceManualSetup').click();
+    assert(await page.locator('#fm3hardware').isHidden());
+    fm3Available = true;
+    await page.evaluate(() => refresh());
+    assert(await page.locator('#fm3hardware').isVisible());
+    assert(await page.locator('#deviceManualSetup').isHidden());
+    fm3Available = false;
+    await page.evaluate(() => refresh());
+    assert(await page.locator('#fm3hardware').isHidden());
+    assert.equal(await page.locator('#prompt').inputValue(), 'Keep this unsent request');
+    assert.equal(profilePosts.length, 4, 'Visibility changes must not select a device');
     assert.deepEqual(errors, []);
     assert.deepEqual(posts, []);
-    console.log('PASS: declared MK1/MK2/Turbo capacity, scoped names, refusal recovery, navigation lockout and FM3 recovery; only explicit local-profile POSTs.');
+    console.log('PASS: capacity, scoped names, refusal recovery, III-only box visibility, preserved draft, navigation lockout and FM3 recovery; only explicit local-profile POSTs.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

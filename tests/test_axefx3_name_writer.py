@@ -7,7 +7,7 @@ import mido
 import pytest
 
 from devices.axefx3 import protocol as p
-from devices.axefx3.adapter import AxeFxIII, snapshot
+from devices.axefx3.adapter import AxeFxIII, ReadOnlyOutput, snapshot
 from devices.axefx3.name_edits import NameEdit
 from devices.axefx3.name_writer import (MK2_FW33_IDENTITY, NameReadbackError,
                                        NameWriter, _NameOutput)
@@ -27,7 +27,7 @@ class NamedPorts(FakePorts):
         self.stale_reads = 0
 
     def send(self, message):
-        frame = [0xF0, *message.data, 0xF7]
+        frame = message.bytes()  # Match the MIDI backend's serialization boundary.
         if frame[5] != 1:
             return super().send(message)
         self.writes.append(frame)
@@ -46,6 +46,10 @@ class NamedPorts(FakePorts):
             self.names[shared.decode14(*frame[10:12])] = name
         if self.behavior == 'move':
             self.scene = 1
+        elif self.behavior == 'preset':
+            self.preset = 321
+        elif self.behavior == 'identity':
+            self.identity = tuple(p.envelope(8, [97, 0])[1:-1])
 
     def answer(self, frame):
         fn, args = frame[5], frame[6:-2]
@@ -160,13 +164,16 @@ def test_stale_name_readback_retries_only_reads(writer):
     assert len(ports.writes) == 1
 
 
-@pytest.mark.parametrize('behavior,error', [('ignore', NameReadbackError),
-                                           ('move', NameReadbackError), ('raise', OSError)])
-def test_uncertain_write_stops_without_retry_restore_or_reload(writer, behavior, error):
+@pytest.mark.parametrize('behavior', ['ignore', 'move', 'raise', 'preset', 'identity'])
+def test_uncertain_write_stops_without_retry_restore_or_reload(writer, behavior):
     dev, ports = writer
     review = dev.review_name(NameEdit(320, 'New'))
     ports.behavior = behavior
-    with pytest.raises(error): dev.apply_name(review, external_audio_muted=True)
+    with pytest.raises(NameReadbackError) as caught:
+        dev.apply_name(review, external_audio_muted=True)
+    if behavior in ('raise', 'preset', 'identity'):
+        assert isinstance(caught.value.__cause__,
+                          {'raise': OSError, 'preset': ValueError, 'identity': ReadOnly}[behavior])
     assert len(ports.writes) == 1
     with pytest.raises(ReadOnly): dev.review_name(NameEdit(320, 'New'))
     with pytest.raises(ReadOnly): dev.apply_name(review, external_audio_muted=True)
@@ -237,3 +244,116 @@ def test_final_output_consumes_permit_even_if_the_port_fails():
         with pytest.raises(OSError): output.send(message)
         with pytest.raises(ReadOnly): output.send(message)
     assert len(sent) == 1
+
+
+# Fixed protocol fixtures: 32-byte space-padded name, product 0x10, scene 8
+# encoded as index 7, with literal length fields, packing and checksums. Do not
+# derive expected bytes from the shared builder or decode them with its unpacker.
+PRESET_RENAME_WIRE = bytes.fromhex(
+    'f0 00 01 74 10 01 28 00 00 00 00 00 00 00 00 00 00 00 00 20 00 '
+    '27 19 2e 72 03 39 42 6d 32 48 04 02 01 00 40 20 10 08 04 02 '
+    '01 00 40 20 10 08 04 02 01 00 40 20 10 08 04 02 00 68 f7'
+)
+SCENE_RENAME_WIRE = bytes.fromhex(
+    'f0 00 01 74 10 01 2b 00 00 00 07 00 00 00 00 00 00 00 00 20 00 '
+    '26 19 2c 16 21 00 5e 20 29 5b 6d 46 79 00 40 20 10 08 04 02 '
+    '01 00 40 20 10 08 04 02 01 00 40 20 10 08 04 02 00 1c f7'
+)
+
+
+@pytest.mark.parametrize('name,scene,expected', [
+    ('New name', None, PRESET_RENAME_WIRE), ('Lead / Solo', 8, SCENE_RENAME_WIRE),
+])
+def test_literal_rename_bytes_reach_the_port(writer, name, scene, expected):
+    dev, ports = writer
+    review = dev.review_name(NameEdit(320, name, scene))
+    assert dev.apply_name(review, external_audio_muted=True)['verified']
+    assert [bytes(frame) for frame in ports.writes] == [expected]
+
+
+@pytest.mark.parametrize('boundary', ['readonly', 'writer_read', 'writer_set'])
+@pytest.mark.parametrize('attack', ['subclass', 'mutation'])
+def test_final_port_serializes_a_fresh_plain_checked_message(boundary, attack):
+    class DifferentBytes(mido.Message):
+        def bytes(self):
+            return [0xC0, 1]  # Must never serialize this unreviewed program change.
+
+    expected = (PRESET_RENAME_WIRE if boundary == 'writer_set'
+                else bytes.fromhex('f0 00 01 74 10 08 1d f7'))
+    cls = DifferentBytes if attack == 'subclass' else mido.Message
+    original = cls('sysex', data=expected[1:-1])
+    received = []
+
+    def serialize(message):
+        if attack == 'mutation':
+            original.data = [0, 1, 116, 16, 0x64, 0]
+        received.append(message)
+        assert type(message) is mido.Message
+        assert message is not original
+        assert bytes(message.bytes()) == expected
+
+    raw = SimpleNamespace(send=serialize)
+    output = ReadOnlyOutput(raw, 'mk2') if boundary == 'readonly' else _NameOutput(raw, 'mk2')
+    if boundary == 'writer_set':
+        with output._once(NameEdit(320, 'New name')):
+            output.send(original)
+            with pytest.raises(ReadOnly): output.send(original)
+    else:
+        output.send(original)
+    assert len(received) == 1
+
+
+@pytest.mark.parametrize('phase', ['snapshot', 'last_identity'])
+@pytest.mark.parametrize('overrun', [0.0, 0.1])
+def test_review_expiring_during_preflight_never_arms_or_sends(writer, monkeypatch, phase, overrun):
+    dev, ports = writer
+    review = dev.review_name(NameEdit(320, 'New'))
+    now = [review._expires - 0.5]
+    monkeypatch.setattr('devices.axefx3.name_writer.time.monotonic', lambda: now[0])
+    if phase == 'snapshot':
+        def slow_snapshot(device):
+            result = snapshot(device)
+            now[0] = review._expires + overrun
+            return result
+        monkeypatch.setattr('devices.axefx3.name_writer.snapshot', slow_snapshot)
+    else:
+        identity, calls = dev._identity, []
+        def slow_identity():
+            identity()
+            calls.append(True)
+            if len(calls) == 2:
+                now[0] = review._expires + overrun
+        monkeypatch.setattr(dev, '_identity', slow_identity)
+    monkeypatch.setattr(dev.outp, '_once', lambda _: pytest.fail('armed an expired permit'))
+    with pytest.raises(ReadOnly, match='expired during preflight'):
+        dev.apply_name(review, external_audio_muted=True)
+    assert not ports.writes and not dev._uncertain
+    assert dev._review is None
+    assert dev.review_name(NameEdit(320, 'Fresh')).preview()['executable']
+
+
+@pytest.mark.parametrize('failure', ['snapshot_error', 'incoherent_snapshot', 'settling_error'])
+def test_post_send_verification_errors_are_uncertain_not_prewrite_refusals(writer, monkeypatch, failure):
+    dev, ports = writer
+    review = dev.review_name(NameEdit(320, 'New'))
+    def failing_snapshot(device):
+        result = snapshot(device)
+        if ports.writes:
+            if failure == 'snapshot_error':
+                raise ReadOnly('Post-write read failed')
+            result['connected'] = False
+        return result
+    if failure == 'settling_error':
+        def failed_settling(_):
+            raise OSError('Post-write settling failed')
+        monkeypatch.setattr('devices.axefx3.name_writer.time.sleep', failed_settling)
+    else:
+        monkeypatch.setattr('devices.axefx3.name_writer.snapshot', failing_snapshot)
+    with pytest.raises(NameReadbackError) as caught:
+        dev.apply_name(review, external_audio_muted=True)
+    expected_cause = {'snapshot_error': ReadOnly, 'incoherent_snapshot': ValueError,
+                      'settling_error': OSError}[failure]
+    assert isinstance(caught.value.__cause__, expected_cause)
+    assert len(ports.writes) == 1 and dev._uncertain
+    with pytest.raises(ReadOnly): dev.review_name(NameEdit(320, 'Do not retry'))
+    assert len(ports.writes) == 1

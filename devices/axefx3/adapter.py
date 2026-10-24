@@ -63,7 +63,8 @@ class ReadOnlyOutput:
         self.guard.check(frame[5] if len(frame) > 5 else -1)
         if not protocol.allowed(frame, self._chassis):
             raise ReadOnly(READ_ONLY)
-        self._port.send(message)
+        # Send only the checked bytes, never re-serialize the caller's object.
+        self._port.send(mido.Message("sysex", data=frame[1:-1]))
 
     def close(self):
         self._port.close()
