@@ -20,6 +20,9 @@ from tests.test_axefx3_readonly import FakePorts
 
 GAIN4 = [240,0,1,116,16,1,9,0,58,0,1,0,77,25,51,118,3,0,0,0,0,52,247]
 MID6 = [240,0,1,116,16,1,9,0,58,0,3,0,26,51,102,120,3,0,0,0,0,16,247]
+# 3.3 is rounded to float32 BEFORE the division by ten (FW33). Without that
+# step the first value byte would be 67, not 66; 4.0 and 6.0 cannot tell.
+GAIN3_3 = [240,0,1,116,16,1,9,0,58,0,1,0,66,107,35,117,3,0,0,0,0,90,247]
 
 
 class AmpPorts(FakePorts):
@@ -93,7 +96,7 @@ def writer(monkeypatch):
     dev.close()
 
 
-@pytest.mark.parametrize('control,value,wire',[('gain',4,GAIN4),('mid',6,MID6)])
+@pytest.mark.parametrize('control,value,wire',[('gain',4,GAIN4),('mid',6,MID6),('gain',3.3,GAIN3_3)])
 def test_literal_port_bytes_single_use_and_preserved_context(writer,control,value,wire):
     dev,ports=writer;before=list(ports.amp)
     edit=AmpEdit(320,control,value);review=dev.review_amp(edit)
@@ -270,3 +273,32 @@ def test_uncertainty_handler_is_recorded_in_the_component_audit():
     broad=[n for n in ast.walk(tree) if isinstance(n,ast.ExceptHandler)
            and isinstance(n.type,ast.Name) and n.type.id=='Exception']
     assert len(broad)==len(records)==1 and records[0]['function']=='AmpWriter.apply_amp'
+
+
+def _silence_scene(monkeypatch, dev, number, after_write=None):
+    real = dev.scene_name
+    def scene_name(scene=None):
+        if scene == number and (after_write is None or after_write()):
+            return None
+        return real(scene)
+    monkeypatch.setattr(dev, 'scene_name', scene_name)
+
+
+def test_an_unread_scene_name_refuses_the_review(writer, monkeypatch):
+    """Unread on both sides used to compare equal and pass verification."""
+    dev, ports = writer
+    _silence_scene(monkeypatch, dev, 5)
+    with pytest.raises(ReadOnly, match='All eight scene names'):
+        dev.review_amp(AmpEdit(320, 'gain', 4))
+    assert not ports.writes
+
+
+def test_a_scene_name_lost_after_the_write_is_uncertain(writer, monkeypatch):
+    dev, ports = writer
+    review = dev.review_amp(AmpEdit(320, 'gain', 4))
+    _silence_scene(monkeypatch, dev, 5, after_write=lambda: bool(ports.writes))
+    with pytest.raises(AmpReadbackError):
+        dev.apply_amp(review, external_audio_muted=True)
+    assert ports.writes == [GAIN4]
+    with pytest.raises(ReadOnly):
+        dev.review_amp(AmpEdit(320, 'gain', 4))

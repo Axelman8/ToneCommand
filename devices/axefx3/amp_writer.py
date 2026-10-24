@@ -212,6 +212,11 @@ class AmpWriter(AxeFxIII):
     def _observe(self, edit):
         self._identity()
         status = snapshot(self)
+        # snapshot() records an unanswered scene name as None. Unread on both
+        # sides compares equal, so verification would pass without having seen
+        # the names; refuse instead, as the name writer does (#278).
+        if [type(row['name']) for row in status['scenes']] != [str] * 8:
+            raise ReadOnly('All eight scene names must have been read')
         amp_status = [b for b in status['blocks'] if b['effect_id'] == 58]
         if len(amp_status) != 1 or amp_status[0]['channel'] != 'A' or amp_status[0]['channels'] != 4:
             raise ReadOnly('An existing Amp 1 on channel A with four channels is required')
