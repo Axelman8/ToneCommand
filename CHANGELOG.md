@@ -4,6 +4,8 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+## 1.6.1 (2026-10-24)
+
 ### Added
 - Isolated Axe-Fx III name-edit previews and an explicit developer-only MK2
   writer for the measured FW33 beta identity, with single-use review, exact
