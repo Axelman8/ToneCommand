@@ -4,10 +4,18 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+### Added
 - Add an explicitly constructed MK2 Amp 1/channel A parameter experiment:
   one bounded Gain or Mid change per expiring review, exact output permits,
   independent display/bulk checks and uncertainty latching. No GUI/planner,
   model/routing/level change, Store or MK1 write capability is enabled.
+
+### Fixed
+- Harden the developer-only Axe-Fx III Amp writer (#280): it now refuses
+  when a scene name did not read back, before or after the edit, instead of
+  comparing two unread names as equal; and the wire tests pin a fractional
+  value (3.3), so the float32 rounding the unit applies cannot drift unseen.
+
 ## 1.6.1 (2026-10-24)
 
 ### Added
