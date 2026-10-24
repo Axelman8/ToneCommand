@@ -33,10 +33,16 @@ def test_the_server_fills_in_the_version_badge(release):
     assert badge(html) == "v1.6.1"
 
 
-def test_a_dev_build_badge_says_branch_and_commit(monkeypatch, release):
-    monkeypatch.setattr(updates, "head_info", lambda root: {"commit": "abc1234", "tags": []})
-    monkeypatch.setattr(updates, "repo_state", lambda root: {"git": True, "branch": "fix", "clean": True})
-    assert badge(TestClient(server.app).get("/").text) == "v1.6.1 + fix abc1234"
+def test_the_page_never_waits_on_git(monkeypatch, release):
+    """git can take seconds on some machines; the page must not wait for it.
+    The script adds branch and commit (#264) once it runs."""
+    def slow(root):
+        raise AssertionError("git was called while serving the page")
+    monkeypatch.setattr(updates, "head_info", slow)
+    monkeypatch.setattr(updates, "repo_state", slow)
+    client = TestClient(server.app)
+    assert badge(client.get("/").text) == "v1.6.1"
+    assert client.get("/report").status_code == 200
 
 
 def test_a_broken_version_lookup_still_serves_the_page(monkeypatch):
@@ -63,6 +69,12 @@ def test_the_notice_is_removed_by_the_last_statement_of_the_script():
     last = [line for line in script.strip().splitlines() if line.strip()
             and not line.strip().startswith("//")][-1]
     assert last.strip() == "$('bootfail')?.remove();"
+
+
+def test_the_notice_is_outside_the_shell_narrow_windows_hide():
+    """#shell is display:none below 1180px; the notice must not be inside it."""
+    assert PAGE.index('id="bootfail"') < PAGE.index('<div class="wrap" id="shell">')
+    assert "@media (max-width: 1179px) { .wrap#shell { display: none; } }" in PAGE
 
 
 def test_the_notice_waits_before_showing():
@@ -96,7 +108,7 @@ def test_the_report_page_needs_no_script(release):
 
 
 def test_the_report_page_carries_the_note_escaped(release):
-    r = TestClient(server.app).get("/report", params={"note": "<img src=x onerror=alert(1)> clicks do nothing"})
+    r = TestClient(server.app).post("/report", data={"note": "<img src=x onerror=alert(1)> clicks do nothing"})
     assert "<img src=x" not in r.text
     assert "&lt;img src=x onerror=alert(1)&gt; clicks do nothing" in r.text
 
@@ -125,3 +137,32 @@ def test_startup_names_the_version_and_the_report(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "ToneCommand 1.6.1: open http://127.0.0.1:8909" in out
     assert "If the page does not respond: http://127.0.0.1:8909/report" in out
+
+
+def test_the_note_is_posted_not_put_in_the_url(release):
+    html = TestClient(server.app).get("/report").text
+    assert '<form method="post" action="/report">' in html
+
+
+def test_a_long_note_is_cut_to_the_limit(release):
+    r = TestClient(server.app).post("/report", data={"note": "x" * 50000})
+    assert r.status_code == 200 and "x" * 2000 in r.text and "x" * 2001 not in r.text
+
+
+def test_the_report_page_never_asks_the_device(monkeypatch, release):
+    """A firmware read is a query on the wire; /report lists names only."""
+    class Adapter:
+        def firmware_label(self):
+            raise AssertionError("/report queried the device")
+    ctx = server.DeviceContext("axefx3", None, Adapter(), "Fractal Axe-Fx III")
+    monkeypatch.setattr(server, "device_context", lambda: ctx)
+    r = TestClient(server.app).get("/report")
+    assert r.status_code == 200 and "Fractal Axe-Fx III (axefx3), handle open" in r.text
+
+
+def test_a_report_too_long_for_a_link_says_copy_and_paste(monkeypatch, release):
+    monkeypatch.setattr(diagnostics, "package_for_sharing", lambda **kw: {
+        "title": "t", "body": "b", "url": "https://github.com/x?" + "a" * 9000})
+    r = TestClient(server.app).get("/report")
+    assert 'href="https://github.com/monzta1/ToneCommand/issues/new"' in r.text
+    assert "too long for a link" in r.text

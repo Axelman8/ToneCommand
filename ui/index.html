@@ -1798,7 +1798,8 @@
   /* #282: shown only if the page's script never finishes. The script removes
      it as its last statement; the delay keeps it from flashing while the
      script is still starting. Plain HTML and CSS, so it works when nothing
-     else on the page does. */
+     else on the page does. It sits outside #shell, which narrow windows
+     hide, so it shows at every width. */
   .bootfail { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 10000;
     padding: 14px 18px; background: #2a0d14; border: 1px solid var(--red);
     border-radius: 8px; color: var(--text); font-size: var(--fs-body);
@@ -3502,14 +3503,14 @@
   review.</p>
 </div>
 
-<div class="wrap" id="shell">
-
   <div class="bootfail" id="bootfail" role="alert">
     This page did not finish starting, so its buttons will not respond.
     Running <span data-server-version></span>.
     <a href="/report">Get a problem report</a> to send us, or restart
     ToneCommand and reload this page.
   </div>
+
+<div class="wrap" id="shell">
 
   <!-- LAYER 1: the hardware bar. Read before anything else, because every
        action below is relative to a physical target. -->

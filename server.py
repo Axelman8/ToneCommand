@@ -2311,24 +2311,16 @@ def check_revision(body: ApplyBody):
 
 
 def _badge_text() -> str:
-    """#282: the version badge text, the same rule as the page's
-    versionBadgeText (#264), computed here so a page whose script never runs
-    still says what is running."""
+    """#282: the running version for the page's badge, filled in by the
+    server so a page whose script never runs still says what is running.
+    Version only: the branch and commit (#264) need git, which can be slow
+    on some machines, so the page's own script adds them once it runs."""
     from fm9 import updates as _updates
     try:
         cur = _updates.current_version()
-        st = _updates.repo_state(ROOT)
-        head = _updates.head_info(ROOT)
     except Exception:      # noqa: BLE001  a version badge must never fail the page
         return ""
-    if not cur:
-        return ""
-    text = f"v{cur}"
-    release = f"v{cur}" in head["tags"]
-    extra = [x for x in (st["branch"], head["commit"]) if x]
-    if st["git"] and not release and extra:
-        text += " + " + " ".join(extra)
-    return text
+    return f"v{cur}" if cur else ""
 
 
 _SERVER_VERSION_SLOT = re.compile(r"(<span\b[^>]*\bdata-server-version\b[^>]*>)(</span>)")
@@ -2372,14 +2364,14 @@ _REPORT_PAGE = """<!doctype html>
 <p>ToneCommand {version}. This page works even when the main page does not.</p>
 <p class="muted">Nothing is sent from here. Read the report below, then open a
 GitHub issue with it yourself, or copy it and paste it anywhere.</p>
-<form method="get" action="/report">
+<form method="post" action="/report">
   <label for="note">What were you doing? (optional)</label>
   <textarea id="note" name="note" rows="3">{note}</textarea>
   <button type="submit">ADD TO THE REPORT</button>
 </form>
 <label for="report">What will be included</label>
 <textarea id="report" rows="18" readonly>{text}</textarea>
-<p><a class="go" href="{url}" target="_blank" rel="noopener">OPEN A GITHUB ISSUE WITH THIS REPORT</a>
+{hint}<p><a class="go" href="{url}" target="_blank" rel="noopener">OPEN A GITHUB ISSUE WITH THIS REPORT</a>
 <a class="go" href="/">BACK TO TONECOMMAND</a></p>
 </main>
 </body>
@@ -2387,27 +2379,47 @@ GitHub issue with it yourself, or copy it and paste it anywhere.</p>
 """
 
 
-@app.get("/report")
-def report_page(note: str = ""):
+#: #282: a GitHub "new issue" link longer than this is refused or cut off by
+#: browsers and GitHub alike, so the page offers copy-and-paste instead.
+_REPORT_URL_LIMIT = 7000
+_REPORT_NOTE_LIMIT = 2000
+
+
+@app.api_route("/report", methods=["GET", "POST"])
+async def report_page(request: Request):
     """#282: Report a problem without the page's script. The main page's
     button lives in the same script it would be reporting on, so a page that
     fails to start (1.5.3's, #281) could never offer it. This is plain
     server-built HTML: the same scrubbed package as the button, a form for the
-    player's note, and a link they open themselves. Nothing is sent from here.
+    player's note (POSTed, so it never sits in a URL or the access log), and
+    a link they open themselves. Nothing is sent from here, and nothing is
+    asked of the device: MIDI port names are listed, no handle is used.
     """
     import html as _html
+    from urllib.parse import parse_qs
+    from starlette.concurrency import run_in_threadpool
     from fm9 import diagnostics
-    note = (note or "")[:2000]
+    note = ""
+    if request.method == "POST":
+        raw = (await request.body())[:16384].decode("utf-8", errors="replace")
+        note = (parse_qs(raw).get("note") or [""])[0]
+    note = note[:_REPORT_NOTE_LIMIT]
     try:
-        pkg = diagnostics.package_for_sharing(note=note)
+        pkg = await run_in_threadpool(diagnostics.package_for_sharing,
+                                      note=note, query_device=False)
         text = pkg["title"] + "\n\n" + pkg["body"]
         url = pkg["url"]
     except Exception as e:      # noqa: BLE001  the report page must survive a broken install
         text = f"The report could not be built: {type(e).__name__}"
         url = f"https://github.com/{diagnostics.REPO}/issues/new"
+    hint = ""
+    if len(url) > _REPORT_URL_LIMIT:
+        url = f"https://github.com/{diagnostics.REPO}/issues/new"
+        hint = ("<p class=\"muted\">The report is too long for a link: copy it "
+                "from the box above and paste it into the new issue.</p>")
     page = _REPORT_PAGE.format(version=_html.escape(_badge_text() or "(version not read)"),
                                note=_html.escape(note), text=_html.escape(text),
-                               url=_html.escape(url, quote=True))
+                               url=_html.escape(url, quote=True), hint=hint)
     return HTMLResponse(page, headers={"Cache-Control": "no-store"})
 
 

@@ -168,7 +168,7 @@ def read_recent(scope: str | None = None, limit: int = 20,
     return list(reversed(entries))[:limit]
 
 
-def environment() -> list[str]:
+def environment(query_device: bool = True) -> list[str]:
     """The four questions a maintainer always has to ask, answered up front.
 
     Every line here is free to collect and is the difference between a report
@@ -198,7 +198,7 @@ def environment() -> list[str]:
     safe("Python", lambda: _sys.version.split()[0])
     safe("Install", _install_kind)
     safe("Planner", _planner_line)
-    safe("Device", _device_line)
+    safe("Device", lambda: _device_line(query_device))
     # #212: what is on the MIDI bus, by name. An FM3 owner's report said
     # only "Device: fm9", which could not tell a missing device from one
     # named differently than expected. Names only: nothing is opened.
@@ -274,7 +274,7 @@ def _planner_line() -> str:
     return f"{backend}, model {model}; would try: {order}"
 
 
-def _device_line() -> str:
+def _device_line(query_device: bool = True) -> str:
     import server
     ctx = server.device_context()
     # #212: whether a handle to the device is open right now. The old check
@@ -285,7 +285,9 @@ def _device_line() -> str:
         connected = ctx.adapter is not None
     fw = ""
     try:
-        fw = ctx.adapter.firmware_label() if ctx.adapter else ""
+        # #282: /report must not talk to the device; a firmware read is a
+        # query on the wire (and a network read on a HeadRush).
+        fw = ctx.adapter.firmware_label() if ctx.adapter and query_device else ""
     except Exception:          # noqa: BLE001  a device that declines is fine
         fw = ""
     label = server.DEVICE_KINDS.get(ctx.kind, ctx.kind)
@@ -295,7 +297,7 @@ def _device_line() -> str:
 
 def package_for_sharing(scope: str | None = None, limit: int = 10,
                          path: Path = DEFAULT_LOG_PATH,
-                         note: str = "") -> dict:
+                         note: str = "", query_device: bool = True) -> dict:
     """Issue #108: build a pre-filled GitHub issue the player can REVIEW,
     never send. Every field here is already-scrubbed log content plus a
     defensive re-scrub, since a shared report is the one that leaves the
@@ -309,7 +311,7 @@ def package_for_sharing(scope: str | None = None, limit: int = 10,
         # machine detail, and it is the only part the machine cannot supply.
         body_lines += ["**What happened**", "", (note or "").strip(), ""]
     body_lines += ["**Environment**", ""]
-    body_lines += [f"- {line}" for line in environment()]
+    body_lines += [f"- {line}" for line in environment(query_device)]
     body_lines += ["", "**Recent diagnostics**", ""]
     if not entries:
         body_lines.append("(no local diagnostics entries to include)")

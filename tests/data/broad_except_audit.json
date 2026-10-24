@@ -464,12 +464,12 @@
   {
    "function": "_badge_text",
    "ordinal": 1,
-   "disposition": "unreachable: version and git lookups for the page's server-rendered badge (#282); no device handle in the try body"
+   "disposition": "unreachable: reads the installed version for the page's server-rendered badge (#282); no device handle and no git in the try body"
   },
   {
    "function": "report_page",
    "ordinal": 1,
-   "disposition": "unreachable: builds the scrubbed diagnostics package for /report (#282); it only enumerates MIDI port names, no device handle in the try body"
+   "disposition": "unreachable: builds the scrubbed diagnostics package for /report (#282) with query_device=False, so it lists MIDI port names and never uses a device handle"
   },
   {
    "function": "main",
