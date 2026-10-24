@@ -63,7 +63,8 @@ class ReadOnlyOutput:
         self.guard.check(frame[5] if len(frame) > 5 else -1)
         if not protocol.allowed(frame, self._chassis):
             raise ReadOnly(READ_ONLY)
-        self._port.send(message)
+        # Send only the checked bytes, never re-serialize the caller's object.
+        self._port.send(mido.Message("sysex", data=frame[1:-1]))
 
     def close(self):
         self._port.close()
@@ -78,7 +79,7 @@ class AxeFxIII:
             from fm9 import midi_transport
             ports = midi_transport.open_ports("axe-fx")
         self.inp, outp = ports
-        self.outp = ReadOnlyOutput(outp, chassis)
+        self.outp = self._output(outp, chassis)
         self._lock = threading.RLock()
         self._chassis = chassis
         self._closed = False
@@ -94,6 +95,10 @@ class AxeFxIII:
     def capabilities(self):
         return Capabilities(read_path=ReadPath.DEVICE,
                             reads_slot_names=True, has_scenes=True)
+
+    @staticmethod
+    def _output(port, chassis):
+        return ReadOnlyOutput(port, chassis)
 
     @property
     def chassis(self):
