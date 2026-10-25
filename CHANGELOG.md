@@ -4,6 +4,11 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+### Added
+- Bundle the exact FW33 Axe-Fx III Amp model names/ordinals as a validated,
+  offline reference catalog. No model selector, app/planner write capability,
+  live discovery, firmware/chassis promotion or account workflow is enabled.
+
 ### Fixed
 - Let the developer-only Axe-Fx III Amp writer inspect unused modifier
   records with a residual parameter number after an editor preset clear.
