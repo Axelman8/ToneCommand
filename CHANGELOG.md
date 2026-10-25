@@ -9,6 +9,12 @@ Notable changes to ToneCommand. Dates are UTC.
   offline reference catalog. No model selector, app/planner write capability,
   live discovery, firmware/chassis promotion or account workflow is enabled.
 
+### Fixed
+- Let the developer-only Axe-Fx III Amp writer inspect unused modifier
+  records with a residual parameter number after an editor preset clear.
+  Source and target effect must both be zero; all 25 words remain preserved
+  and checked. Active or assigned modifiers still refuse the operation.
+
 ## 1.6.2 (2026-10-24)
 
 ### Added

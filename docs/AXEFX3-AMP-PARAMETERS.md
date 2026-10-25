@@ -36,6 +36,15 @@ records and the passive numeric display. Amp 1 must exist and already use
 channel A. Repeated Amp/status reads check coherence. An unreadable field,
 assigned modifier or mismatched display declines before SET.
 
+Unassigned means the source word and target-effect word are both zero. On
+the measured MK2 FW33 build, clearing a disposable preset in Axe-Edit can
+leave old parameter numbers in unused records: its Modifiers page still
+reports all 32 as `Not Used`. These records are not rewritten or normalized.
+Their complete 25 words, including the residual parameter numbers, remain
+part of the unchanged baseline, preflight and post-write comparison. A live
+source, any target effect, incomplete record or any record drift still stops
+the operation. This does not add modifier-writing capability.
+
 `apply_amp(review, external_audio_muted=True)` consumes a connection-owned
 review, rereads and compares the baseline, and checks the 60-second deadline
 again immediately before arming the exact single-use, thread-owned frame.
