@@ -96,6 +96,7 @@ py-modules = ["server"]
 packages = ["fm9", "devices", "devices.headrush", "devices.axefx3", "devices.ir2", "devices.tonex", "tools"]
 
 [tool.setuptools.package-data]
+"devices.axefx3" = ["data/*.json"]
 # #209: the DPDP device catalog is data the devices package reads at runtime.
 # #261: so are the reviewed DDLP profiles.
 devices = ["catalog.json", "profiles/*.json"]
