@@ -171,6 +171,48 @@ def test_incomplete_or_unverified_parameter_surface_refuses_review(writer,failur
     assert not ports.writes
 
 
+@pytest.mark.parametrize('slot,pid', [(3,5),(4,40),(5,78),(6,39),(7,45),(8,54),(34,65534)])
+def test_unused_modifier_residual_parameter_is_preserved(writer,slot,pid):
+    dev,ports=writer
+    ports.mods[slot][9]=pid
+    before={eid:list(words) for eid,words in ports.mods.items()}
+    review=dev.review_amp(AmpEdit(320,'gain',3.3))
+    assert dev.apply_amp(review,external_audio_muted=True)['verified']
+    assert ports.mods==before and ports.writes==[GAIN3_3]
+
+
+@pytest.mark.parametrize('source,effect,pid',[(12,0,5),(0,58,0),(0,94,5),(12,58,1)])
+def test_unused_metadata_does_not_admit_active_or_assigned_modifier(writer,source,effect,pid):
+    dev,ports=writer
+    ports.mods[3][0]=source
+    ports.mods[3][8:10]=[effect,pid]
+    with pytest.raises(ReadOnly):dev.review_amp(AmpEdit(320,'gain',3.3))
+    assert not ports.writes
+
+
+@pytest.mark.parametrize('field,value',[(0,12),(8,58),(9,40),(4,123)])
+def test_unused_modifier_drift_between_review_and_apply_is_refused(writer,field,value):
+    dev,ports=writer
+    ports.mods[3][9]=5
+    review=dev.review_amp(AmpEdit(320,'gain',3.3))
+    ports.mods[3][field]=value
+    with pytest.raises(ReadOnly):dev.apply_amp(review,external_audio_muted=True)
+    assert not ports.writes
+
+
+def test_unused_modifier_parameter_drift_after_send_is_uncertain(writer,monkeypatch):
+    dev,ports=writer
+    ports.mods[3][9]=5
+    review=dev.review_amp(AmpEdit(320,'gain',3.3))
+    send=ports.outp.send
+    def changed(message):
+        send(message)
+        if message.bytes()[5:8]==[1,9,0]:ports.mods[3][9]=40
+    monkeypatch.setattr(ports.outp,'send',changed)
+    with pytest.raises(AmpReadbackError):dev.apply_amp(review,external_audio_muted=True)
+    assert dev._uncertain and ports.writes==[GAIN3_3]
+
+
 @pytest.mark.parametrize('behavior',['raise','ignore','other_channel','level','modifier','scene','preset','identity','bad_display_after'])
 def test_every_post_send_failure_is_uncertain_without_retry_or_restore(writer,behavior):
     dev,ports=writer;review=dev.review_amp(AmpEdit(320,'gain',4));ports.behavior=behavior
