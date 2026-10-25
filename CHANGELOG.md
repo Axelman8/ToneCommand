@@ -4,6 +4,11 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+### Added
+- Prepare an unregistered Axe-Fx III single-edit review/confirm/send bridge
+  for explicit developer composition. Names and bounded Gain/Mid only; no
+  production route, GUI activation, general capability or hardware release.
+
 ## 1.6.2 (2026-10-24)
 
 ### Added
