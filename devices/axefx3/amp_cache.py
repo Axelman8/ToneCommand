@@ -25,13 +25,18 @@ class Reader:
         values=struct.unpack_from('<'+fmt,self.data,self.pos);self.pos+=size
         return values[0] if len(values)==1 else values
 
-    def labels(self):
+    def labels(self, *, empty_scratchpad=False):
         count=self.take('I')
         if not 1<=count<=4096:raise CacheError('Invalid enum count')
+        if empty_scratchpad and count!=257:raise CacheError('Invalid NAM scratchpad enum count')
         result=[]
-        for _ in range(count):
+        for index in range(count):
             size=self.take('I')
-            if not 1<=size<=64 or self.pos+size>len(self.data):raise CacheError('Invalid label size')
+            # Beta 5 tag60/pid0 adds an optional empty final scratchpad name.
+            # This is metadata parsing only; NAM names never leave amp_names.
+            empty=empty_scratchpad and index==256 and size==0
+            if (not empty and not 1<=size<=64) or self.pos+size>len(self.data):
+                raise CacheError('Invalid label size')
             raw=self.data[self.pos:self.pos+size];self.pos+=size
             if any(c<32 or c>126 for c in raw):raise CacheError('Invalid enum label')
             result.append(raw.decode('ascii'))
@@ -55,7 +60,8 @@ def amp_names(data):
             if pad or pid in seen or not all(math.isfinite(v) for v in (lo,hi,extra,step)):
                 raise CacheError('Invalid metadata record')
             seen.add(pid);tail=reader.pos
-            try:labels=reader.labels()
+            scratchpad=(tag,pid,code,lo,hi,extra,step)==(60,0,16,0.,256.,1.,0.)
+            try:labels=reader.labels(empty_scratchpad=scratchpad)
             except CacheError:
                 reader.pos=tail
                 first,flags,padding=reader.take('IIH')

@@ -4,6 +4,12 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Recognize the exact observed FW33 Beta 5 identity without granting writes.
+  Retain the earlier FW33 profile and regressions; document native read-only
+  discovery, the new release roadmap and separate Dyna-Cab acceptance work.
+- Keep AMP metadata refresh working with Beta 5's optional empty final NAM
+  scratchpad name. Restrict that exception to the observed enum record; do not
+  expose NAM names or enable scratchpad/slot/parameter writes.
 - Consolidate MK1 development and the MK2 workspace in one source branch,
   with one Windows menu using the existing dependency installer and launchers.
 - Make FX3 preset capacity chassis-aware: MK1/unknown 000-511, declared MK2

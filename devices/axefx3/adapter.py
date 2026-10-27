@@ -263,10 +263,10 @@ class AxeFxIII:
         return None
 
     def firmware_label(self):
-        from .fw33_profile import identity_key
+        from .firmware_identity import identify
         got = self._request(protocol.envelope(8, []),
                             lambda d: tuple(d) if d[4] == 8 and len(d) >= 8 else None)
-        return identity_key(got) or (f"{got[5]}.{got[6]:02d}" if got else "")
+        return identify(got) or (f"{got[5]}.{got[6]:02d}" if got else "")
 
     def current_preset(self):
         return self._request(protocol.envelope(0x0D, [127, 127]), shared.parse_patch_name)

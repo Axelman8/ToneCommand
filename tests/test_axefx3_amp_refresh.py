@@ -35,6 +35,44 @@ def test_exact_cache_to_eof_returns_only_amplifiers():
     assert 'PRIVATE IR' not in str(amp_cache.amp_names(cache()))
 
 
+def scratchpad_cache(*,tag=60,pid=0,code=16,lo=0,hi=256,extra=1,step=0,
+                     empty_at=256,entries=257,padding=0):
+    data=bytearray(cache())
+    data[42:46]=struct.pack('<I',3)
+    labels=[('PRIVATE NAM '+str(i)).encode('ascii') for i in range(entries)]
+    if empty_at is not None:labels[empty_at]=b''
+    enum=struct.pack('<HHHffffI',pid,code,0,lo,hi,extra,step,len(labels))
+    enum+=b''.join(struct.pack('<I',len(label))+label for label in labels)
+    enum+=struct.pack('<IH',0,padding)
+    return bytes(data)+struct.pack('<II',tag,1)+enum
+
+
+@pytest.mark.parametrize('empty_at',[None,256])
+def test_beta5_optional_scratchpad_name_does_not_break_amp_refresh(empty_at):
+    result=amp_cache.amp_names(scratchpad_cache(empty_at=empty_at))
+    assert result==amp_inventory.roster(fw33_profile.KEY)
+    assert len(result)==336 and 'PRIVATE NAM' not in str(result)
+
+
+@pytest.mark.parametrize('fault',[
+    dict(tag=59),dict(pid=1),dict(code=15),dict(lo=1),dict(hi=255),
+    dict(extra=0),dict(step=1),dict(empty_at=0),dict(empty_at=255),
+    dict(entries=258),dict(padding=1)])
+def test_empty_name_exception_is_only_the_observed_final_nam_record(fault):
+    with pytest.raises(ValueError):amp_cache.amp_names(scratchpad_cache(**fault))
+
+
+def test_scratchpad_cache_refresh_keeps_new_firmware_writes_blocked(tmp_path,monkeypatch):
+    from devices.axefx3.firmware_identity import BETA5_KEY
+    source(tmp_path,monkeypatch,scratchpad_cache())
+    registry=Registry(BETA5_KEY);registry.hardware_variant='mk2'
+    result=amp_refresh.refresh(registry)
+    assert result['status']=='verification_required' and result['source_count']==336
+    assert result['inventory'] is None and not result['permissions_changed']
+    assert not result['hardware_written'] and registry.selectable_amp_models()=={}
+    assert 'PRIVATE NAM' not in str(result)
+
+
 @pytest.mark.parametrize('fault',['short','header','count','trailing','oversize','nonascii','duplicate','numeric','noamp'])
 def test_malformed_metadata_is_rejected(fault):
     data=bytearray(cache())
