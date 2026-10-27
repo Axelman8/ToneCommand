@@ -4,6 +4,16 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Add a reviewed octave-pedal setup for an existing Pitch 1/A on the exact
+  measured MK2 FW33 Beta 5 profile: Advanced Whammy, heel 0/toe +12 semitones,
+  100% wet and explicit External 1/2 on channel A. Reuse the controller
+  workspace with quiet staging, complete-state/display checks and single-use
+  reviews. Native writes and separate Axe-Edit comparison pass. No automatic
+  insertion, Auto Engage, global CC changes, Store or general Beta 5 builder
+  permission; MK1 and other firmware remain blocked for this new feature.
+- Pin controller page/script hashes in the single-instance launcher identity
+  and show the actual Pitch review scope and expiry instead of binding-only
+  or five-minute promises.
 - Give route exploration, musical scene briefs and concrete FX3 designers the
   same broad effect vocabulary and route/firmware/chassis-scoped execution facts.
   Preserve required effects through compilation, including delay/chorus and

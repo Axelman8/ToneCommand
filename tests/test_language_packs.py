@@ -22,6 +22,15 @@ def test_catalog_and_manifest_are_current():
     assert catalog['protected_keys']
 
 
+def test_pitch_buttons_and_expiry_are_in_bundled_catalogs():
+    keys=('Send Pitch setup','Pitch setup read back and confirmed',
+          'This review expires after {{seconds}} seconds or when device state changes.')
+    for locale in ('en','nl','de'):
+        pack=json.loads((ROOT/f'ui/languages/{locale}.json').read_text(encoding='utf-8'))
+        assert all(key in pack['translations'] for key in keys)
+        assert '{{seconds}}' in pack['translations'][keys[2]]
+
+
 @pytest.mark.parametrize('asset', list(ASSETS))
 def test_assets_are_local_reads_that_never_get_a_device(monkeypatch, asset):
     monkeypatch.setattr(server, 'get_fm9', lambda: pytest.fail('language asset reached MIDI'))

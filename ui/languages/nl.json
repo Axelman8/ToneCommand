@@ -1,11 +1,14 @@
 {
   "schema": 1,
   "catalog_version": "1.5.16-lang.4",
-  "catalog_sha256": "3e655f028d5c5cc3117d9319a142d4197717389324dd62c92c816a0c872932b7",
+  "catalog_sha256": "140e1278241c449c4fdc538c0663b1b4df30a11370fb5ce79797897dbc8cbcb6",
   "locale": "nl",
   "name": "Nederlands",
   "coverage": "Core request, Settings and navigation labels; untranslated and protected text stays English.",
   "translations": {
+    "Send Pitch setup": "Pitch-instellingen verzenden",
+    "Pitch setup read back and confirmed": "Pitch-instellingen teruggelezen en bevestigd",
+    "This review expires after {{seconds}} seconds or when device state changes.": "Dit voorstel vervalt na {{seconds}} seconden of zodra de apparaatstatus verandert.",
     "Account connected.": "Account verbonden.",
     "Not an access token or password": "Geen access token of wachtwoord",
     "Key saved. Click SIGN IN.": "Sleutel opgeslagen. Klik op SIGN IN.",

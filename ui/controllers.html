@@ -40,7 +40,7 @@ summary { cursor:pointer;color:var(--cyan); } a { color:var(--cyan); }
 <header><img src="/logo.png" alt=""><strong>TONE // COMMAND</strong><span>Axe-Fx III | Controller workspace</span></header>
 <main>
 <h1>Your pedal, your binding</h1>
-<p class="muted">Choose which controller operates Wah or Volume. Your choice is applied only after review and sending.</p>
+<p class="muted">Choose which controller operates Wah, Volume or an octave Pitch pedal. Your choice is applied only after review and sending.</p>
 <section aria-labelledby="connectionTitle">
 <h2 id="connectionTitle">1. Connect your Axe-Fx III</h2>
 <p id="connection">Not connected yet. Close Axe-Edit and other TC sessions before connecting.</p>
@@ -50,25 +50,27 @@ summary { cursor:pointer;color:var(--cyan); } a { color:var(--cyan); }
 <div id="status" role="status" aria-live="polite"></div>
 <section id="targets" hidden aria-labelledby="targetsTitle">
 <h2 id="targetsTitle">2. Choose a controller</h2>
-<p class="muted">Existing bindings are preserved until you send a change. Range and curve stay unchanged; a new binding gets the verified device curve.</p>
+<p class="muted">Nothing changes until you review and send. Wah and Volume keep their range and curve. Pitch sets up an octave pedal; its complete changes are shown in the review.</p>
 <div id="rows"></div>
-<p id="empty" hidden>No supported Wah or Volume blocks found. Add them on the Fractal or in Axe-Edit first; this panel does not change the signal route.</p>
+<p id="empty" hidden>No supported Wah, Volume or Pitch blocks found. Add them on the Fractal or in Axe-Edit first; this panel does not change the signal route.</p>
 </section>
 <section id="review" hidden aria-labelledby="reviewTitle" tabindex="-1">
 <h2 id="reviewTitle">3. Review the change</h2>
 <dl id="reviewDetails"></dl>
-<p>This changes only the controller binding in the edit buffer, not global MIDI-CC assignment. It can affect multiple scenes or channels using this modifier.</p>
+<p id="reviewScope">This changes only the controller binding in the edit buffer, not global MIDI-CC assignment. It can affect multiple scenes or channels using this modifier.</p>
 <div class="checks">
 <label><input id="targetConfirmed" type="checkbox">I have reviewed the preset, block and controller.</label>
 <label><input id="muted" type="checkbox">My speakers/headphones are externally muted and will remain muted while sending. TC cannot measure this and has no physical volume limiter.</label>
 </div>
-<small>A review expires after five minutes or when the read device state changes. Nothing is permanently stored. A failed transmission may leave partial changes; there is no automatic Undo.</small>
+<small id="reviewExpiry"></small>
+<small>Nothing is permanently stored. A failed transmission may leave partial changes; there is no automatic Undo.</small>
 <div class="actions"><button id="send" disabled>Send binding</button><button id="cancel" class="secondary">Cancel</button></div>
 </section>
 <section id="result" hidden tabindex="-1"><h2 id="resultTitle"></h2><p id="resultText"></p></section>
 <details><summary>What does External 1 or 2 mean?</summary>
 <p>On your Fractal you choose which physical pedal or MIDI-CC feeds an External controller. TC binds that source to the parameter but does not change the global setting. No fixed CC number is assumed.</p>
 <p>Wah: Off disables Auto Engage; Fast Pos is the verified Auto Engage option. Volume uses Auto Engage Off. Check operation with your own pedal.</p>
+<p>Pitch: an existing Pitch 1 on channel A becomes Advanced Whammy, heel at the original note and toe one octave higher. Choose External 1 or 2 explicitly. Auto Engage stays Off; SEND activates Pitch in the current scene. Other scenes using A share its sound. Custom curves are not overwritten.</p>
 <p>Delay, amp gain, other sources, custom modifier curves and removing existing bindings require separate verification. No binding wanted? Leave an unbound block unchanged. For now remove an existing binding on the device or in Axe-Edit after closing this connection.</p>
 </details>
 </main>

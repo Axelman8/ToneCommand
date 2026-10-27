@@ -16,7 +16,9 @@ const path = require('node:path');
     const state = {connected:true, gig_locked:false, firmware:'32.06',preset:324,preset_name:'Controller test',scene:1,
       sources:[{value:12,label:'External 1'},{value:13,label:'External 2'}],
       targets:[{effect_id:95,label:'Wah 2 / Control',source:12,source_name:'External 1',auto_engage:'Fast Pos',writable:true,modes:['Off','Fast Pos']},
-               {effect_id:102,label:'Volume 1 / Volume',source:13,source_name:'External 2',auto_engage:'Off',writable:true,modes:['Off']}]};
+               {effect_id:102,label:'Volume 1 / Volume',source:13,source_name:'External 2',auto_engage:'Off',writable:true,modes:['Off']},
+               {effect_id:110,label:'Pitch 1 / Octave pedal',source:null,source_name:'NONE',auto_engage:null,writable:true,modes:['Off'],
+                notice:'Existing Pitch 1/A only; no placement. Heel 0 to toe +12 semitones.'}]};
     await page.route('**/api/controllers/**', async route => {
       const request=route.request(), endpoint=request.url().split('/').pop(), body=request.postDataJSON();
       let result={ok:true}, status=200;
@@ -32,13 +34,16 @@ const path = require('node:path');
         const target=state.targets.find(t=>t.effect_id===body.effect_id);
         result={token:'review-token',preset:324,preset_name:state.preset_name,scene:1,target:target.label,
           before_source:target.source_name,after_source:body.source===12?'External 1':'External 2',
-          before_auto:target.auto_engage,after_auto:body.auto_engage||"Preserve",new_binding:false};
+          before_auto:target.auto_engage,after_auto:body.auto_engage||"Preserve",new_binding:false,expires_in:300};
+        if(body.effect_id===110) Object.assign(result,{operation:'pitch_setup',expires_in:60,
+          setup:'Advanced Whammy: heel 0 to toe +12, mix 100%, channel A only. No Store.'});
       }
       if(endpoint==='send') {
         sends.push(body);
         assert.equal(body.token,'review-token');
         assert.equal(body.external_audio_muted,true);assert.equal(body.target_confirmed,true);
-        result={ok:!fail,stored:false,results:[{ok:!fail,detail:fail?'Readback mismatch; stopped':'Matched'}]};
+        result={ok:!fail,stored:false,results:[{ok:!fail,detail:fail?'Readback mismatch; stopped':'Matched'}],
+          ...(draft.effect_id===110 ? {operation:'pitch_setup'} : {})};
         if(!fail) {
           const target=state.targets.find(t=>t.effect_id===draft.effect_id);
           target.source=draft.source; target.source_name=draft.source===12?'External 1':'External 2';
@@ -106,8 +111,25 @@ const path = require('node:path');
     assert(await page.locator('#source-95').isEnabled());
     assert(await page.locator('#source-102').isDisabled());
     assert.match(await page.locator('#rows').textContent(),/Volume has not been migrated/);
+    // Pitch requires an explicit source even with fixed Off; display its full
+    // voicing scope and shorter review lifetime, not "binding only" promises.
+    fail=false;
+    assert(await page.locator('#mode-110').isDisabled());
+    const pitchRow=page.locator('.row').filter({has:page.locator('#source-110')});
+    assert(await pitchRow.getByRole('button',{name:'Review',exact:true}).isDisabled());
+    await page.selectOption('#source-110','13');
+    await pitchRow.getByRole('button',{name:'Review',exact:true}).click();
+    await page.locator('#review:not([hidden])').waitFor();
+    assert.match(await page.locator('#reviewScope').textContent(),/Advanced Whammy.*\+12/);
+    assert.match(await page.locator('#reviewExpiry').textContent(),/60 seconds/);
+    assert.equal(await page.locator('#send').textContent(),'Send Pitch setup');
+    assert(await page.locator('#send').isDisabled());
+    await page.check('#targetConfirmed');await page.check('#muted');await page.click('#send');
+    await page.getByRole('heading',{name:'Pitch setup read back and confirmed'}).waitFor();
+    await page.locator('#refresh:not([disabled])').waitFor();
+    assert.equal(sends.length,3);assert.deepEqual(reviews.at(-1),{effect_id:110,source:13,auto_engage:'Off'});
     await page.click('#disconnect');await page.locator('#connect:not([disabled])').waitFor();
-    assert.equal(sends.length,2);
-    console.log('PASS: controller UI selection, review invalidation, confirmations, send, failure, XSS, mobile, disconnect. Hardware writes: 0.');
+    assert.equal(sends.length,3);assert.deepEqual(errors,[]);
+    console.log('PASS: controller UI selection, Pitch scope/source/expiry, review invalidation, confirmations, send, failure, XSS, mobile, disconnect. Hardware writes: 0.');
   } finally { await browser.close(); }
 })().catch(error=>{console.error(error);process.exitCode=1;});

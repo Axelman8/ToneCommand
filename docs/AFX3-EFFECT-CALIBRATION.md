@@ -1,5 +1,39 @@
 # FW33 effect calibration checkpoint
 
+## Existing Pitch octave pedal: exact MK2 Beta 5 only
+
+In **Controllers**, an existing **Pitch 1, channel A** can now be configured as
+an octave pedal. Explicitly choose External 1 or External 2, review, confirm
+the target and external mute, then **Send Pitch setup**. Keep the pedal still
+while reviewing/sending. Settings are Advanced Whammy, Start 0, Stop +12
+semitones, Mix 100%, Level 0dB after bypassed -12dB staging. The native
+full-range linear modifier is allocated only if needed and is restricted to
+channel A. Auto Engage is Off; SEND activates Pitch in the current scene.
+Other scenes using channel A share this voice. A nonmatching existing modifier
+curve or other active Pitch modifier is refused, not overwritten.
+The starting model must be the measured default Dual Detune or Advanced
+Whammy; transitions from other models require separate acceptance.
+
+This is a separate existing-block feature on measured MK2
+`33.00-beta5.20261026`, not a generic setter or a new-preset builder capability.
+Do not interpret the planning catalog's unsupported Pitch status as a ban on
+this explicit controller tool, or this tool as permission to plan unsupported
+Pitch insertion. No routing, amp tone, global pedal/CC map, NAM, IR, Store or
+other firmware write gate is changed. MK1 and unmeasured firmware remain
+blocked for this feature. Reviews expire after 60 seconds and are consumed
+before execution. A write whose outcome cannot be proved latches this feature
+on the connection; there is no automatic retry, rollback or Undo.
+
+Acceptance on test327: captured model/range/control/mix/level/bypass and native
+modifier allocation/source/channel operations, native full-state checks and a
+fresh independent Axe-Edit 1.15.02 comparison of both the Pitch voice and its
+modifier. The comparison used UI Automation; it is not proof of audible pitch
+tracking, physical pedal direction or loudness. The disconnected test fixture
+has no playable signal route and was not stored. Presets 326/328 were preserved.
+Still pending: physical-pedal/listening acceptance, Pitch placement and normal
+multi-scene compiler integration, Auto Engage, other intervals/instances/channels,
+and acceptance on other firmware/chassis.
+
 ## Current planning vocabulary and execution scope
 
 The route explorer, request-first scene brief and concrete text/NAM designers

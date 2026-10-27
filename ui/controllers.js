@@ -64,7 +64,7 @@ async function load() {
     const [modeLabel, mode] = labeledSelect('Auto Engage', 'mode-' + target.effect_id);
     option(mode, '', tcText("Preserve (new: Off)"));
     for (const item of target.modes) option(mode, item, item);
-    if (target.effect_id === 102) { mode.value = 'Off'; mode.dataset.blocked = 'true'; }
+    if ([102,110].includes(target.effect_id)) { mode.value = 'Off'; mode.dataset.blocked = 'true'; }
     source.dataset.blocked = String(!target.writable);
     if (!target.writable) mode.dataset.blocked = 'true';
     const button = document.createElement('button'); button.textContent = tcText("Review");
@@ -72,8 +72,8 @@ async function load() {
     const changed = () => {
       invalidate();
       button.dataset.blocked = String(!target.writable || (!source.value && !mode.value));
-      // Volume's fixed Off is not itself a request.
-      if (target.effect_id === 102 && !source.value) button.dataset.blocked = 'true';
+      // Fixed Off is not itself a source-selection request.
+      if ([102,110].includes(target.effect_id) && !source.value) button.dataset.blocked = 'true';
       controls();
     };
     source.onchange = mode.onchange = changed;
@@ -92,9 +92,15 @@ async function load() {
         const dt = document.createElement('dt'), dd = document.createElement('dd');
         dt.textContent = key; dd.textContent = value; el('reviewDetails').append(dt,dd);
       }
+      el('reviewScope').textContent = review.operation === 'pitch_setup'
+        ? review.setup
+        : tcText("This changes only the controller binding in the edit buffer, not global MIDI-CC assignment. It can affect multiple scenes or channels using this modifier.");
+      el('reviewExpiry').textContent = tcText("This review expires after {{seconds}} seconds or when device state changes.", {seconds:review.expires_in || 300});
+      el('send').textContent = review.operation === 'pitch_setup' ? tcText("Send Pitch setup") : tcText("Send binding");
       el('review').hidden = false; el('review').focus(); message(tcText("Proposal ready. Nothing sent yet."));
     });
     row.append(title,sourceLabel,modeLabel,button);
+    if (target.notice) { const p=document.createElement('p'); p.className='reason'; p.textContent=target.notice; row.append(p); }
     if (target.reason) { const p=document.createElement('p'); p.className='reason'; p.textContent=target.reason; row.append(p); }
     el('rows').append(row);
   }
@@ -120,7 +126,8 @@ el('send').onclick = () => run(async () => {
   catch(error) {
     throw new Error(tcText("Transmission not confirmed. Keep audio muted and read state again before continuing. No automatic retry. ") + error.message);
   }
-  el('resultTitle').textContent = result.ok ? tcText("Binding read back and confirmed") : tcText("Transmission stopped");
+  el('resultTitle').textContent = result.ok ? (result.operation === 'pitch_setup'
+    ? tcText("Pitch setup read back and confirmed") : tcText("Binding read back and confirmed")) : tcText("Transmission stopped");
   el('resultText').textContent = (result.ok
     ? tcText("The modifier was checked on the Fractal. Test the physical pedal; readback does not prove an audible result.")
     : result.results.map(r=>r.detail).join('\n') + tcText(" Partial changes may remain; keep audio muted."))
