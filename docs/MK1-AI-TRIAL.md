@@ -48,8 +48,16 @@ Example request:
 > expressive spacious lead. Choose an amp/cab and suitable chorus, delay and
 > reverb. No NAM, fuzz, pitch, controllers or permanent storage.
 
-The AI can choose Hipower Normal/Brilliant/Jumped, Deluxe Verb Normal or Brit800,
-and Greenback/Recto Factory2 cabs. All seven blocks use channelA; effects can be
+The AI can choose all 336 exact amp names from the shared Axe-Fx III catalog,
+and Greenback/Recto Factory2 cabs. The previous five-amp restriction is removed.
+This reuses catalog data, not a blanket claim of MK1 hardware acceptance for
+every model. Each experimental build still checks the exact MK1 firmware,
+selected ordinal, all four Amp channels and complete unrelated observed state.
+The designer follows the requested artist/era/role rather than a Pink Floyd
+preference. More choices alone do not prove a better sound; compare the actual
+settings with Axe-Edit and audition at low volume. Existing schema/level bounds,
+one-scene route and unsupported-effect restrictions remain unchanged.
+All seven blocks use channelA; effects can be
 bypassed. The route is fixed and feed-forward: Input1, Amp1, Cab1, Chorus1,
 Delay1, Reverb1, Output1. It is one scene, not an album-wide automatic rig match.
 Scenes2-8 are not configured, but shared channelA edits may affect their sound.

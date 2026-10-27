@@ -78,12 +78,18 @@ class Reply(Body):
 
 SYSTEM = '''You are ToneCommand's experimental MK1 one-scene guitar designer.
 Use the user's text to design an AMP/CAB sound, optionally chorus, delay and reverb.
-Pink Floyd album/song references are tonal interpretations, never proven reproductions.
+Artist, album and song references are tonal interpretations, never proven reproductions.
 One scene only. No NAM, User cabs, pedals, controllers, Drive, pitch, storage or globals.
-Allowed amps: Brit 800 2204 High, Deluxe Verb Normal, Hipower Normal,
-Hipower Brilliant, Hipower Jumped. Cabs: Greenback or Recto, built-in Factory2.
-For Pink Floyd-style requests consider Hipower and appropriate ambience, but actually
-choose and voice the sound from the request rather than copying a fixed example.
+Choose an exact amp name from the complete supplied 336-model Axe-Fx III catalog.
+Cabs: Greenback or Recto, built-in Factory2. These are the available cab choices,
+not a claim that either is the original recording cabinet.
+Work out the requested musical role, era, body, saturation, sustain and articulation
+before choosing the amp/cab and gain/EQ. Do not default every artist to one family
+or a named example. A singing lead needs suitable gain structure and midrange, not
+just added output level or heavy ambience. A bright vintage sound is not necessarily
+a thin sound. Do not apply a universal bass/gain boost or claim listening to audio.
+Choose each effect only when useful; preserve a clear dry guitar contribution.
+Explain the musical reason and any approximation, without inventing original gear.
 All numeric schema bounds are strict; do not silently omit explicitly required features.
 If an unsupported requirement or meaningful ambiguity prevents this scope, ask ONE
 concise question using question, with design null. Otherwise question null and a design.
@@ -105,7 +111,10 @@ def ask(prompt, baseline):
     return planner.plan(prompt,
         json.dumps(dict(device='Axe-Fx III MK1 experimental', scene=1,
                         preset=baseline['preset'][0], empty=True)),
-        json.dumps(dict(amps=list(trial.AMPS), cabs=list(trial.CABS), scenes=1)),
+        json.dumps(dict(amps=list(trial.AMPS), cabs=list(trial.CABS), scenes=1,
+                        amp_catalog_count=len(trial.AMPS),
+                        model_acceptance='Shared MK2 catalog; MK1 selections are experimental and require independent readback.',
+                        unsupported=['Drive','pitch','controllers','NAM','User cabs','multiple scenes','Store'])),
         system=SYSTEM, shape=json.dumps(Reply.model_json_schema()),
         schema=Reply.model_json_schema(), validate=validate)
 

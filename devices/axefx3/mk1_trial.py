@@ -20,13 +20,15 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from fm9 import protocol as shared
 from fm9.safety import sysex_guard
-from . import grid, protocol, row_fixture, fw33_profile
+from . import grid, protocol, row_fixture, fw33_profile, amp_inventory
 from .adapter import AxeFxIII
 from .registry import Registry
 
 FINGERPRINT = '441c510ab4f4e037abee80951784cdb5bfdcc081236efb57cb51e8cc084e5a90'
-AMPS = {'Brit 800 2204 High': 14, 'Deluxe Verb Normal': 224,
-        'Hipower Normal': 16, 'Hipower Brilliant': 17, 'Hipower Jumped': 144}
+# Shared Gen-3 names/ordinals; MK1 execution remains an explicit experiment
+# with its own exact identity, model-word and unrelated-state verification.
+# Metadata reuse does not declare all MK1 models hardware-accepted.
+AMPS = {name: ordinal for ordinal, name in amp_inventory.roster(fw33_profile.KEY).items()}
 CABS = {'Greenback': 515, 'Recto': 799}  # Factory2, zero-based IR ordinal.
 STRIDES = {58: 142, 62: 106, 42: 26, 78: 32, 70: 89, 66: 71}
 CELLS = {37: (1, 41), 58: (2, 10), 62: (3, 11), 78: (4, 16),

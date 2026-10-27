@@ -47,11 +47,12 @@ No production server is restarted or connected as part of this checkpoint.
 
 ## Required next steps
 
-1. Add a reviewed, closed new-build calibration component with exact identity,
-   isolated preset/full-state constraints and single-use captured-frame permits.
-   Do not bypass the existing transport or monkeypatch the old profile key.
-2. Run bounded native writes, full bulk/display preservation and fresh independent
-   Axe-Edit comparison, including separately reviewed restoration where needed.
+1. The separate [closed Amp calibration](AFX3-BETA5-AMP-CALIBRATION.md) now has
+   software checks and candidate native/display/full-state/fresh-editor
+   acceptance for four captured Gain/Mid values on disconnected327. The normal
+   adapter remains unchanged and refuses writes. No old identity is aliased.
+2. Review that bounded component and retain separately reviewed restoration.
+   This is not yet a generic parameter setter or ordinary app SEND integration.
 3. Extend verification by operation family: models, cab selection/mixer, grid,
    scenes, modifiers, timing/zero, NAM inventory/selection/install and Store.
    Keep unverified families blocked; retain old profiles and tests.

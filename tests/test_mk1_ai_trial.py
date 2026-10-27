@@ -12,6 +12,7 @@ import mido
 import pytest
 
 from devices.axefx3 import mk1_trial as t, protocol, row_fixture
+from devices.axefx3 import amp_inventory, fw33_profile, firmware_identity
 from fm9 import protocol as p
 from tools import mk1_ai_trial as ui
 
@@ -138,6 +139,75 @@ def test_selected_ai_settings_change_the_compiled_preset():
     assert t.steps(first) != t.steps(second)
     assert any(s.kind == 'model' and s.value == 17 for s in t.steps(first))
     assert any(s.kind == 'model' and s.value == 224 for s in t.steps(second))
+
+
+def test_complete_shared_catalog_reaches_the_mk1_design_schema():
+    catalog=amp_inventory.roster(fw33_profile.KEY)
+    assert len(t.AMPS)==336 and t.AMPS=={name:ordinal for ordinal,name in catalog.items()}
+    assert set(t.Design.model_json_schema()['properties']['amp']['enum'])==set(t.AMPS)
+    assert 'Pink Floyd' not in ui.SYSTEM
+    assert '336-model' in ui.SYSTEM and 'not necessarily\na thin sound' in ui.SYSTEM
+
+
+@pytest.mark.parametrize('name,ordinal',list(t.AMPS.items()))
+def test_every_amp_has_an_exact_reviewed_model_frame_and_level_staging(name,ordinal):
+    design=t.Design.model_validate(dict(SAMPLE,amp=name))
+    sequence=t.steps(design)
+    position=next(i for i,s in enumerate(sequence) if s.kind=='model' and s.eid==58)
+    step=sequence[position]
+    assert step.value==ordinal
+    assert list(step.frame)==protocol.param_frame(58,0,ordinal,opcode=9)
+    assert p.decode_f32_septets(list(step.frame[12:17]))==ordinal
+    assert all(sequence[position+offset].name=='DISTORT_LEVEL' and sequence[position+offset].value==-12
+               for offset in (-1,1))
+    assert any(s.kind=='bypass' and s.eid==58 and s.value is True for s in sequence[:position])
+
+
+@pytest.mark.parametrize('ordinal',[0,14,16,144,224,335])
+def test_representative_full_builds_independently_decode_the_selected_model(ordinal):
+    name=next(name for name,value in t.AMPS.items() if value==ordinal)
+    run=execution(design=t.Design.model_validate(dict(SAMPLE,amp=name)))
+    assert run.run(muted=True,target_confirmed=True)['verified']
+    assert run.dev.words[58][0]==ordinal
+    assert not run.dev.uncertain
+
+
+def test_wrong_model_readback_consumes_build_without_sending_the_remaining_steps():
+    class WrongModel(MemoryDevice):
+        def transmit(self,message):
+            super().transmit(message)
+            frame=message.bytes()
+            if frame[5:12]==[1,9,0,58,0,0,0]:
+                self.words[58][0]=(self.words[58][0]+1)%336
+    run=execution(dev=WrongModel())
+    with pytest.raises(t.UncertainWrite):run.run(muted=True,target_confirmed=True)
+    count=len(run.dev.serialized)
+    with pytest.raises(PermissionError):run.run(muted=True,target_confirmed=True)
+    assert len(run.dev.serialized)==count<len(run.sequence)
+
+
+def test_broader_model_catalog_does_not_admit_the_new_mk2_beta5_identity():
+    dev=object.__new__(t.Device);dev.uncertain=False
+    # A response with the MK2 raw version/date is not the tester's MK1 identity.
+    reply=protocol.envelope(8,[97,0,*b'Oct 26 2026 12:42:45'])[1:-1]
+    dev._request=lambda *args:tuple(reply)
+    assert firmware_identity.identify(reply) is None
+    with pytest.raises(PermissionError):dev.identity()
+
+
+def test_named_artist_request_can_select_a_non_floyd_amp_without_host_substitution(monkeypatch):
+    monkeypatch.setattr(ui.planner,'_env',lambda key:'codex')
+    monkeypatch.setattr(ui.planner,'candidates',lambda:['codex'])
+    chosen=next(name for name in t.AMPS if name.startswith('Plexi'))
+    def plan(prompt,state,reference,**kwargs):
+        facts=json.loads(reference)
+        assert len(facts['amps'])==336 and chosen in facts['amps']
+        assert facts['amp_catalog_count']==336 and 'experimental' in facts['model_acceptance']
+        assert 'Pink Floyd' not in kwargs['system']
+        return kwargs['validate']({'question':None,'design':dict(SAMPLE,amp=chosen,name='AI Album Lead')})
+    monkeypatch.setattr(ui.planner,'plan',plan)
+    result=ui.ask('Ritchie Blackmore, Made in Japan, one expressive lead scene',{'preset':(99,'Test')})
+    assert result['design']['amp']==chosen
 
 
 @pytest.mark.parametrize('field,value', [('gain', 9), ('gain', True), ('amp', 'invented'),

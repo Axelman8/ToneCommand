@@ -19,6 +19,8 @@ await page.route('**/*',async route=>{const req=route.request(),url=new URL(req.
  if(url.pathname==='/api/send')return route.fulfill({status:fail?409:200,json:fail?{detail:'Readback mismatch; partial edits may remain'}:{verified:true,stored:false,actions:74,note:'Disconnect MIDI and compare with Axe-Edit before audition.'}});
  return route.fulfill({status:404,json:{detail:'Not available'}});});
 await page.goto('http://127.0.0.1:8909/');await page.locator('#generate:not([disabled])').waitFor();
+assert.equal(await page.inputValue('#prompt'),'');
+assert((await page.textContent('#requestStage')).includes('336-model'));
 assert((await page.textContent('#buildVersion')).includes('DEVELOPMENT / NOT VALIDATED | my-mk1-work | MODIFIED'));
 assert.equal(requests.filter(r=>r.method==='POST').length,0);
 await page.click('#connect');await page.waitForFunction(()=>document.getElementById('deviceStatus').textContent.includes('99'));

@@ -4,6 +4,14 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Add a separately constructed, closed Beta 5 Amp calibration component for
+  four captured Gain/Mid values on disconnected test327. Candidate native
+  writes, full-state/display readback, independent Axe-Edit comparison and
+  separately reviewed restoration pass; ordinary app writing remains blocked.
+- Make the shared 336-model Axe-Fx III amp catalog available to the explicit
+  MK1 experimental builder instead of five candidates. Keep exact MK1 identity,
+  staged levels and complete readback restrictions. Remove artist-specific
+  planner bias and the prefilled request; no universal tone-match claim.
 - Recognize the exact observed FW33 Beta 5 identity without granting writes.
   Retain the earlier FW33 profile and regressions; document native read-only
   discovery, the new release roadmap and separate Dyna-Cab acceptance work.

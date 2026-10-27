@@ -111,9 +111,11 @@ must not be confused with permission or support to save it permanently.
 ## Starting functionality and remaining work
 
 The starting UI uses the selected real AI backend to design **one scene** from
-text: five amp candidates (Brit 800, Deluxe Verb and three Hipower variants),
-two Factory2 cabinets, bounded gain/EQ, optional chorus/delay/reverb. Pink Floyd
-album-inspired requests are supported as interpretations, not exact matches.
+text: the shared 336-model Axe-Fx III amp catalog, two Factory2 cabinets,
+bounded gain/EQ, optional chorus/delay/reverb. The earlier five-model trial
+restriction is removed. Model choices remain explicitly experimental on MK1;
+catalog equality is not blanket hardware acceptance. Artist/album requests
+are interpretations, not exact matches, with no fixed Pink Floyd preference.
 Example: "One scene inspired by Pink Floyd's Wish You Were Here, expressive
 lead, suitable AMP/CAB, optional subtle chorus, delay and reverb. No NAM."
 
