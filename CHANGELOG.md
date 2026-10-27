@@ -4,6 +4,12 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Give route exploration, musical scene briefs and concrete FX3 designers the
+  same broad effect vocabulary and route/firmware/chassis-scoped execution facts.
+  Preserve required effects through compilation, including delay/chorus and
+  currently unsupported effects. Reject dry/bypassed effects, flat EQ and
+  level-only pitch stubs as realizations. This does not activate new setters,
+  free routing, Beta 5 app writes or MK1 effect-writing capabilities.
 - Add a separately constructed, closed Beta 5 Amp calibration component for
   four captured Gain/Mid values on disconnected test327. Candidate native
   writes, full-state/display readback, independent Axe-Edit comparison and

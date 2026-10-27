@@ -1,5 +1,49 @@
 # FW33 effect calibration checkpoint
 
+## Current planning vocabulary and execution scope
+
+The route explorer, request-first scene brief and concrete text/NAM designers
+now share `devices/axefx3/effect_capabilities.py`. It describes the broader III
+effect vocabulary and the actual execution scope for the selected route,
+firmware and chassis. It is not a new model/parameter write gate or a live
+discovery of every future effect. Its baseline is the III block column in the
+[official Blocks Guide](https://www.fractalaudio.com/downloads/manuals/fas-guides/Fractal-Audio-Blocks-Guide.pdf)
+of June 2023. NAM and Amp/Cab remain separate foundation choices.
+
+For the previously accepted `33.00-beta.20261006` MK2 builder:
+
+| Route | Configurable effect profiles | Sharing |
+| --- | --- | --- |
+| AMP/CAB | T808 Mod, Modern VCA Compressor, 10 Band Variable Q (cut-only), Cry Babe wah with selected External 1/2, retained Delay/Chorus models | Drive/Comp/GEQ follow Amp A-D; Wah/Delay/Chorus share A; 1-8 scenes |
+| Serial test | Delay and Chorus only; retain models | A; one scene |
+| NAM | Delay, Chorus and Reverb; retain effect models | A; one-scene foundation, then up to two scenes |
+
+These facts still require normal target, full-state, modifier, route, level,
+review and SEND validation. The separate experimental MK1 builder retains its
+own exact-fingerprint, one-scene AMP/CAB/Chorus/Delay/Reverb scope. Declaring MK1
+in the main workspace does not enable the MK2 builder. Current Beta 5 normal
+app writing is still blocked; the isolated four-value Amp calibration is not
+effect-building acceptance. Historical results below are not Beta 5 promotion.
+
+Scene requirements now cover delay/chorus and the broader effect vocabulary,
+not just the previous six keys. Required effects chosen for a musical purpose
+must survive compilation. Bypassed or dry effects, flat EQ and a Pitch Level
+setter do not satisfy the corresponding sonic requirement. A missing effect
+uses the existing clarification conversation, without silently replacing it.
+No unsupported effect can generate actions through its catalog entry.
+
+Remaining execution work includes Phaser/Flanger/Rotary/Tremolo, musical Pitch,
+Volume, Enhancer/Filter/Formant/Gate, additional delay families, Dynamic
+Distortion, special-purpose blocks, additional instances/channels and flexible
+routing. A block present as a bypassed reserve is not complete voicing support.
+Feedback Send/Return, Scene MIDI, external-input routing and loopers require
+dedicated validation because they can affect feedback, recordings or external
+equipment. Dyna-Cabs remain a separate cabinet-mode roadmap item. Each new
+family needs captured encodings, native preservation checks, independent editor
+comparison and integration into the normal scene compiler before release.
+
+## Historical exact-build calibration
+
 This is evidence status, not blanket permission to write every effect. The
 normal route keeps unvoiced reserve effects bypassed. FM9
 permissions, permanent storage allowlists and unknown-outcome behavior are

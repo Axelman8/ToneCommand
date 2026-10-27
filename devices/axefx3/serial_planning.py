@@ -2,7 +2,7 @@
 import json
 from typing import Annotated
 from pydantic import Field
-from . import planning, serial_build, route_guard, executor, scene_intent
+from . import planning, serial_build, route_guard, executor, scene_intent,effect_capabilities
 
 
 class Design(planning.Shape, scene_intent.IntentDesign):
@@ -30,6 +30,7 @@ User review and mute acknowledgement are separate; never authorize SEND/Store.
 
 def reference(reg):
     return json.dumps(dict(device='Axe-Fx III',firmware=reg.firmware,
+        effect_catalog=effect_capabilities.reference(reg,'serial'),
         route=route_guard.labels(serial_build.ROUTE,reg),scenes=1,channel='A',
         controls={f:reg.definitions[f] for f in ('DISTORT','DELAY','CHORUS','OUTPUT')},
         models_selectable=False,cab_selectable=False,controllers=False,

@@ -9,7 +9,7 @@ import re
 from typing import Annotated,Literal
 
 from pydantic import BaseModel,ConfigDict,Field,StrictInt
-from . import design_dialogue,scene_intent
+from . import design_dialogue,scene_intent,effect_capabilities
 
 Number=Annotated[StrictInt,Field(ge=1,le=8)]
 Text=Annotated[str,Field(min_length=3,max_length=600)]
@@ -24,7 +24,7 @@ class Scene(BaseModel):
     difference:Literal['base_tone','effects','spatial','either','shared']
     reason:Text
     reuse_quote:Annotated[str,Field(min_length=8,max_length=500)]|None
-    required_features:Annotated[list[Literal['drive','compressor','post_eq','reverb','wah_controller','pitch']],Field(max_length=6)]
+    required_features:Annotated[list[effect_capabilities.Feature],Field(max_length=len(effect_capabilities.EFFECTS))]
 
 
 class Brief(BaseModel):
@@ -49,11 +49,14 @@ hand playing or guitar volume for a programmed difference. Scene1 has no
 reference and uses either. All later references point to earlier scenes.
 Never invent song timestamps, original equipment, listening or safety proof.
 Do not choose model names, cab names, numeric parameters or write actions here.
-Use only released features in the supplied capabilities. List mandatory
-features; resolved filter means wah_controller, NEVER pitch transposition.
+Use the effect_catalog to consider the complete musical vocabulary and its
+route-specific execution limits. List necessary effects in required_features,
+including those you select to realize the target. Do not omit a requirement
+merely because it is blocked; explain it and ask about an available alternative.
+Resolved filter means wah_controller, NEVER pitch transposition.
 If the request has a genuinely unresolved conflict, ask one musical question.
 No technical implementation questions, routine confirmations, SEND or Store.
-'''
+''' + '\n' + effect_capabilities.RULES
 
 
 def user_evidence(prompt,turn):
@@ -85,7 +88,8 @@ def prepare(ask,prompt,reference,count,turn,*,request_text=None):
     evidence=user_evidence(prompt if request_text is None else request_text,turn)
     facts=json.loads(reference)
     reference=json.dumps({key:facts[key] for key in ('firmware','scene_counts','amp_channels',
-        'drive_executable','compressor_executable','geq_executable','wah_controller','route') if key in facts})
+        'drive_executable','compressor_executable','geq_executable','wah_controller','route',
+        'effect_catalog') if key in facts})
     shape=design_dialogue.schema(Brief.model_json_schema())
     failures=[]
     def check(raw):

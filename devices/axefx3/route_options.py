@@ -3,7 +3,7 @@ import json
 from typing import Annotated, Literal
 
 from pydantic import Field
-from . import planning, fw33_profile, serial_build,album_build,amp_inventory,effect_voicing,design_dialogue,wah_voicing
+from . import planning, fw33_profile, serial_build,album_build,amp_inventory,effect_voicing,design_dialogue,wah_voicing,effect_capabilities
 
 
 class Comparison(planning.Shape):
@@ -56,11 +56,14 @@ five keywords. Do not append NAM, dynamic, warm, medium gain or capture/amp-cab
 descriptions to the query. For a request naming Whole Lotta Love, search that
 song title rather than a sentence describing its sound.
 Return only the comparison schema. Use the user's language.'''
+SYSTEM += '\n' + effect_capabilities.RULES
 
 
 def compare(ask,prompt,reg,audio_reference=None,*,request_scope=''):
     caps=capabilities(reg)
     reference=json.dumps(dict(device='Axe-Fx III',firmware=reg.firmware,routes=caps,
+        effect_catalog=effect_capabilities.reference(reg,'amp'),
+        executable_effects_by_route={mode:effect_capabilities.executable(reg,mode) for mode in ('amp','nam','serial')},
         measurements=audio_reference,write_authorized=False),ensure_ascii=False)
     def validate(raw):
         proposal, clarification=design_dialogue.unwrap(raw)

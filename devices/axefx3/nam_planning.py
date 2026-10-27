@@ -8,7 +8,7 @@ import json
 from typing import Annotated
 
 from pydantic import Field, StrictBool
-from . import planning, executor, fw33_profile, route_guard, nam_slots, scene_intent
+from . import planning, executor, fw33_profile, route_guard, nam_slots, scene_intent,effect_capabilities
 
 
 class NAM(planning.Shape):
@@ -59,6 +59,7 @@ Explain limitations briefly in the user's language, no guessed controls.
 
 def reference(reg, state):
     return json.dumps(dict(device='Axe-Fx III',firmware=reg.firmware,
+        effect_catalog=effect_capabilities.reference(reg,'nam'),
         installed_nam=state.get('nam'),route=route_guard.labels(fw33_profile.NAM_ROUTE,reg),
         controls=fw33_profile.NAMES, models_selectable=False,
         empty_foundation_scenes=1, existing_scenes=2,

@@ -5,7 +5,7 @@ import re
 from typing import Annotated, Literal
 from pydantic import Field, StrictBool, StrictInt, model_validator
 from . import planning, serial_build, route_guard, executor, scene_intent, amp_inventory, fw33_profile
-from . import cab_inventory,effect_voicing,wah_voicing
+from . import cab_inventory,effect_voicing,wah_voicing,effect_capabilities
 
 MODELS = amp_inventory.roster(fw33_profile.KEY)
 AmpName = Literal[tuple(MODELS.values())]
@@ -211,19 +211,21 @@ Return only the supplied schema. Explain limitations briefly in user language.
 
 
 def reference(reg):
+    ready=serial_build.supported(reg)
     return json.dumps(dict(firmware=reg.firmware, scene_counts=sorted(fw33_profile.ALBUM_SCENE_COUNTS), amp_channels='ABCD',
-        drive_executable=fw33_profile.DRIVE_RELEASED,
-        amp_exact_zero_executable=fw33_profile.AMP_ZERO_RELEASED,
-        tempo_none_executable=fw33_profile.TEMPO_NONE_RELEASED,
-        effect_exact_zero_executable=fw33_profile.FX_ZERO_RELEASED,
-        compressor_executable=effect_voicing.COMPRESSOR_RELEASED,geq_executable=effect_voicing.GEQ_RELEASED,
-        wah_executable=wah_voicing.RELEASED,
+        drive_executable=ready and fw33_profile.DRIVE_RELEASED,
+        amp_exact_zero_executable=ready and fw33_profile.AMP_ZERO_RELEASED,
+        tempo_none_executable=ready and fw33_profile.TEMPO_NONE_RELEASED,
+        effect_exact_zero_executable=ready and fw33_profile.FX_ZERO_RELEASED,
+        compressor_executable=ready and effect_voicing.COMPRESSOR_RELEASED,geq_executable=ready and effect_voicing.GEQ_RELEASED,
+        wah_executable=wah_voicing.reference(reg)['executable'],
+        effect_catalog=effect_capabilities.reference(reg,'amp'),
         wah_controller=wah_voicing.reference(reg),
         drive_notice='When false, omit Drive voicing and keep every scene drive flag false. A requested Drive remains an explicit unsupported requirement, not a silent substitution.',
-        models=list(MODELS.values()),
+        models=list(MODELS.values()) if ready else [],
         cabs=[[c['bank'],c['slot'],c['name']] for c in cab_inventory.choices(reg,include_fullres=True)],
         cab_format='Each entry is [wire bank, one-based slot, name]. FullRes bank6 only IR3/4. Names do not prove audible match.',
-        controls={f:reg.definitions[f] for f in ('DISTORT','OUTPUT','DELAY','CHORUS','CABINET','FUZZ','COMP','GEQ','WAH')},
+        controls={f:reg.definitions[f] for f in ('DISTORT','OUTPUT','DELAY','CHORUS','CABINET','FUZZ','COMP','GEQ','WAH')} if ready else {},
         route=route_guard.labels(serial_build.ROUTE,reg), output_db=-18,
         shared_effect_channels='Delay/Chorus A; optional T808 Mod, Modern VCA and10 Band Variable Q A-D follow Amp channel',
         reserve_effects_bypassed='All except explicitly voiced and requested released Drive/Compressor/GEQ profiles'))

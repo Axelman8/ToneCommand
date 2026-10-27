@@ -9,7 +9,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 
-from . import audio_safety, executor, models, route_guard,tone_design, scene_channels, scene_intent
+from . import audio_safety, executor, models, route_guard,tone_design, scene_channels, scene_intent,effect_capabilities
 
 Knob = Annotated[float, Field(ge=0, le=10, allow_inf_nan=False, strict=True)]
 Level = Annotated[float, Field(ge=-60, le=0, allow_inf_nan=False, strict=True)]
@@ -150,6 +150,7 @@ def reference(reg):
         chorus=dict(models=list(models.roster(reg, 'CHORUS', selectable=True).values()),
                     controls=chorus_controls),
         existing_effects=tone_design.reference(reg),
+        effect_catalog=effect_capabilities.reference(reg,'amp'),
         cabs=[dict(bank=b, slot=o+1, name=n, position=reg.cab_catalog.position(b,o))
               for (b,o),n in sorted(reg.cab_catalog.names.items())],
         safety=audio_safety.reference()), ensure_ascii=False)

@@ -7,6 +7,7 @@ import json
 import math
 from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
+from . import effect_capabilities
 
 
 class Goal(BaseModel):
@@ -17,7 +18,7 @@ class Goal(BaseModel):
     realization: Annotated[str, Field(min_length=3, max_length=600)]
     distinct_from: Annotated[list[Annotated[StrictInt, Field(ge=1, le=8)]], Field(max_length=7)] = []
     distinction: Literal['base_tone', 'effects', 'shared'] = 'shared'
-    required_features: Annotated[list[Literal['drive','compressor','post_eq','reverb','wah_controller','pitch']], Field(max_length=6)] = []
+    required_features: Annotated[list[effect_capabilities.Feature], Field(max_length=len(effect_capabilities.EFFECTS))] = []
 
 
 class IntentDesign(BaseModel):
@@ -38,9 +39,11 @@ tone. Never claim audible success. If the measured tools cannot represent a
 requested contrast, disclose that limitation, not an invented effect write.
 For listening adjustments preserve untargeted scene settings and preset name;
 check shared channels before changing them. Use only the supplied capabilities.
-List explicitly requested drive/compressor/post_eq/reverb/wah_controller/pitch in each
-goal's required_features. An unsupported requirement cannot silently disappear.
-'''
+List necessary effects from the effect_catalog in each goal's required_features.
+An unsupported requirement cannot silently disappear. Delay and Chorus count
+only with a nonzero wet mix; flat EQ or a pitch-level setter cannot satisfy a
+request for tone shaping or transposition.
+''' + '\n' + effect_capabilities.RULES
 
 
 class MissingFeature(ValueError):
@@ -142,14 +145,7 @@ def assess(plan, *, require=False):
     for goal in goals:
         sound=sounds[goal.scene-1]
         for feature in goal.required_features:
-            fx=sound['effects']
-            def active(name):
-                value=fx.get(name)
-                return bool(value) and (not isinstance(value,dict) or value.get('active'))
-            realized=dict(drive=active('drive'),compressor=active('compressor'),post_eq=active('geq') or active('peq'),
-                reverb=active('reverb'),wah_controller=bool(plan.get('controller') and
-                plan['controller'].get('source')) and active('wah'),pitch=False)
-            if not realized[feature]:
+            if not effect_capabilities.realized(feature, sound, plan.get('controller')):
                 raise MissingFeature(goal.scene, feature)
         if len(set(goal.distinct_from)) != len(goal.distinct_from):
             raise ValueError('Een scenevergelijking mag niet dubbel voorkomen.')
