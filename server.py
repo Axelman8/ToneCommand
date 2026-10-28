@@ -57,6 +57,63 @@ async def _lifespan(_app):
 
 app = FastAPI(title="FM9 Tone Control", lifespan=_lifespan)
 
+
+# --- who may talk to this server (#291) --------------------------------------
+#
+# The server listens on 127.0.0.1 only, but a browser decides where to send a
+# request by name, not address. A web page on a name its owner points at
+# 127.0.0.1 (DNS rebinding) would be same-origin with itself and reach every
+# route here, including the ones that write to the rig. Two checks close it:
+# the Host header must name this machine, and a state-changing request that
+# says where it comes from must come from this server's own page. A request
+# with no Origin (curl, the CLI, a script) is local by construction once its
+# Host is trusted, and is unchanged.
+#
+# Tests add Starlette's "testserver" here (tests/conftest.py).
+_TRUSTED_HOSTS = {"127.0.0.1", "localhost", "::1"}
+_SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+
+def _host_name(netloc: str) -> str:
+    """The name part of a Host header or an Origin's netloc, port dropped."""
+    netloc = netloc.strip().lower()
+    if netloc.startswith("["):                     # [::1]:8909
+        return netloc[1:netloc.find("]")] if "]" in netloc else ""
+    return netloc.rsplit(":", 1)[0] if netloc.count(":") == 1 else netloc
+
+
+class _LocalOnly:
+    """Refuse requests whose Host is not this machine, and cross-origin
+    writes. Pure ASGI, so the streaming routes pass through untouched."""
+
+    def __init__(self, app):
+        self.inner = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] in ("http", "websocket"):
+            headers = {k.decode("latin-1").lower(): v.decode("latin-1")
+                       for k, v in scope.get("headers", [])}
+            host = headers.get("host", "")
+            refusal = None
+            if _host_name(host) not in _TRUSTED_HOSTS:
+                refusal = "This server answers only to 127.0.0.1 or localhost."
+            elif (scope["type"] == "websocket"
+                  or scope.get("method", "GET") not in _SAFE_METHODS):
+                origin = headers.get("origin")
+                if origin is not None and origin.lower() not in (
+                        f"http://{host.lower()}", f"https://{host.lower()}"):
+                    refusal = "Cross-origin requests may not change anything here."
+            if refusal is not None:
+                if scope["type"] == "websocket":
+                    await send({"type": "websocket.close", "code": 1008})
+                    return
+                await JSONResponse({"error": refusal}, status_code=403)(scope, receive, send)
+                return
+        await self.inner(scope, receive, send)
+
+
+app.add_middleware(_LocalOnly)
+
 #: WARNING and above reach stderr even with no handler configured (Python's
 #: last-resort handler), which is exactly the bar: a failed action inside a
 #: hundred-change transmit was visible only in the browser, so diagnosing it
@@ -4615,6 +4672,15 @@ import os as _os
 
 GIG_SAFE_KINDS = {"set_scene"}
 _gig_mode = {"on": _os.environ.get("TONECOMMAND_GIG_MODE") == "1"}
+_GIG_SETTLE_SECONDS = 60
+_GIG_CAME_ON = ("GIG LOCK came on while this was waiting for the rig: "
+                "nothing was sent.")
+
+
+def _gig_came_on():
+    """#291: the refusal for a write that passed its Gig Lock check, then
+    waited for the device lock while Gig Lock was switched on."""
+    return JSONResponse({"error": _GIG_CAME_ON}, status_code=423)
 
 
 # Slot names change only when someone stores a preset, and a full sweep of
@@ -4930,6 +4996,8 @@ def api_sound_check(body: dict):
     if not any(r["lufs"] is not None for r in rows):
         return JSONResponse({"error": "nothing measurable: no capture was valid"}, status_code=409)
     with _lock:
+        if _gig_mode["on"]:
+            return _gig_came_on()
         try:
             return _sound_check_answer(get_fm9(), rows)
         except FM9NotFound:
@@ -4966,6 +5034,8 @@ def api_sound_check_remeasure(body: dict):
     recorder = _sound_check_recorder()
 
     with _lock:
+        if _gig_mode["on"]:
+            return _gig_came_on()
         try:
             fm9 = get_fm9()
             with routing.temporary(fm9, {routing.IN1_SOURCE: 1, routing.DIGITAL_SOURCE: 2}) as rt:
@@ -5061,6 +5131,8 @@ def api_tone_match(body: dict):
     except (tone_match.ToneMatchError, measure.MeasureError) as e:
         return JSONResponse({"error": str(e)}, status_code=409)
     with _lock:
+        if _gig_mode["on"]:
+            return _gig_came_on()
         try:
             knobs = _amp_knobs(get_fm9())
         except FM9NotFound:
@@ -5948,6 +6020,8 @@ def api_preset(body: PresetBody):
                       "changes are allowed during a performance."},
             status_code=423)
     with _lock:
+        if _gig_mode["on"]:
+            return _gig_came_on()
         try:
             fm9 = get_fm9()
             fm9.select_preset(body.number)
@@ -6122,6 +6196,8 @@ def api_level_adjust(body: dict):
             {"error": "not a level change; say e.g. \"turn everything down 5 dB\" "
                       "or \"scene 3 up 2\""}, status_code=400)
     with _lock:
+        if _gig_mode["on"]:
+            return _gig_came_on()
         try:
             fm9 = get_fm9()
             if not fm9.current_preset():
@@ -6181,6 +6257,8 @@ def api_copy_effects(body: CopyEffectsBody):
                       "it, which discards the edit buffer. Not while you play."},
             status_code=423)
     with _lock:
+        if _gig_mode["on"]:
+            return _gig_came_on()
         try:
             fm9 = get_fm9()
             target = fm9.current_preset()
@@ -6249,6 +6327,8 @@ def api_reorder(body: ReorderBody):
             {"error": "GIG MODE: reordering rewires the grid; not mid-set."},
             status_code=423)
     with _lock:
+        if _gig_mode["on"]:
+            return _gig_came_on()
         try:
             fm9 = get_fm9()
             if not fm9.current_preset():
@@ -6313,6 +6393,8 @@ def api_compose(body: ComposeBody):
                       "allow it, or set store=false to leave it in the buffer"},
             status_code=403)
     with _lock:
+        if _gig_mode["on"]:
+            return _gig_came_on()
         try:
             fm9 = get_fm9()
             # The rename in step 4 is gated and comes after two stores, so
@@ -6628,6 +6710,8 @@ def api_rename_slot(body: RenameBody):
             {"error": "GIG MODE: renaming stores the preset, which is a write "
                       "to flash. Not while you are playing."}, status_code=423)
     with _lock:
+        if _gig_mode["on"]:
+            return _gig_came_on()
         try:
             fm9 = get_fm9()
             # slotops.rename selects the slot before it renames, so the gate
@@ -6668,6 +6752,8 @@ def api_clear_slot(body: ClearBody):
             {"error": "GIG MODE: refusing to erase a preset while you are "
                       "playing."}, status_code=423)
     with _lock:
+        if _gig_mode["on"]:
+            return _gig_came_on()
         try:
             fm9 = get_fm9()
             # slotops.clear selects the slot and then empties the grid,
@@ -6749,6 +6835,8 @@ def api_build_scratch(body: ScratchBody):
                       "and discards the edit buffer. Not while you are playing."},
             status_code=423)
     with _lock:
+        if _gig_mode["on"]:
+            return _gig_came_on()
         try:
             # get_fm9() hands back an already-open device, the way every other
             # route uses it. Wrapping it in `with` re-enters the context and
@@ -6790,6 +6878,8 @@ def api_new_preset(body: ScratchBody):
                       "discards the edit buffer. Not while you are playing."},
             status_code=423)
     with _lock:
+        if _gig_mode["on"]:
+            return _gig_came_on()
         try:
             fm9 = get_fm9()
             require_capability(fm9, "place_block", "connect_cells")
@@ -6898,6 +6988,9 @@ def api_health_stream():
                           "stage is exactly what gig mode exists to prevent.")
             return
         with _lock:
+            if _gig_mode["on"]:
+                emit("error", _GIG_CAME_ON)
+                return
             try:
                 res = health.scan(
                     get_fm9(), reg,
@@ -6981,9 +7074,22 @@ def api_shared_sweep():
 
 @app.post("/api/gig")
 def api_gig(body: dict):
-    """Performance lockout: while on, only scene changes reach hardware."""
+    """Performance lockout: while on, only scene changes reach hardware.
+
+    #291: the flag is set first, so nothing new starts, and then the answer
+    waits for the write already holding the device lock. "on" must mean
+    nothing is being sent, not that nothing new will be. Requests that passed
+    their own check and were queued behind that write re-check under the lock
+    and refuse. `settled` is false only if the write in progress outlasts the
+    wait; the lock is on either way.
+    """
     _gig_mode["on"] = bool(body.get("on"))
-    return {"gig_mode": _gig_mode["on"]}
+    settled = True
+    if _gig_mode["on"]:
+        settled = _lock.acquire(timeout=_GIG_SETTLE_SECONDS)
+        if settled:
+            _lock.release()
+    return {"gig_mode": _gig_mode["on"], "settled": settled}
 
 
 class DesignBody(BaseModel):
@@ -8398,6 +8504,8 @@ def _apply_for(body: ApplyBody, on_step=None):
                           f"when the set ends."},
                 status_code=423)
     with _lock:
+        if _gig_mode["on"] and any(a.kind not in GIG_SAFE_KINDS for a in body.actions):
+            return _gig_came_on()
         try:
             fm9 = get_fm9()
             # Every gate this plan will need, checked BEFORE the undo
