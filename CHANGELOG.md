@@ -4,6 +4,11 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Name exact previously observed firmware responses in the shared read-only
+  adapter without enabling writes. Unknown97.00 responses remain unidentified.
+- Add an offline Axe-Edit/TC preset-name comparison tool that preserves leading
+  and trailing spaces and reports only counts/slot indices, never public names.
+
 - Record the verified1.6.2 source/installation checkpoint and distinguish
   completed source work from remaining firmware, player and upstream gates.
 

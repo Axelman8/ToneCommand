@@ -78,6 +78,38 @@ def test_exact_allowed_reads(function, payload):
     assert p.allowed(p.envelope(function, payload))
 
 
+def test_known_full_firmware_responses_get_labels_without_write_authority():
+    from devices.axefx3 import firmware_identity,fw33_profile
+    from tests.test_axefx3_firmware_identity import BETA5
+    unknown=list(BETA5);unknown[12]^=1;unknown[-1]=shared.checksum(unknown[:-1])
+    for reply,label in ((fw33_profile.IDENTITY,fw33_profile.KEY),(BETA5,firmware_identity.BETA5_KEY),
+                        (unknown,'97.00'),(p.envelope(8,[97,0])[1:-1],'97.00')):
+        ports=FakePorts();answer=ports.answer
+        ports.reply=lambda frame,r=reply: [r] if frame[5]==8 else answer(frame)
+        dev=AxeFxIII((ports.inp,ports.outp))
+        try:
+            assert dev.firmware_label()==label
+            assert all(p.allowed(frame) for frame in ports.sent)
+            assert ReadOnlyRegistry().params=={}
+            assert not dev.capabilities().can_rename and not dev.capabilities().can_verify
+            with pytest.raises((ReadOnly,BrickGuardRefusal)):
+                dev._send(p.envelope(1,[9,0]+[0]*13))
+        finally:dev.close()
+
+
+def test_readonly_firmware_label_ignores_a_delayed_cursor_reply():
+    from tests.test_axefx3_firmware_identity import BETA5
+    from devices.axefx3 import firmware_identity
+    ports=FakePorts();answer=ports.answer
+    ports.reply=lambda frame: [p.envelope(1,[48,0]+[0]*13)[1:-1],BETA5] if frame[5]==8 else answer(frame)
+    dev=AxeFxIII((ports.inp,ports.outp))
+    try:
+        before=len(ports.sent)
+        assert dev.firmware_label()==firmware_identity.BETA5_KEY
+        assert ports.sent[before:]==[p.envelope(8,[])]
+    finally:dev.close()
+
+
 @pytest.mark.parametrize("function,payload", [
     (1, [0x10, 0, 58, 0, 1, 0]), (1, [9, 0] + [0] * 13),
     (0x1F, [58, 0]), (0x0A, [58, 0, 0]), (0x0A, [58, 0, 1]),

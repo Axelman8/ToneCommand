@@ -149,8 +149,9 @@ class AxeFxIII:
         return None
 
     def firmware_label(self):
-        got = self._request(8, [], lambda d: d[5:7] if len(d) >= 8 else None)
-        return f"{got[0]}.{got[1]:02d}" if got else ""
+        from .firmware_identity import identify
+        got = self._request(8, [], lambda d: tuple(d) if len(d) >= 8 else None)
+        return (identify(got) or f"{got[5]}.{got[6]:02d}") if got else ""
 
     def current_preset(self):
         def parse(data):

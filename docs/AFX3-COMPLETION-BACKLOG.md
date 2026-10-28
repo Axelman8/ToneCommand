@@ -2,6 +2,25 @@
 
 ## Current master plan and GitHub audit, 2026-10-28
 
+### Later hardware continuation: read-only identification and names
+
+Fresh power/external-mute/desktop confirmation was received after the source
+checkpoint below. The full initial327 observation exactly matched the earlier
+Amp/Pitch fixture; it was recorded before editor preparation reloaded that
+disposable edit buffer. No Store or changes to reference326/328 were performed.
+
+Independent Axe-Edit1.15.02 export/native comparison now covers all1024 MK2
+name addresses, including every upper slot512..1023. Exact matches:1022 total,
+511 upper. Two names differ only by an initial space omitted in the editor
+export. Raw names remain unchanged and the checker reports the differences;
+this is not a claim of1024 exact matches. Full post-scan state preservation
+passed. See [the qualified read-only record](AXEFX3-READONLY.md).
+
+Known full-response firmware labels now reach the shared read-only interface
+without broadening its output guard. Unknown97.00 is still unknown. These H/I
+steps do not complete Beta5 parameter-family, MK1/Turbo or physical-sound
+acceptance; J-W work and the external review/player gates remain separate.
+
 ### Verified execution checkpoint
 
 B/C is complete for the maintained source. Historical GitHub instructions
