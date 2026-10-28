@@ -47,7 +47,7 @@ def source_keys(root=ROOT):
             parser = Markup()
             parser.feed((root / page).read_text(encoding='utf-8'))
             keys.update(parser.keys)
-    for script in ('ui/languages/tc-language.js', 'ui/axefx3.js', 'ui/controllers.js'):
+    for script in ('ui/languages/tc-language.js', 'ui/axefx3.js', 'ui/controllers.js', 'ui/axefx3-reviewed-edit.js'):
         if not (root / script).exists():
             continue
         source = (root / script).read_text(encoding='utf-8')
