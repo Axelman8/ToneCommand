@@ -2,6 +2,47 @@
 
 ## Current master plan and GitHub audit, 2026-10-28
 
+### Verified execution checkpoint
+
+B/C is complete for the maintained source. Historical GitHub instructions
+and old downloads have visible warnings and current-source links; original
+content, release tags/assets and accepted technical evidence remain preserved.
+
+D source integration is complete at
+[`2ac8f5f`](https://github.com/Axelman8/ToneCommand/commit/2ac8f5fbbdc4be2416c205142ab5fa11b716060c),
+reconciling upstream1.6.2 at4d81851. The maintained branch was fast-forwarded
+to that exact tested tree and pushed. Final results on that source:6,960
+passed/19 skipped,778 mandatory/targeted passed, one informational Windows
+read-only USB enumeration warning. A fresh Windows CMD installation passed
+its437 bootstrap checks/1 skip,169 installed checks, installed1.6.2 version
+and resource smoke, and four mocked Chrome flows. Six additional actual
+served-page checks verified the version/report fallback without JavaScript
+at1440/390px. This is same-Windows software/installation acceptance, not a new
+hardware, audio, other-machine or remote CI acceptance claim.
+
+E now has native Settings language dropdowns in shared and workspace pages,
+bundled EN/NL/DE, correct support links and script-free reports/version text.
+The remaining shared write-workflow integration and player UX acceptance are
+not declared complete. The two focused drafts289/290 are unchanged and remain
+under upstream review; no draft was automatically approved or merged.
+
+H-W were checked against the retained code and evidence. The75 older parameter
+definitions survive in the earlier measured FW33 profile; definitions do not
+prove complete workflows. Current Beta5 general writes remain blocked. Its
+closed Gain/Mid fixture and existing-block Pitch proof do not approve the
+other parameter/model/CAB/routing/controller/NAM/Store families. Accepted
+older firmware tests are preserved rather than relabeled as Beta5 tests.
+
+Next: obtain fresh unit-on/external-mute/desktop confirmation before native
+continuation, then J's firmware-family checks and dependent K-W acceptance.
+I's independent512-name comparison also remains open. F/G upstream review,
+MK1/Turbo hardware, physical pedal direction and listening require their
+respective owners. No new unit writes, Store, NAM installation, runtime
+deployment or release occurred in this source-integration checkpoint.
+
+The source-preparation and initial-audit notes below are historical checkpoints
+where they differ from this verified execution status.
+
 This is the single execution ledger for the maintained FX3 work. The older
 seventeen-item table below is historical, profile-specific evidence, not a
 claim that today's Beta5 app or MK1 supports every listed operation. Keep
@@ -102,7 +143,7 @@ No calendar deadline is promised before firmware and external-test gates pass.
 | A | Consolidate messages and evidence: DONE |None |Every relevant request has a source, status and owner in this ledger. Recheck for new replies before the next upstream handoff. |
 | B | Unofficial branding and support: DONE at c593393 |A |All shipped test entry points, page titles, headers, favicons, controller/FX3 pages and previews are unmistakably Unofficial, contain no TC logo/wordmark styling, and link to the fork's own issue tracker. Retain legal attribution. Browser/resource tests cover every entry; no hardware needed. |
 | C | One maintained source and clear download/start instructions: DONE for current source |B |One launcher/dependency set; exact source/version visible. Update current guidance in270/issue1 and distinguish source checkout from historical ZIPs. Do not overwrite old tags/assets or the tester's changes. No hardware needed. |
-| D | Reconcile current upstream foundation: IN VALIDATION |C |Controlled integration of current main, not a second app. Preserve accepted FX3 features/profile evidence and upstream FM9 behavior. Resolve source conflicts, rerun regressions, update the foundation manifest honestly. No hardware for source work; hardware acceptance stays separate. |
+| D | Reconcile current upstream foundation: DONE at2ac8f5f, source scope |C |Controlled integration of current main, not a second app. Preserve accepted FX3 features/profile evidence and upstream FM9 behavior. Resolve source conflicts, rerun regressions, update the foundation manifest honestly. No hardware for source work; hardware acceptance stays separate. |
 | E | Shared minimal UX, localization and diagnostics: PARTIAL |D |Use the existing Settings Language dropdown and request/conversation/review stages. Hide unavailable devices; show chassis only when relevant. New UI text uses bundled packs, retaining protected English confirmations/technical identifiers and untranslated user/AI/device content. Problem reports work on III and on script-load failure, send users to the correct issue tracker, and exclude secrets. Browser/installed-resource tests pass. |
 | F | Internal reviewed-edit bridge,289: REVIEW |A |Address actual review comments, preserve exact-frame/single-use/expiry/state gates, CI passes on the final head. Monzta1 decides upstream acceptance. No automatic merge. |
 | G | Existing REVIEW/CONFIRM/SEND route/UI wiring,290: REVIEW |F |Reconcile after289 lands. Player clicks SEND; no accidental scene sweep, false Undo/tone-check claims or second MIDI owner. Capability-route table, language packs and script-free reports tested. Monzta1 review plus final native acceptance. |

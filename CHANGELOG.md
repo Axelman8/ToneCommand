@@ -4,6 +4,9 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Record the verified1.6.2 source/installation checkpoint and distinguish
+  completed source work from remaining firmware, player and upstream gates.
+
 - Reconcile upstream1.6.2 with the full Unofficial fork. Preserve the measured
   workspace adapter and isolate upstream's basic read-only interface, declared
   chassis capacity and closed name/Amp components behind explicit imports.
