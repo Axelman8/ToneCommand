@@ -51,9 +51,10 @@ shape but explicitly says `undo_available=False` and `stored=False`.
 
 ## Required work before activation
 
-1. Obtain review of the underlying writer contributions, including the real
-   unused-modifier finding in #287. This preparation is independently based
-   on v1.6.2; it does not silently include that pending change or #288.
+1. The underlying writer contributions, including the unused-modifier finding
+   in #287, and the separate factual catalog #288 are now merged upstream.
+   This bridge includes current main `4d81851` (v1.6.2 plus both follow-ups).
+   That review does not make this bridge hardware-accepted or promote Beta 5.
 2. Choose an explicit experimental host connection/opt-in policy. Do not
    construct two MIDI owners or flip general `can_rename`/`verifies_writes`
    merely to bypass the existing capability gate.
@@ -77,3 +78,14 @@ writers, strict phase/target/mute/revision/replay/concurrency tests, and a
 hermetic TestClient sequence. The test-only HTTP routes are not the normal
 server and do not prove the production UI or physical device pipeline works.
 Historical writer acceptance is not acceptance of this new host bridge.
+
+## Review boundary agreed with upstream
+
+The bridge and production route/UI wiring are separate drafts, as requested
+in the roadmap discussion. This draft is the bridge only. Its programmatic
+`send` method is a host boundary, not an automatic-send product feature.
+The later UI contribution must require the player's explicit SEND click,
+reuse the existing stages and language packs, cover new routes in capability
+tests, and retain Report a problem for the III even if the main page fails.
+Only one owner may hold MIDI. No alternative GUI, installer, release build,
+logo change or ordinary application write capability is part of this draft.

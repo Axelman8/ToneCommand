@@ -223,7 +223,10 @@ class AmpWriter(AxeFxIII):
         amp = self._bulk(58)
         modifiers = [self._bulk(eid) for eid in range(3, 35)]
         shown = self._display(edit.pid)
-        if (amp is None or any(w is None or w[0] != 0 or w[8:10] != [0, 0] for w in modifiers)
+        # An unused record may retain its old parameter number after Axe-Edit
+        # clears a preset. No source and no target effect are required; every
+        # word, including that residual number, must still survive unchanged.
+        if (amp is None or any(w is None or w[0] != 0 or w[8] != 0 for w in modifiers)
                 or shown is None or not 0 <= shown <= 10
                 or abs(amp[edit.pid] / 65534 * 10 - shown) > .011):
             raise ReadOnly('Complete Amp words, 32 inactive unassigned modifiers and coherent display read required')
