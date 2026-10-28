@@ -4,6 +4,22 @@
 
 ### Later continuation: targeted Beta5 Amp measurements and CI repair
 
+The CI-repair source atd9a0704 passed the full6,980 tests/19 skips plus156
+mandatory/targeted tests and the full mocked FX3 Chrome workflow. The later
+capability correction also declines advertised renaming on unverified builds;
+its targeted and per-head CI results must be recorded separately. No write
+guard, firmware allowlist or memory policy is expanded.
+
+The K model scan stopped when Windows lost its accessible foreground and
+screen capture. Four editor model choices were captured, then independently
+replayed through a private literal-only native probe with full preservation
+of other channels/grid/modifiers and a final exact model4 baseline match.
+This is not a complete336-model scan. Fresh post-native editor comparison
+is pending restored desktop access. Axe-Edit was closed normally without Save
+after freshly checking the isolated, bypassed327 fixture. No forced close,
+desktop-security workaround, Store or reference326/328 change occurred.
+Current327 is an unsaved, disconnected model4 Amp fixture, not a tone preset.
+
 The H/I source checkpoint at7c0d2b6 passed6,980 tests/19 skips and379
 mandatory/targeted checks on this Windows host. The one USB-enumeration
 warning is informational. This is not a claim that remote CI is green.

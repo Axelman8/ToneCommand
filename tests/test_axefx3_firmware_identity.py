@@ -112,8 +112,9 @@ def test_adapter_read_only_connect_does_not_send_a_set(reply, expected):
     dev = AxeFxIII((ports,ports))
     try:
         assert dev.firmware_label() == expected and dev.reg.firmware == expected
-        if expected == firmware_identity.BETA5_KEY:
+        if expected in (firmware_identity.BETA5_KEY, '97.00'):
             assert not dev.capabilities().verifies_writes
+            assert not dev.capabilities().can_rename
             with pytest.raises((ValueError,PermissionError)):
                 with dev.edit_session(external_audio_muted=True,expected_preset=327):
                     raise AssertionError('Unverified Beta 5 must not enter an edit session')

@@ -4,6 +4,9 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Do not advertise renaming from an unverified full-workspace firmware
+  connection. Readable scenes and known build labels grant no write capability.
+
 - Record sixteen isolated Beta5 Amp literal tests with independent display,
   full-state preservation, restoration and editor checks. Keep normal Beta5
   parameter writing blocked until its own reviewed implementation is verified.

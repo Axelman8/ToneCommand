@@ -64,7 +64,7 @@ class AxeFxIII:
             verified=verified and fw33.runtime_write_error(self) is None
         return Capabilities(read_path=ReadPath.DEVICE, reads_slot_names=True,
                             verifies_writes=verified,
-                            has_scenes=True, can_rename=True)
+                            has_scenes=True, can_rename=verified)
 
     def close(self):
         try:
