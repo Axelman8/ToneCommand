@@ -4,6 +4,16 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Record all336 Beta5 Amp selector literals with native full-state readback
+  and exact final restoration. Final post-native editor acceptance and a normal
+  reviewed model writer remain separate; no Beta5 capability is enabled.
+
+- Reconcile the prepared reviewed-edit bridge with this fork's explicit
+  read-only namespace and shared stages. It stays disabled by default and
+  retains its old measured MK2 firmware pin; Beta5 is not enabled. Preserve
+  New Design guards, pin the new script in launcher identity, bundle the added
+  EN/NL/DE labels and require a real loopback browser origin for its POSTs.
+
 - Do not advertise renaming from an unverified full-workspace firmware
   connection. Readable scenes and known build labels grant no write capability.
 
@@ -720,11 +730,21 @@ Notable changes to ToneCommand. Dates are UTC.
   Windows account cannot create symlinks. All other OS errors still fail;
   the production path containment rule is unchanged.
 ### Added
+- Add an explicitly opt-in, single Gain/Mid edit through the existing
+  REVIEW/CONFIRM/SEND screens. The measured MK2 writer retains its exact
+  firmware pin, shared-channel warning, explicit external-mute confirmation,
+  one-use expiry and independent verification. No automatic SEND, planner
+  writes, current Beta 5 promotion, Store or automatic Undo is enabled.
+- Prepare an unregistered Axe-Fx III single-edit review/confirm/send bridge
+  for explicit developer composition. Names and bounded Gain/Mid only; no
+  production route, GUI activation, general capability or hardware release.
 - Bundle the exact FW33 Axe-Fx III Amp model names/ordinals as a validated,
   offline reference catalog. No model selector, app/planner write capability,
   live discovery, firmware/chassis promotion or account workflow is enabled.
 
 ### Fixed
+- Keep one-edit Axe-Fx III proposals out of the automatic shared-scene
+  sweep. Their plan banner no longer promises Undo or a musical tone check.
 - Let the developer-only Axe-Fx III Amp writer inspect unused modifier
   records with a residual parameter number after an editor preset clear.
   Source and target effect must both be zero; all 25 words remain preserved

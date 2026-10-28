@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "catalog_version": "1.6.2-lang.1",
-  "catalog_sha256": "5a117887328779926d5568c886d046be4356f713e7039fda245e24a7554228ed",
+  "catalog_version": "1.6.2-lang.2",
+  "catalog_sha256": "519616594825d5859893b37d4caabe6b469a36b201cfb94705f72cda59b66e17",
   "locale": "de",
   "name": "Deutsch",
   "coverage": "Core request, Settings and navigation labels; untranslated and protected text stays English.",
@@ -178,6 +178,16 @@
     "which device this build is for": "Für welches Gerät dieser Entwurf bestimmt ist",
     "the version running": "Die laufende Version",
     "Missing translations stay English. Preset names, AI replies and technical identifiers are unchanged.": "Fehlende Übersetzungen bleiben Englisch. Presetnamen, KI-Antworten und technische Kennungen bleiben unverändert.",
-    "Interface language changed. Existing plans and unsent input are unchanged.": "Oberflächensprache geändert. Bestehende Pläne und noch nicht gesendete Eingaben bleiben unverändert."
+    "Interface language changed. Existing plans and unsent input are unchanged.": "Oberflächensprache geändert. Bestehende Pläne und noch nicht gesendete Eingaben bleiben unverändert.",
+    "Control": "Regler",
+    "Gain": "Gain",
+    "Mid": "Mitten",
+    "Back to live context": "Zurück zum aktuellen Status",
+    "Proposal ready. Nothing has been sent.": "Vorschlag bereit. Es wurde nichts gesendet.",
+    "The value already matched. No write was needed.": "Der Wert stimmte bereits überein. Keine Änderung war erforderlich.",
+    "Axe-Fx III edit verified": "Axe-Fx III-Anpassung geprüft",
+    "One Amp 1/channel A change": "Eine Änderung an Amp 1/Kanal A",
+    "Channel A; shared scenes may change": "Kanal A; gemeinsame Szenen können sich ändern",
+    "Other scenes sharing Amp channel A may change.": "Andere Szenen mit Amp-Kanal A können sich ändern."
   }
 }

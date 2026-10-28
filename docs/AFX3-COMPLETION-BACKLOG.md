@@ -2,6 +2,33 @@
 
 ## Current master plan and GitHub audit, 2026-10-28
 
+### Shared reviewed-edit integration candidate
+
+The prepared289/290 code is being reconciled into this fork, not merged into
+upstream. Default connections stay read-only. The opt-in manual Gain/Mid
+writer keeps its earlier exact MK2 pin and refuses Beta5. Namespace mapping,
+source identity for its script, in-flight New Design protection, loopback
+origin checks and bundled labels are included. Initial route/workflow checks
+passed208 and expanded targeted checks264. Final mandatory/changed checks
+passed342; the complete suite passed7,202 with19 skips and one informational
+Windows USB-enumeration warning. Real Chrome mocked read-only, capacity and
+reviewed-edit flows passed. The registered API was also tested on the native
+Beta5 connection: default mode refused preparation without additional traffic,
+and explicit opt-in refused the unmatched identity using GETs only. Full state
+was unchanged. This is negative acceptance, not a successful Beta5 write.
+Installed-candidate and exact-head remote results remain separate gates. Existing
+completed source at e8daacb has all16 actual remote checks successful and a
+fresh Windows CMD install:437 bootstrap/1 skip,171 installed,39 extra checks,
+five browser flows. Its earlier full6,980/19 and later313 targeted results are
+separate from this new integration candidate.
+
+See [the explicit capability matrix](AFX3-CAPABILITY-MATRIX.md). H-W remain
+operation-specific, and F/G upstream review is still external. A known
+remaining UX constraint is the host's retained normal-plan revision cache:
+it is not an active-plan lifecycle, so experimental preparation can remain
+blocked after a normal plan. Do not clear authorization history to hide that
+constraint; design a separately reviewed connection-bound invalidation flow.
+
 ### Later continuation: targeted Beta5 Amp measurements and CI repair
 
 The CI-repair source atd9a0704 passed the full6,980 tests/19 skips plus156
@@ -10,15 +37,18 @@ capability correction also declines advertised renaming on unverified builds;
 its targeted and per-head CI results must be recorded separately. No write
 guard, firmware allowlist or memory policy is expanded.
 
-The K model scan stopped when Windows lost its accessible foreground and
-screen capture. Four editor model choices were captured, then independently
-replayed through a private literal-only native probe with full preservation
-of other channels/grid/modifiers and a final exact model4 baseline match.
-This is not a complete336-model scan. Fresh post-native editor comparison
-is pending restored desktop access. Axe-Edit was closed normally without Save
-after freshly checking the isolated, bypassed327 fixture. No forced close,
-desktop-security workaround, Store or reference326/328 change occurred.
-Current327 is an unsaved, disconnected model4 Amp fixture, not a tone preset.
+The K model scan subsequently completed all336 editor selections after two
+desktop interruptions. All336 independently captured selector literals were
+then replayed through a separate private native probe. Fresh independent
+queries, repeated full-state reads and preservation of other channels, grid,
+modifiers, controller bulks and names passed at every step. Exactly336 native
+model SETs were sent without retry; final model0 matched the complete baseline.
+The quiet -12dB level and bypass state were preserved throughout. The final
+fresh post-native editor comparison is still pending restored desktop access.
+The earlier editor had closed normally without Save after a fresh fixture
+check. No forced close, desktop-security workaround, Store or reference326/328
+change occurred. Current327 is an unsaved, disconnected model0 Amp fixture,
+not a tone preset. These measurements do not enable the normal Beta5 planner.
 
 The H/I source checkpoint at7c0d2b6 passed6,980 tests/19 skips and379
 mandatory/targeted checks on this Windows host. The one USB-enumeration

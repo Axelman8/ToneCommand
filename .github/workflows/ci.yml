@@ -162,6 +162,10 @@ jobs:
       - name: Install headless Chromium
         run: "$RUNNER_TEMP/tc-browser/node_modules/.bin/playwright install --with-deps chromium"
       - name: Exercise FX3 review, confirmation and send GUI offline
-        run: node tests/axefx3_ui.browser.cjs
+        run: |
+          node tests/axefx3_ui.browser.cjs
+          node tests/axefx3_readonly.browser.cjs
+          node tests/axefx3_capacity.browser.cjs
+          node tests/axefx3_reviewed_edit.browser.cjs
         env:
           TC_PLAYWRIGHT_MODULE: ${{ runner.temp }}/tc-browser/node_modules/playwright

@@ -1,5 +1,13 @@
 # FX3 adapter FW33/NAM port
 
+## Profile warning, 28 October 2026
+
+The acceptance below is retained evidence for the earlier exact
+`33.00-beta.20261006` profile, not a current Beta5 feature list. See the
+[capability matrix](AFX3-CAPABILITY-MATRIX.md) and
+[Beta5 migration](AFX3-FW33-BETA5.md) before testing a newer build.
+No older successful test is removed or silently promoted to another firmware.
+
 ## Current acceptance, 2026-10-18
 
 The sections below record successive historical checkpoints, not a single

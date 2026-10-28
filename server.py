@@ -259,9 +259,10 @@ def _build_context(kind: str, *, axefx3_chassis=None) -> DeviceContext:
     if kind == "fm9":
         return _default_context
     if kind == "axefx3":
-        from devices.axefx3.readonly_adapter import AxeFxIII, ReadOnlyRegistry
+        from devices.axefx3.readonly_adapter import ReadOnlyRegistry
+        from devices.axefx3.edit_routes import connect as connect_reviewed_iii
         chassis = axefx3_chassis or _axefx3_chassis['value']
-        return DeviceContext(kind, ReadOnlyRegistry(), AxeFxIII(chassis=chassis), DEVICE_KINDS[kind])
+        return DeviceContext(kind, ReadOnlyRegistry(), connect_reviewed_iii(chassis), DEVICE_KINDS[kind])
     if kind == "headrush":
         from devices.headrush import registry as hr_registry
         from devices.headrush.adapter import HeadrushAdapter
@@ -8769,5 +8770,9 @@ def api_plan_revise(body: ApplyBody):
 # uvicorn, and a route defined below this line would never be registered
 # (found 2026-10-08: /api/plan/revise answered 404, so a re-reviewed plan
 # could not be sent from a server started that way).
+import sys as _edit_sys
+from devices.axefx3.edit_routes import register as _register_reviewed_iii
+_afx3_edit_workflow = _register_reviewed_iii(app, _edit_sys.modules[__name__])
+
 if __name__ == "__main__":
     main()

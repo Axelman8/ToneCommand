@@ -11,7 +11,7 @@ import tomllib
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '1.6.2-lang.1'
+VERSION = '1.6.2-lang.2'
 ASSETS = ('en.json', 'template.json', 'manifest.json')
 LOCALE_FILE = re.compile(r'([a-z]{2,3}(?:-[A-Z]{2})?)\.json\Z')
 PROTECTED = re.compile(r'\b(mute[ds]?|overwrite|permanent|firmware|safety|never|read.only|limiter|confirmation|readback|unsaved|discard|reviewed)\b|\bI confirm\b', re.I)
@@ -49,7 +49,7 @@ def source_keys(root=ROOT):
             parser = Markup()
             parser.feed((root / page).read_text(encoding='utf-8'))
             keys.update(parser.keys)
-    for script in ('ui/languages/tc-language.js', 'ui/axefx3.js', 'ui/controllers.js'):
+    for script in ('ui/languages/tc-language.js', 'ui/axefx3.js', 'ui/controllers.js', 'ui/axefx3-reviewed-edit.js'):
         if not (root / script).exists():
             continue
         source = (root / script).read_text(encoding='utf-8')

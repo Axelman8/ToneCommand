@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "catalog_version": "1.6.2-lang.1",
-  "catalog_sha256": "5a117887328779926d5568c886d046be4356f713e7039fda245e24a7554228ed",
+  "catalog_version": "1.6.2-lang.2",
+  "catalog_sha256": "519616594825d5859893b37d4caabe6b469a36b201cfb94705f72cda59b66e17",
   "locale": "nl",
   "name": "Nederlands",
   "coverage": "Core request, Settings and navigation labels; untranslated and protected text stays English.",
@@ -178,6 +178,16 @@
     "which device this build is for": "voor welk apparaat dit ontwerp is",
     "the version running": "de actieve versie",
     "Missing translations stay English. Preset names, AI replies and technical identifiers are unchanged.": "Ontbrekende vertalingen blijven Engels. Presetnamen, AI-antwoorden en technische identifiers blijven ongewijzigd.",
-    "Interface language changed. Existing plans and unsent input are unchanged.": "Interfacetaal gewijzigd. Bestaande plannen en niet-verstuurde invoer zijn ongewijzigd."
+    "Interface language changed. Existing plans and unsent input are unchanged.": "Interfacetaal gewijzigd. Bestaande plannen en niet-verstuurde invoer zijn ongewijzigd.",
+    "Control": "Regelaar",
+    "Gain": "Gain",
+    "Mid": "Midden",
+    "Back to live context": "Terug naar actuele status",
+    "Proposal ready. Nothing has been sent.": "Voorstel gereed. Er is niets verstuurd.",
+    "The value already matched. No write was needed.": "De waarde was al gelijk. Er hoefde niets te worden gewijzigd.",
+    "Axe-Fx III edit verified": "Axe-Fx III-aanpassing gecontroleerd",
+    "One Amp 1/channel A change": "Eén aanpassing van Amp 1/kanaal A",
+    "Channel A; shared scenes may change": "Kanaal A; gedeelde scenes kunnen veranderen",
+    "Other scenes sharing Amp channel A may change.": "Andere scenes met Amp-kanaal A kunnen veranderen."
   }
 }

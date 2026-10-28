@@ -51,6 +51,34 @@ under the unchanged shared SysEx guard, not a profile override or production
 guard relaxation. Other preliminary inspection/schema refusals also sent no
 parameter SET. Private captures, state dumps and screenshots remain local.
 
+## All336 model selector literals
+
+The independent editor scan subsequently selected every model in the current
+336-name catalog, in the recorded order1..335 followed by0. Two interrupted
+sessions were retained and continued only after desktop access returned. Every
+chosen model was checked against the editor's displayed name. Passive capture
+contains outgoing editor traffic only, not device readback.
+
+A separate native closed-literal probe validated all336 captured selector
+frames before opening MIDI. It sent exactly336 model SETs, each once, with
+Amp1/A bypassed and disconnected on327. Fresh identity and full-state checks
+preceded each SET. Independent level queries and settled, repeated bulk reads
+followed it. Model reset changes were confined to the addressed A-channel
+words; every other Amp channel, grid/status, complete modifier record,
+controller bulk and scene name stayed unchanged. Level remained -12dB. The
+last model0 observation exactly matched the complete baseline, and ports
+closed normally. No Store, other preset, global or shared-memory write occurred.
+
+The final fresh post-native Axe-Edit comparison remains pending because the
+Windows foreground/screenshot became unavailable again. This is completed
+native literal evidence, not completed model-family app acceptance. Neither
+the normal Beta5 writer nor MK1/Turbo selector support is enabled by this scan.
+
+The shared reviewed-edit API also received native negative acceptance on
+this build: disabled-by-default preparation sent nothing, while explicit
+opt-in rejected the unmatched firmware using GETs only. Complete before/after
+state matched. This confirms refusal, not a successful parameter write.
+
 ## What remains before normal app support
 
 Review and implement a bounded family-specific component with software refusal,
