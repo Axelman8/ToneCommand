@@ -294,6 +294,13 @@ def _table(sim) -> list[dict]:
     rows = [
         ("GET", "/", {}, None, None),
         ("GET", "/logo.png", {}, None, None),
+        ("GET", "/axefx3-reviewed-edit.js", {}, None, None),
+        ("GET", "/api/axefx3/edit/state", {}, None, None),
+        ("POST", "/api/axefx3/edit/discard", {}, None, None),
+        ("POST", "/api/axefx3/edit/prepare", {}, {"actions": [{"kind":"set_param","block":"amp","param":"DISTORT_DRIVE","value":3.3}], "expected_preset":320,"expected_scene":1}, None),
+        ("POST", "/api/axefx3/edit/review", {}, {"actions": [{"kind":"set_param","block":"amp","param":"DISTORT_DRIVE","value":3.3}], "expected_preset":320,"expected_scene":1,"token":"x","plan_digest":"x"}, None),
+        ("POST", "/api/axefx3/edit/confirm", {}, {"actions": [{"kind":"set_param","block":"amp","param":"DISTORT_DRIVE","value":3.3}], "expected_preset":320,"expected_scene":1,"token":"x","plan_digest":"x","target_confirmed":True,"external_audio_muted":True}, None),
+        ("POST", "/api/axefx3/edit/send", {}, {"actions": [{"kind":"set_param","block":"amp","param":"DISTORT_DRIVE","value":3.3}], "expected_preset":320,"expected_scene":1,"token":"x","plan_digest":"x","target_confirmed":True,"external_audio_muted":True}, None),
         ("GET", "/report", {}, None, None),
         ("POST", "/report", {}, None, None),
         ("GET", "/language/{asset}", {"asset": "en.json"}, None, None),

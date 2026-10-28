@@ -3780,6 +3780,8 @@
         <div class="cblast" id="cblast"></div>
         <label class="cack"><input type="checkbox" id="ack">
           <span id="acklabel">I reviewed the target and affected scenes</span></label>
+        <label class="cack" id="afx3mutewrap" hidden><input type="checkbox" id="afx3muted">
+          <span>My external audio is fully muted and will remain muted while sending. TC has no physical volume limiter.</span></label>
         <div class="stagefoot">
           <button id="backreview">BACK TO REVIEW</button>
           <span class="spacer"></span>
@@ -3930,6 +3932,16 @@
           This sets the preset-name read range for this session. It does not detect
           your hardware or enable sound editing, Store, NAM or controllers.</p>
         <p class="hint" id="axefx3chassisstatus" role="status" aria-live="polite"></p>
+        <div id="afx3editbox" hidden>
+          <h3>Experimental reviewed Amp edit</h3>
+          <p class="hint">One existing Amp 1/channel A setting only. This is not full preset planning. Other scenes sharing A may change. No Store or automatic Undo.</p>
+          <label for="afx3control">Control</label>
+          <select id="afx3control"><option value="DISTORT_DRIVE">Gain</option><option value="DISTORT_MID">Mid</option></select>
+          <label for="afx3value">Value (0.1-8.0; at most one unit from the current value)</label>
+          <input id="afx3value" type="number" min="0.1" max="8" step="0.1" value="3.3">
+          <button id="afx3prepare" disabled>Prepare reviewed edit</button>
+          <p id="afx3editstatus" class="hint" role="status" aria-live="polite"></p>
+        </div>
       </div>
       <button id="deviceManualSetup" type="button" aria-expanded="false" aria-controls="fm3hardware">Set up a MIDI device</button>
       <div class="console" id="fm3hardware" data-label="FRACTAL FM3" hidden>
@@ -4231,6 +4243,7 @@
 
 <script src="/language/i18next.min.js"></script>
 <script src="/language/tc-language.js"></script>
+<script src="/axefx3-reviewed-edit.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -7100,7 +7113,10 @@ async function refresh() {
     if (s.device && freshDevice) renderDevice({...s.device, connected: !!s.connected});
     // #209: who else is on the bus; a supported arrival opens the plug-in card
     if (s.device && Array.isArray(s.device.detected)) renderDetected(s.device.detected);
-    if (!s.connected) throw new Error(s.error || 'no link');
+    if (!s.connected) {
+      if (window.AFX3ReviewedEdit) void AFX3ReviewedEdit.poll({});
+      throw new Error(s.error || 'no link');
+    }
     if (!$('link').classList.contains('busy')) {
       $('link').className = 'pill on';
       $('linktext').textContent = `${deviceShort(freshDevice ? s.device : deviceState)} · LINKED`;
@@ -7124,6 +7140,7 @@ async function refresh() {
     // in the catch below, which painted OFFLINE over a pedal that was
     // answering. Render what this device actually has instead.
     if (s.device_params) {
+      if (window.AFX3ReviewedEdit) void AFX3ReviewedEdit.poll(s);
       lastState = s;
       renderDeviceParams(s);
       loadPresets(false);
@@ -7141,6 +7158,7 @@ async function refresh() {
       + ((deviceState && deviceState.label) || 'FM9').toUpperCase() + ' CONTEXT');
     renderScenes(s);
     if (s.scene) currentSceneNumber = s.scene.number;
+    if (window.AFX3ReviewedEdit) void AFX3ReviewedEdit.poll(s);
     if (s.read_only) {
       renderReadOnlyBlocks(s);
       renderParams(s);          // no values were read: this clears the panels
@@ -7156,6 +7174,7 @@ async function refresh() {
     // still current (a selection after it started makes it stale).
     return {connected: true, active: s.device && s.device.active, fresh: freshDevice};
   } catch (e) {
+    if (window.AFX3ReviewedEdit) void AFX3ReviewedEdit.poll({});
     if (!$('link').classList.contains('busy')) {
       $('link').className = 'pill off';
       // Never hardcode FM9 here: with another device selected this said
@@ -7203,7 +7222,8 @@ function renderReadOnlyBlocks(s) {
   // One row: on a laptop-height window a second row pushed the request
   // heading off the top of the workspace.
   if (s.navigation_read_only) {
-    $('blocks').innerHTML = `<div class="ropanel"><span class="ronote">${esc(s.read_only_reason || 'Read-only: change presets and scenes on the unit.')}</span>${chips}</div>`;
+    const note = window.AFX3ReviewedEdit?.active() ? AFX3ReviewedEdit.readonlyNote() : s.read_only_reason;
+    $('blocks').innerHTML = `<div class="ropanel"><span class="ronote">${esc(note || 'Read-only: change presets and scenes on the unit.')}</span>${chips}</div>`;
     return;
   }
   $('blocks').innerHTML = `<div class="ropanel"><span class="ronote">Read-only for now: presets and scenes `
@@ -8548,6 +8568,7 @@ function renderToneCheck(findings) {
 }
 
 function showPlan(plan) {
+  if (window.AFX3ReviewedEdit?.active() && !plan.afx3_edit) AFX3ReviewedEdit.invalidate();
   planRecipe = plan.recipe || null;
   currentPlan = plan;
   // Not every plan comes from the planner. The health scan assembles its
@@ -8562,7 +8583,7 @@ function showPlan(plan) {
   // refuse either, and it would sit there looking like nothing happened.
   // Light the scenes this plan would also move, so it cannot be skipped the
   // way a line of small print under a card can be.
-  refreshBlastRadius(plan);
+  if (plan.afx3_edit) clearAffected(); else refreshBlastRadius(plan);
   const prevSrc = $('plansrc'); if (prevSrc) prevSrc.remove();
   $('plansummary').textContent = plan.summary;
   renderTension(plan.request_tensions || []);
@@ -10964,6 +10985,7 @@ function planResult(html, how) {
 
 async function apply() {
   if (!currentPlan) return;
+  if (window.AFX3ReviewedEdit?.active()) return AFX3ReviewedEdit.send();
   const spends = currentPlan.actions.filter(
     a => a.splice && a.splice.ok && a.splice.spends_shunt);
   if (spends.length) {
@@ -11413,12 +11435,17 @@ function setStage(name, force) {
   if (name === 'confirm') renderConfirmStage();
   renderRail();
   renderStageRail();
+  if (window.AFX3ReviewedEdit?.active()) AFX3ReviewedEdit.lockCards();
 }
 
 for (const name of STAGES) {
   $('stg-' + name).onclick = () => {
     if (name === stage) return;
     if (!canEnter(name)) return;
+    if (window.AFX3ReviewedEdit?.active()) {
+      if (name === 'plan' || name === 'review') return AFX3ReviewedEdit.restart(name);
+      if (name === 'confirm' && currentPlan.afx3_ticket?.stage !== 'review') return AFX3ReviewedEdit.review();
+    }
     // Returning to Request with a live plan is a fork: continue the plan,
     // or start over. Starting over discards it, and only after saying so.
     if (name === 'request' && currentPlan && stage !== 'request') {
@@ -11434,6 +11461,7 @@ for (const name of STAGES) {
 }
 
 function discardPlan() {
+  if (window.AFX3ReviewedEdit?.active()) AFX3ReviewedEdit.invalidate();
   disarmSend();
   currentPlan = null;
   clearAffected();
@@ -12135,12 +12163,14 @@ const KIND_WORDS = {set_device_param: 'setting'};
 function kindWord(k) { return KIND_WORDS[k] || String(k).replace(/_/g, ' '); }
 
 function devName() {
+  if (window.AFX3ReviewedEdit?.active()) return 'Axe-Fx III';
   return (lastState && lastState.device_params && deviceState && deviceState.label)
     || 'FM9';
 }
 function devNamed() { return !!(lastState && lastState.device_params); }
 
 function sendTargetLabel() {
+  if (window.AFX3ReviewedEdit?.active()) return 'AXE-FX III';
   return ((lastState && lastState.device_params && deviceState && deviceState.label)
           || 'FM9').toUpperCase();
 }
@@ -12160,6 +12190,8 @@ function renderGigLockWhy() {
 
 function renderConfirmStage() {
   if (!currentPlan) return;
+  if (window.AFX3ReviewedEdit?.active()) { AFX3ReviewedEdit.renderConfirm(); return; }
+  $('afx3mutewrap').hidden = true;
   const n = currentPlan.actions.length;
   // The last screen before your pedal changes. On a named-parameter device
   // it said "UNDO READY", "changes the FM9", "SEND TO FM9" and "No other
@@ -12223,6 +12255,7 @@ function renderConfirmStage() {
 }
 
 $('ack').onchange = () => {
+  if (window.AFX3ReviewedEdit?.active()) { AFX3ReviewedEdit.consentChanged(); return; }
   $('armbtn').disabled = !$('ack').checked || gigOn === true;
 };
 
@@ -12235,6 +12268,7 @@ function disarmSend() {
 }
 
 $('armbtn').onclick = () => {
+  if (window.AFX3ReviewedEdit?.active()) return AFX3ReviewedEdit.arm();
   if (gigOn === true) return;
   $('armbtn').hidden = true;
   $('apply').hidden = false;
@@ -12274,6 +12308,10 @@ function sendPhase(text) { $('sendphase').textContent = text; }
 // --- the right rail: target, blast radius, preflight ----------------------
 
 function renderStageRail() {
+  if (window.AFX3ReviewedEdit?.active()) {
+    AFX3ReviewedEdit.renderRail();
+    return;
+  }
   const snap = lastState || {};
   const p = snap.preset, sc = snap.scene;
   const off = document.body.classList.contains('rig-off');
@@ -12718,14 +12756,14 @@ let actErrors = 0;
 
 $('discard').onclick = discardPlan;
 $('discard2').onclick = discardPlan;
-$('reviewbtn').onclick = () => { stageDone.plan = true; setStage('review'); };
-$('backplan').onclick = () => setStage('plan');
+$('reviewbtn').onclick = () => { if (window.AFX3ReviewedEdit?.active()) return AFX3ReviewedEdit.review(); stageDone.plan = true; setStage('review'); };
+$('backplan').onclick = () => { if (window.AFX3ReviewedEdit?.active()) return AFX3ReviewedEdit.restart('plan'); setStage('plan'); };
 $('toconfirm').onclick = () => {
   if (hasBlockers()) return;
   stageDone.review = true;
   setStage('confirm');
 };
-$('backreview').onclick = () => setStage('review');
+$('backreview').onclick = () => { if (window.AFX3ReviewedEdit?.active()) return AFX3ReviewedEdit.restart('review'); setStage('review'); };
 $('auditionbtn').onclick = () => {
   // Back to the live context with Undo prominent; the tone judgement is
   // the player's, on the hardware, with ears.
@@ -12733,7 +12771,7 @@ $('auditionbtn').onclick = () => {
   $('context').scrollIntoView({block: 'nearest'});
 };
 $('storeafter').onclick = () => openDrawer('storage');
-$('newrequest').onclick = () => setStage('request', true);
+$('newrequest').onclick = () => { if (window.AFX3ReviewedEdit?.active()) { discardPlan(); return; } setStage('request', true); };
 
 // --- keyboard -------------------------------------------------------------
 
@@ -12785,6 +12823,7 @@ setInterval(refresh, 5000);
 if ($('aboutreport')) $('aboutreport').onclick = () => openReport();
 // #282: the last statement. If the script failed to parse or stopped on an
 // error before here, the notice stays and points at /report.
+if (!window.AFX3ReviewedEdit) throw new Error('Reviewed-edit controls failed to start. Open /report.');
 $('bootfail')?.remove();
 </script>
 </body>

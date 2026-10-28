@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "catalog_version": "1.5.16-lang.2",
-  "catalog_sha256": "0b241b7d976cefbca925798af685dfbae4103c1a67657b9f72c3d88398b38f0e",
+  "catalog_sha256": "bfc171e472ef378cc15c71825ef685812d89b787b290ed058b0e88435cf98b6b",
   "locale": "xx",
   "name": "Your language",
   "translations": {}

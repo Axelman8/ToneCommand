@@ -5,6 +5,11 @@ Notable changes to ToneCommand. Dates are UTC.
 ## Unreleased
 
 ### Added
+- Add an explicitly opt-in, single Gain/Mid edit through the existing
+  REVIEW/CONFIRM/SEND screens. The measured MK2 writer retains its exact
+  firmware pin, shared-channel warning, explicit external-mute confirmation,
+  one-use expiry and independent verification. No automatic SEND, planner
+  writes, current Beta 5 promotion, Store or automatic Undo is enabled.
 - Prepare an unregistered Axe-Fx III single-edit review/confirm/send bridge
   for explicit developer composition. Names and bounded Gain/Mid only; no
   production route, GUI activation, general capability or hardware release.

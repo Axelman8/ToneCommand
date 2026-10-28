@@ -1,5 +1,9 @@
 # Prepared Axe-Fx III review/confirm/send bridge
 
+This document describes the bridge-only review boundary in #289. The
+separate opt-in host wiring is documented in [the reviewed-edit UI guide](AXEFX3-REVIEWED-EDIT-UI.md).
+Its limited activation does not promote other operations or firmware.
+
 This is **offline preparation, not a release of ordinary app writing**.
 `server.py`, the main UI, AI planner, registry, capabilities, output guards
 and existing writers are unchanged. No production route constructs or calls
