@@ -53,9 +53,9 @@ def test_a_cross_origin_write_is_refused_before_it_reaches_the_rig(client):
 def test_the_page_itself_and_local_tools_still_write(client):
     same = client.post("/api/apply", json=WRITE,
                        headers={"host": "localhost:8909", "origin": "http://localhost:8909"})
-    assert same.status_code == 200
+    assert same.status_code == 200 and all(r["ok"] for r in same.json()["results"])
     plain = client.post("/api/apply", json=WRITE, headers={"host": "127.0.0.1:8909"})
-    assert plain.status_code == 200
+    assert plain.status_code == 200 and all(r["ok"] for r in plain.json()["results"])
 
 
 def test_a_cross_origin_read_is_left_to_the_browser(client):
@@ -126,7 +126,7 @@ def test_a_write_queued_behind_the_lock_refuses_once_gig_lock_is_on(client, path
     assert server._snaps["undo"] is None
 
 
-def test_every_gig_checked_write_rechecks_under_the_lock():
+def test_every_gig_checked_write_rechecks_under_the_lock_by_name():
     """A route that checks Gig Lock and then takes the device lock must check
     again inside it, or a write queued behind another can land after Gig Lock
     said on. Read from the source so a new write route cannot skip it."""
@@ -140,4 +140,109 @@ def test_every_gig_checked_write_rechecks_under_the_lock():
         body = inspect.getsource(getattr(server, name))
         after = body.split("with _lock:", 1)[1]
         assert re.match(r'\s*if _gig_mode\["on"\]', after), name
-    assert src.count("return _gig_came_on()") == 13
+    assert src.count("return _gig_came_on()") >= 13
+
+
+def test_no_route_checks_gig_lock_then_takes_the_lock_without_checking_again():
+    """Every function, not a fixed list: a new write route written in the old
+    shape (check, then wait for the lock, then write) fails here."""
+    import inspect
+    import re
+    for name, fn in vars(server).items():
+        if not inspect.isfunction(fn) or fn.__module__ != "server":
+            continue
+        body = inspect.getsource(fn)
+        if "with _lock:" not in body:
+            continue
+        before, after = body.split("with _lock:", 1)
+        if '_gig_mode["on"]' in before:
+            assert re.match(r'\s*if _gig_mode\["on"\]', after), name
+
+
+def _asgi(headers, method="POST", kind="http"):
+    """Drive the middleware with raw headers, duplicates included."""
+    import asyncio
+    reached, sent = [], []
+
+    async def inner(scope, receive, send):
+        reached.append(scope)
+
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message):
+        sent.append(message)
+
+    scope = {"type": kind, "method": method, "path": "/api/apply",
+             "headers": [(k.encode(), v.encode()) for k, v in headers]}
+    asyncio.run(server._LocalOnly(inner)(scope, receive, send))
+    return bool(reached)
+
+
+@pytest.mark.parametrize("headers", [
+    [("host", "attacker.example"), ("host", "localhost:8909")],
+    [("host", "localhost:8909"), ("host", "localhost:8909")],
+    [("host", "localhost:8909"), ("origin", "http://attacker.example"),
+     ("origin", "http://localhost:8909")],
+    [("host", "localhost:8909"), ("origin", "https://localhost:8909")],
+    [("host", "[::1].attacker.example:8909")],
+    [("host", "localhost:garbage")],
+    [("host", "localhost.:8909")],
+    [],
+])
+def test_ambiguous_or_malformed_headers_are_refused(headers):
+    assert _asgi(headers) is False
+
+
+@pytest.mark.parametrize("headers", [
+    [("host", "127.0.0.1:8909"), ("origin", "http://127.0.0.1:8909")],
+    [("host", "[::1]:8909"), ("origin", "http://[::1]:8909")],
+    [("host", "localhost:8909")],
+])
+def test_the_exact_local_shapes_pass(headers):
+    assert _asgi(headers) is True
+
+
+def test_gig_lock_waits_for_a_routing_recovery_too(client, monkeypatch):
+    monkeypatch.setattr(server, "_GIG_SETTLE_SECONDS", 0.1)
+    server._journal_lock.acquire()
+    try:
+        r = client.post("/api/gig", json={"on": True})
+    finally:
+        server._journal_lock.release()
+    assert r.json() == {"gig_mode": True, "settled": False}
+
+
+def test_a_routing_recovery_during_a_set_is_kept_for_later(monkeypatch):
+    from fm9 import routing
+    def forbidden(fm9):
+        pytest.fail("routing journal written while Gig Lock was on")
+    monkeypatch.setattr(routing, "restore_outstanding", forbidden)
+    monkeypatch.setitem(server._gig_mode, "on", True)
+    server._restore_routing_journal(object())
+
+
+def test_a_cab_audition_is_not_put_back_during_a_set(monkeypatch):
+    monkeypatch.setitem(server._gig_mode, "on", True)
+    monkeypatch.setattr(server, "_audition", {"open": True, "original": (1, 2),
+                                              "last_error": None})
+    def forbidden(*a):
+        pytest.fail("cab written while Gig Lock was on")
+    monkeypatch.setattr(server, "_select_cab", forbidden)
+    ok, detail = server._audition_restore(object())
+    assert ok is False and "Gig Lock" in detail
+    assert server._audition["open"] is True       # retried after the set
+
+
+def test_the_debug_poke_respects_gig_lock(client, monkeypatch):
+    monkeypatch.setenv("TONECOMMAND_DEBUG", "1")
+    server._gig_mode["on"] = True
+    r = client.post("/api/_moddebug", json={"slot": 1, "op": "poke", "pid": 1, "value": 0.5})
+    assert r.status_code == 423
+
+
+def test_the_page_says_when_gig_lock_is_on_but_not_settled():
+    from pathlib import Path
+    page = (Path(server.__file__).parent / "ui" / "index.html").read_text(encoding="utf-8")
+    fn = page.split("async function toggleGig()", 1)[1].split("\n}\n", 1)[0]
+    assert "d.settled === false" in fn and "still sending" in fn

@@ -74,12 +74,16 @@ _TRUSTED_HOSTS = {"127.0.0.1", "localhost", "::1"}
 _SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
 
+_AUTHORITY = re.compile(r"(127\.0\.0\.1|localhost|\[::1\]|testserver)(:[0-9]{1,5})?")
+
+
 def _host_name(netloc: str) -> str:
-    """The name part of a Host header or an Origin's netloc, port dropped."""
-    netloc = netloc.strip().lower()
-    if netloc.startswith("["):                     # [::1]:8909
-        return netloc[1:netloc.find("]")] if "]" in netloc else ""
-    return netloc.rsplit(":", 1)[0] if netloc.count(":") == 1 else netloc
+    """The name in a Host header, or "" when it is not one of the exact
+    shapes this server is reached by. Strict on purpose: anything after the
+    name other than a numeric port ("[::1].evil", "localhost:x") is refused
+    rather than trimmed."""
+    m = _AUTHORITY.fullmatch(netloc.lower())
+    return m.group(1).strip("[]") if m else ""
 
 
 class _LocalOnly:
@@ -91,17 +95,23 @@ class _LocalOnly:
 
     async def __call__(self, scope, receive, send):
         if scope["type"] in ("http", "websocket"):
-            headers = {k.decode("latin-1").lower(): v.decode("latin-1")
-                       for k, v in scope.get("headers", [])}
-            host = headers.get("host", "")
+            hosts, origins = [], []
+            for k, v in scope.get("headers", []):
+                name = k.decode("latin-1").lower()
+                if name == "host":
+                    hosts.append(v.decode("latin-1"))
+                elif name == "origin":
+                    origins.append(v.decode("latin-1"))
             refusal = None
-            if _host_name(host) not in _TRUSTED_HOSTS:
+            # One Host, one Origin at most: with two, the check and the
+            # framework could each read a different one.
+            if len(hosts) != 1 or len(origins) > 1 or _host_name(hosts[0]) not in _TRUSTED_HOSTS:
                 refusal = "This server answers only to 127.0.0.1 or localhost."
             elif (scope["type"] == "websocket"
                   or scope.get("method", "GET") not in _SAFE_METHODS):
-                origin = headers.get("origin")
-                if origin is not None and origin.lower() not in (
-                        f"http://{host.lower()}", f"https://{host.lower()}"):
+                # The server speaks plain http only, so its own page's
+                # origin is exactly http://<Host>.
+                if origins and origins[0].lower() != f"http://{hosts[0].lower()}":
                     refusal = "Cross-origin requests may not change anything here."
             if refusal is not None:
                 if scope["type"] == "websocket":
@@ -811,20 +821,31 @@ def get_fm9() -> DeviceAdapter:
     return GatedDevice(_fm9)
 
 
+_journal_lock = threading.Lock()
+
+
 def _restore_routing_journal(fm9) -> None:
     """Issue #56: the first time this process holds the unit, put back any
     global routing a previous process changed and did not restore (its
     journal is outstanding). Before other work, once; a failure is logged
     and the journal kept, never a failed connect."""
     from fm9 import routing
-    try:
-        out = routing.restore_outstanding(fm9)
-    except routing.RoutingError as e:
-        log.warning("routing journal: %s", e)
-        return
-    except Exception as e:                    # noqa: BLE001  the unit going away mid-restore
-        log.warning("routing journal: could not restore: %s", e)
-        return
+    # #291: these are writes, and the first connection can happen outside
+    # the device lock (the gallery's firmware read). Gig Lock waits on this
+    # lock too, and a journal found during a set is kept for the next
+    # connection rather than written mid-song.
+    with _journal_lock:
+        if _gig_mode["on"]:
+            log.warning("routing journal: Gig Lock is on; kept for the next connection")
+            return
+        try:
+            out = routing.restore_outstanding(fm9)
+        except routing.RoutingError as e:
+            log.warning("routing journal: %s", e)
+            return
+        except Exception as e:                    # noqa: BLE001  the unit going away mid-restore
+            log.warning("routing journal: could not restore: %s", e)
+            return
     if out:
         log.warning("routing journal restored from a previous process: %s", out)
 
@@ -5471,6 +5492,11 @@ def _audition_restore(fm9: DeviceAdapter) -> tuple[bool, str]:
     unit was left pointing at (design review F1.2)."""
     if not _audition["open"]:
         return True, "no audition open"
+    if _gig_mode["on"]:
+        # #291: putting the cab back is a write. It stays open, with the
+        # reason, and the next plan or audition end after the set retries.
+        _audition["last_error"] = "restore waits: Gig Lock is on"
+        return False, _audition["last_error"]
     bank, ordinal = _audition["original"]
     try:
         ok, _before, landed = _select_cab(fm9, bank, ordinal)
@@ -6915,6 +6941,8 @@ def api_moddebug(body: dict):
     slot = int(body.get("slot", 1))
     eid = proto.mod_slot_eid(slot)
     with _lock:
+        if _gig_mode["on"] and body.get("op") in ("poke", "poke_d"):
+            return _gig_came_on()
         try:
             fm9 = get_fm9()
             op = body.get("op")
@@ -7086,9 +7114,12 @@ def api_gig(body: dict):
     _gig_mode["on"] = bool(body.get("on"))
     settled = True
     if _gig_mode["on"]:
-        settled = _lock.acquire(timeout=_GIG_SETTLE_SECONDS)
-        if settled:
-            _lock.release()
+        deadline = time.monotonic() + _GIG_SETTLE_SECONDS
+        for lock in (_lock, _journal_lock):
+            if not lock.acquire(timeout=max(0.0, deadline - time.monotonic())):
+                settled = False
+                break
+            lock.release()
     return {"gig_mode": _gig_mode["on"], "settled": settled}
 
 
