@@ -18,6 +18,13 @@ Notable changes to ToneCommand. Dates are UTC.
   live discovery, firmware/chassis promotion or account workflow is enabled.
 
 ### Fixed
+- The local server answers only to 127.0.0.1, localhost and ::1, and
+  refuses a state-changing request from another site's page, so a web page
+  cannot reach it through a name pointed at this machine (#291).
+- Gig Lock waits up to a minute for a write already sending before it says
+  it is on, and says so if that write is still going. A write that was
+  queued behind it is refused with nothing sent, and a cab audition, a
+  routing recovery or a debug poke waits until Gig Lock is off (#291).
 - Keep one-edit Axe-Fx III proposals out of the automatic shared-scene
   sweep. Their plan banner no longer promises Undo or a musical tone check.
 - Let the developer-only Axe-Fx III Amp writer inspect unused modifier
