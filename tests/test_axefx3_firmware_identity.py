@@ -75,6 +75,33 @@ class IdentityPorts:
         pass
 
 
+def test_identity_query_ignores_captured_cursor_echo_without_resending_the_command():
+    class EchoPorts(IdentityPorts):
+        def send(self,message):
+            if message.bytes()==protocol.envelope(8,[]):
+                self.queue.append(mido.Message('sysex',data=bytes.fromhex(
+                    'f0 00 01 74 10 01 30 00 00 00 00 00 06 00 00 00 00 00 00 00 00 22 f7')[1:-1]))
+            super().send(message)
+    ports=EchoPorts(BETA5);dev=AxeFxIII((ports,ports))
+    try:
+        before=len(ports.sent)
+        assert dev._request(protocol.envelope(8,[]),firmware_identity.parse_response)==BETA5
+        assert ports.sent[before:]==[protocol.envelope(8,[])]
+    finally:dev.close()
+
+
+@pytest.mark.parametrize('reply',[None,[],[0],list(BETA5[:-1]),
+    [*BETA5[:-1],BETA5[-1]^1],protocol.envelope(13,[0,0])[1:-1]])
+def test_identity_parser_refuses_malformed_and_unrelated_replies(reply):
+    assert firmware_identity.parse_response(reply) is None
+
+
+def test_identity_parser_does_not_hide_an_unknown_firmware_response():
+    unknown=protocol.envelope(8,[32,6])[1:-1]
+    assert firmware_identity.parse_response(unknown)==tuple(unknown)
+    assert firmware_identity.identify(unknown) is None
+
+
 @pytest.mark.parametrize('reply, expected', [
     (BETA5, firmware_identity.BETA5_KEY),
     (fw33_profile.IDENTITY, fw33_profile.KEY),

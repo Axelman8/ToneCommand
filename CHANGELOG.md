@@ -4,6 +4,18 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Distinguish firmware replies from delayed cursor acknowledgements in Pitch
+  inspections, retaining exact build fingerprints and fail-closed checks.
+- Account for the captured Advanced Whammy model-default change on a newly
+  inserted Dual Detune block, without allowing an arbitrary tracking setter.
+  Unmeasured starting defaults refuse before quiet staging.
+
+- Prepare an unregistered, reviewed Pitch placement primitive for the exact
+  MK2 Beta 5 isolated test fixture: captured cursor/insertion only, one-use
+  confirmation, complete-state preservation and uncertain-outcome latching.
+  No normal text-builder, other grid position, routing, parameter, deletion
+  or Store capability is enabled by this developer preparation.
+
 - Add a reviewed octave-pedal setup for an existing Pitch 1/A on the exact
   measured MK2 FW33 Beta 5 profile: Advanced Whammy, heel 0/toe +12 semitones,
   100% wet and explicit External 1/2 on channel A. Reuse the controller

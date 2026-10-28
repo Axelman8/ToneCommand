@@ -172,7 +172,7 @@ class Writer:
         if (getattr(d,'_pitch_uncertain',False) or d.reg.firmware!=firmware_identity.BETA5_KEY
                 or getattr(d.reg,'hardware_variant',None)!='mk2' or not _platform(d)):
             raise PermissionError('Pitch connection/profile changed or is uncertain')
-        ident=d._request(protocol.envelope(8,[]),tuple)
+        ident=d._request(protocol.envelope(8,[]),firmware_identity.parse_response)
         if ident is None or hashlib.sha256(bytes(ident)).hexdigest()!=firmware_identity.BETA5_IDENTITY_SHA256:
             raise PermissionError('Exact measured MK2 Beta5 identity required')
         preset,scene=d.current_preset(),d.current_scene()
@@ -247,6 +247,9 @@ class Writer:
         """Reject predictable whole-setup blockers before any quiet staging SET."""
         index=owner(state)
         steps=self.steps(request,state)
+        if (any(step.key=='model' and step.value==MODEL for step in steps)
+                and state['bulk'][str(EID)][35] not in (1,2)):
+            raise ValueError('Starting Pitch model-default word35 has not been measured')
         allocating=any(step.key=='allocate' for step in steps)
         if allocating and (index is not None or not any(w[0]==w[8]==0 for w in state['modifiers'])):
             raise ValueError('Allocation has an existing owner or no native free modifier slot')
@@ -271,6 +274,8 @@ class Writer:
         index=owner(before)
         if step.key=='model':
             pitch[0]=int(step.value)
+            if step.value==MODEL:
+                pitch[35]=2  # Captured Advanced Whammy model default, not a separate setter.
             pitch[38]=65534 if step.value==9 else 32767
             want['shown']['mix']=100. if step.value==9 else 50.
         elif step.key=='bypass':

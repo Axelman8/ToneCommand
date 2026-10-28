@@ -24,13 +24,14 @@ class Rig:
         self.words={e:[0]*n for e,n in ((58,568),(62,424),(118,176),(110,464),(206,72),(200,1525),(201,350))}
         self.words[200][100]=65535  # Valid opaque controller sentinel, never a write range.
         self.words[110][0]=9;self.words[110][3]=self.words[110][38]=65534
-        self.words[110][16]=12;self.words[110][39]=52427
+        self.words[110][16]=12;self.words[110][35]=2;self.words[110][39]=52427
         self.mods=[list(pitch.DEFAULT_MODIFIER) for _ in range(32)]
         for w in self.mods:w[8]=0;w[9]=78
         self.frames=[];self.fault='';self.outp=Port(self)
     def _request(self,frame,parse):
         assert frame==protocol.envelope(8,[])
-        return self.identity
+        assert parse(protocol.envelope(1,[48,0,0,0,0,0,6,0,0,0,0,0,0,0,0])[1:-1]) is None
+        return parse(self.identity)
     def current_preset(self):return self.target,'Pitch fixture'
     def current_scene(self):return self.scene
     def status_dump(self):return self.blocks.copy()
@@ -66,6 +67,7 @@ class Port:
             if eid in range(3,35):r.mods[eid-3][pid]=int(value)
             elif pid==0:
                 r.words[110][0]=int(value);r.words[110][38]=65534 if value==9 else 32767
+                if value==9:r.words[110][35]=2
             elif pid==44:r.blocks=[replace(b,bypassed=bool(value)) if b.effect_id==110 else b for b in r.blocks]
             elif pid in (15,16):r.words[110][pid]=int(value)
             elif pid==39:r.words[110][39]=round((value+80)/100*65534)
@@ -163,6 +165,23 @@ def test_model_selection_preserves_quiet_level_and_other_channels(rig):
     setters=[(f[8]+128*f[9],f[10]+128*f[11],p.decode_f32_septets(f[12:17]))
         for f in rig.frames if f[6:8]==[9,0]]
     assert setters.index((110,39,-12.))<setters.index((110,0,9.))<setters.index((110,39,0.))
+
+
+def test_newly_inserted_dual_detune_model_default_is_accounted_for(rig):
+    rig.words[110][0]=0;rig.words[110][35]=1;rig.words[110][38]=16384
+    preserved=deepcopy(rig.words)
+    w,_,result=apply(rig,pitch.Setup(13))
+    assert result['ok'] and rig.words[110][0]==9 and rig.words[110][35]==2
+    assert rig.words[110][38:40]==[65534,52427]
+    assert rig.words[110][116:]==preserved[110][116:]
+    assert all(rig.words[e]==words for e,words in preserved.items() if e!=110)
+
+
+def test_unmeasured_model_default_refuses_before_even_bypass_staging(rig):
+    rig.words[110][0]=0;rig.words[110][35]=4
+    with pytest.raises(ValueError,match='word35'):
+        pitch.Writer(rig).prepare(pitch.Setup(13))
+    assert not rig.frames
 
 
 def test_rounded_display_does_not_hide_a_different_bulk_word(rig):
