@@ -120,7 +120,7 @@ def ask(prompt, baseline):
 
 
 def create_app(factory=trial.Device, ask_ai=ask, *, source_info=None, check_source=None):
-    app = FastAPI(title='ToneCommand MK1 experimental AI builder')
+    app = FastAPI(title='Unofficial FX3 MK1 experimental AI builder')
     lock = threading.Lock()
     manifest = ROOT/'MK1-AI-PACKAGE.json'
     source = (source_info['source_commit'] if source_info is not None else

@@ -1,5 +1,12 @@
 # MK1 development in the shared FX3 repository
 
+Current guidance, updated2026-10-28. This supersedes the historical read-only
+kit and separate `development/mk1` branch instructions. Existing release ZIPs
+remain pinned for reproducibility; they do not track this source branch.
+The app identifies itself as **Unofficial FX3**, without the upstream logo.
+For this fork, use [our issue tracker](https://github.com/Axelman8/ToneCommand/issues),
+not the official ToneCommand support queue. Legal upstream credit/license remain.
+
 This is the MK1 entry in the shared **Unofficial FX3 source branch**, not an
 MK1 production release. You can maintain your own fork, edit in VS Code, run
 offline tests and initiate your own locally reviewed MK1 experiments. You do

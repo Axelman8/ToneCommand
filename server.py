@@ -55,7 +55,7 @@ async def _lifespan(_app):
     yield
 
 
-app = FastAPI(title="FM9 Tone Control", lifespan=_lifespan)
+app = FastAPI(title="Unofficial FX3 | ToneCommand fork", lifespan=_lifespan)
 
 #: WARNING and above reach stderr even with no handler configured (Python's
 #: last-resort handler), which is exactly the bar: a failed action inside a

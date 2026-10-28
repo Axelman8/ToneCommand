@@ -1,5 +1,10 @@
 # Unofficial ToneCommand Axe-Fx III Mark I evaluation
 
+**Historical read-only kit instructions.** For current experimental MK1 source
+development, use [MK1-DEVELOPMENT.md](MK1-DEVELOPMENT.md). This guide describes
+the named immutable test package below; its launcher's write restrictions
+remain intentional. Do not enable writes by bypassing this read-only launcher.
+
 This Windows test package contains the current FX3 source application plus a
 dedicated **read-only MK1 test launcher**. Its purpose is to establish MK1
 communication and collect evidence before enabling writes. It is not an

@@ -4,6 +4,10 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Mark all fork test screens Unofficial FX3, remove displayed upstream logos
+  and wordmarks, and route voluntary problem reports to the fork issue tracker.
+  Add current MK1 guidance while retaining historical read-only limitations.
+
 - Distinguish firmware replies from delayed cursor acknowledgements in Pitch
   inspections, retaining exact build fingerprints and fail-closed checks.
 - Account for the captured Advanced Whammy model-default change on a newly

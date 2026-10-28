@@ -1,5 +1,12 @@
 # Experimental MK1 text-to-preset test
 
+**Historical named-package instructions.** Current MK1/MK2 source development
+uses one maintained branch and `ToneCommand.cmd`; see
+[MK1-DEVELOPMENT.md](MK1-DEVELOPMENT.md). Old release ZIPs retain their original
+version, source and limited model scope. Do not install over your working clone.
+New test source is branded Unofficial FX3; report fork problems to
+[Axelman8/ToneCommand](https://github.com/Axelman8/ToneCommand/issues).
+
 This separate package adds a real request-to-AI workflow, not a fixed preset
 script. It uses ToneCommand's selected backend through `fm9.planner.plan` and
 the normal per-backend local settings implementation. The AI selects an amp,

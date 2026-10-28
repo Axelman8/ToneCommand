@@ -1,4 +1,8 @@
 > **Unofficial FX3: one repository, one maintained source branch.**
+> This is not an official ToneCommand or Fractal Audio release. Report issues
+> with this fork at [Axelman8/ToneCommand/issues](https://github.com/Axelman8/ToneCommand/issues).
+> Historical test ZIPs and closed-phase instructions are retained for reference;
+> use the current setup guide below rather than copying an old archive over a clone.
 > Use `integration/axefx3-upstream-20261009` for both MK1 development and MK2.
 > Open this folder in VS Code and run **`ToneCommand.cmd`** for the single
 > install / MK1 / MK2 / offline-test menu. Dependencies use `pyproject.toml`;

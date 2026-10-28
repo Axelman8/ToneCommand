@@ -195,7 +195,7 @@ def summary(state, label, firmware_on_screen='', axe_edit_version=''):
 def create_app(host=None, factory=ReadOnlyAxeFxIII):
     if host is None:
         import server as host
-    app = FastAPI(title='Unofficial ToneCommand MK1 read-only evaluation')
+    app = FastAPI(title='Unofficial FX3 MK1 read-only evaluation')
     app.state.observations = []
     app.state.completed_queries = Counter()
     app.state.completed_rejections = 0
