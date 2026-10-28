@@ -5,6 +5,9 @@ Notable changes to ToneCommand. Dates are UTC.
 ## Unreleased
 
 ### Added
+- Prepare an unregistered Axe-Fx III single-edit review/confirm/send bridge
+  for explicit developer composition. Names and bounded Gain/Mid only; no
+  production route, GUI activation, general capability or hardware release.
 - Bundle the exact FW33 Axe-Fx III Amp model names/ordinals as a validated,
   offline reference catalog. No model selector, app/planner write capability,
   live discovery, firmware/chassis promotion or account workflow is enabled.
