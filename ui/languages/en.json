@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "catalog_version": "1.5.16-lang.2",
-  "catalog_sha256": "bfc171e472ef378cc15c71825ef685812d89b787b290ed058b0e88435cf98b6b",
+  "catalog_sha256": "20ffc2d3e90076a3179eb9df156748302c9e58a54a6c2eecc15c4f1984220156",
   "locale": "en",
   "name": "English",
   "translations": {
@@ -24,6 +24,7 @@
     "+Create": "+Create",
     ", showing the first 100. Refine your search.": ", showing the first 100. Refine your search.",
     ", {{value}} dB relative": ", {{value}} dB relative",
+    ". This edit stays unsaved. There is no automatic Undo.": ". This edit stays unsaved. There is no automatic Undo.",
     "/Users/you/Downloads": "/Users/you/Downloads",
     "1. Connect and inspect": "1. Connect and inspect",
     "1. Connect your Axe-Fx III": "1. Connect your Axe-Fx III",
@@ -737,6 +738,7 @@
   },
   "protected_keys": [
     " Partial changes may remain; keep audio muted.",
+    ". This edit stays unsaved. There is no automatic Undo.",
     "2. Record a read-only observation",
     "A rig profile is the block layout and wiring only, never parameter values, so no paid preset travels with it.",
     "A successfully sent AMP/CAB design is kept locally. Select the same preset and import the same User cab name list first. Previous send permission is never reused.",
