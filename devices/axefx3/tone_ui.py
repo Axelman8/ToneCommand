@@ -16,6 +16,7 @@ from . import album_build,album_planning,runtime,scene_intent,amp_inventory,amp_
 from . import cab_inventory,cab_mix,design_history,cab_metadata
 from . import audio_measurements, request_intake, design_dialogue,wah_voicing,scene_contract
 from .audio_measurements import Measurements
+from .readonly_adapter import is_readonly_device
 
 AnnotatedSceneNumber = Annotated[StrictInt, Field(ge=1,le=8)]
 
@@ -114,7 +115,8 @@ def register(app, host):
 
     def selected():
         ctx = host.device_context()
-        if ctx.kind != 'axefx3' or ctx.adapter is None:
+        if (ctx.kind != 'axefx3' or ctx.adapter is None
+                or is_readonly_device(ctx.adapter)):
             raise HTTPException(409,'Connect the Axe-Fx III explicitly in Controllers first.')
         return ctx.adapter
 
@@ -126,7 +128,7 @@ def register(app, host):
 
     @app.get('/axefx3')
     def page():
-        return FileResponse(resource_path('ui','axefx3.html'))
+        return host.interface_page('axefx3.html')
 
     @app.get('/axefx3.js')
     def script():

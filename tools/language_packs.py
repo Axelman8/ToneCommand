@@ -1,4 +1,4 @@
-"""Build/check English catalogs and public translation-only release ZIPs."""
+"""Refresh/check the English catalog and bundled, data-only translations."""
 from __future__ import annotations
 import argparse
 import hashlib
@@ -11,7 +11,7 @@ import tomllib
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '1.5.16-lang.4'
+VERSION = '1.6.2-lang.1'
 ASSETS = ('en.json', 'template.json', 'manifest.json')
 LOCALE_FILE = re.compile(r'([a-z]{2,3}(?:-[A-Z]{2})?)\.json\Z')
 PROTECTED = re.compile(r'\b(mute[ds]?|overwrite|permanent|firmware|safety|never|read.only|limiter|confirmation|readback|unsaved|discard|reviewed)\b|\bI confirm\b', re.I)
@@ -64,7 +64,7 @@ def source_keys(root=ROOT):
                     parser = Markup()
                     parser.feed(literal)
                     keys.update(parser.keys)
-            keys.update(('LANGUAGE', 'Interface language', 'Language pack imported. Missing entries use English.',
+            keys.update(('LANGUAGE', 'Interface language',
                          'Interface language changed. Existing plans and unsent input are unchanged.'))
     return {k for k in keys if k not in ('__proto__', 'constructor', 'prototype')}
 
@@ -96,7 +96,7 @@ def documents(root=ROOT):
                     base_language='en', available=[item['locale'] for item in languages], languages=languages,
                     engine='i18next', engine_version='26.5.5',
                     engine_sha256=hashlib.sha256(vendor.read_bytes()).hexdigest(),
-                    key_count=len(keys), packs_url='https://github.com/Axelman8/ToneCommand/releases',
+                    key_count=len(keys),
                     coverage='Initial shipped markup and marked FX3/controller messages; live plans and device/user text excluded.')
     return dict(zip(ASSETS, (english, template, manifest))) | localized
 
@@ -156,8 +156,7 @@ def build(root=ROOT, destination=None):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument('--refresh', action='store_true')
-    group.add_argument('--build', action='store_true')
+    parser.add_argument('--refresh', action='store_true')
+    parser.add_argument('--build', action='store_true')
     args = parser.parse_args()
-    refresh() if args.refresh else build() if args.build else check()
+    build() if args.build else refresh() if args.refresh else check()

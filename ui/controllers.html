@@ -8,9 +8,15 @@
 * { box-sizing:border-box; } [hidden] { display:none!important; }
 body { margin:0;background:#081119;color:#e5eef6;font:16px/1.55 system-ui,sans-serif; }
 header,main { max-width:1100px;margin:auto;padding:24px; }
-header { display:flex;gap:18px;align-items:center;border-bottom:1px solid var(--line); }
+header { display:flex;flex-wrap:wrap;gap:18px;align-items:center;border-bottom:1px solid var(--line); }
 header img { width:38px; } header strong { color:var(--cyan);letter-spacing:.15em; }
 header span { margin-left:auto;color:var(--muted);font-size:14px; }
+.bootfail { position:fixed;left:16px;right:16px;bottom:16px;z-index:10000;padding:14px 18px;background:#2a0d14;border:1px solid #f46f7b;border-radius:8px;visibility:hidden;animation:bootfail-show 0s linear 6s forwards; }
+@keyframes bootfail-show { to { visibility:visible; } }
+#workspaceSettings { position:relative;flex:none;margin-left:auto; }
+#workspaceSettings summary { cursor:pointer;color:var(--cyan); }
+#workspaceSettings>div { position:absolute;right:0;top:100%;width:min(260px,75vw);padding:16px;background:#101c26;border:1px solid var(--line);border-radius:6px;z-index:20; }
+#workspaceSettings select { width:100%;display:block;margin-top:8px;padding:8px;font:inherit;color:inherit;background:#101c26;border:1px solid var(--line); }
 h1 { font-size:30px;margin:12px 0; } h2 { font-size:20px;margin:0 0 12px; }
 p { margin:8px 0 18px; } .muted,small { color:var(--muted); } small { display:block; }
 section,details { border:1px solid var(--line);border-radius:12px;padding:22px;margin:18px 0;background:#101d28; }
@@ -36,8 +42,9 @@ summary { cursor:pointer;color:var(--cyan); } a { color:var(--cyan); }
 <script src="/controllers.js" defer></script>
 </head>
 <body>
+<div class="bootfail" id="bootfail" role="alert">This page did not finish starting, so its buttons will not respond. Running <span data-server-version></span>. <a href="/report">Get a problem report</a>.</div>
 <nav style="max-width:1100px;margin:auto;padding:12px 24px"><a href="/axefx3" style="color:#40dfff">Design a preset with text</a></nav>
-<header><strong>Unofficial FX3</strong><a href="https://github.com/Axelman8/ToneCommand/issues" target="_blank" rel="noopener noreferrer">Report a problem</a><span>Axe-Fx III | Controller workspace</span></header>
+<header><strong>Unofficial FX3</strong><a href="https://github.com/Axelman8/ToneCommand/issues" target="_blank" rel="noopener noreferrer">Report a problem</a><span>Axe-Fx III | Controller workspace</span><details id="workspaceSettings"><summary>SETTINGS</summary><div><label for="tc-language-select">Language</label><select id="tc-language-select" disabled><option value="en">English</option></select><p id="tc-language-status" role="status" aria-live="polite"></p></div></details></header>
 <main>
 <h1>Your pedal, your binding</h1>
 <p class="muted">Choose which controller operates Wah, Volume or an octave Pitch pedal. Your choice is applied only after review and sending.</p>

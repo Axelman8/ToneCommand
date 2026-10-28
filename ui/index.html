@@ -1794,6 +1794,17 @@
   .verbadge { color: var(--muted); font-size: var(--fs-badge, 0.7rem); letter-spacing: 0.08em;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .verbadge:empty { display: none; }
+  /* #282: shown only if the page's script never finishes. The script removes
+     it as its last statement; the delay keeps it from flashing while the
+     script is still starting. Plain HTML and CSS, so it works when nothing
+     else on the page does. It sits outside #shell, which narrow windows
+     hide, so it shows at every width. */
+  .bootfail { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 10000;
+    padding: 14px 18px; background: #2a0d14; border: 1px solid var(--red);
+    border-radius: 8px; color: var(--text); font-size: var(--fs-body);
+    line-height: 1.5; visibility: hidden; animation: bootfail-show 0s linear 6s forwards; }
+  .bootfail a { color: var(--cyan); }
+  @keyframes bootfail-show { to { visibility: visible; } }
   #hwbar .brand img { width: 40px; height: 40px; border-radius: 8px;
     filter: drop-shadow(0 0 12px rgba(90,140,255,0.35)); }
   #hwbar h1 { font-size: calc(1.15rem * var(--ui-scale, 1));
@@ -3027,6 +3038,8 @@
   body.readonly-device #dirty { display: none; }
   body.readonly-device #context .gridnote { display: none; }
   body.readonly-device #context .pathzone { display: flex; height: auto; }
+  body.readonly-navigation #preset,
+  body.readonly-navigation #newpreset { pointer-events: none; opacity: .65; }
   .ropanel { display: flex; align-items: center; gap: 6px; padding: 2px;
              flex-wrap: nowrap; overflow: hidden; white-space: nowrap; }
   .ronote { color: var(--amber); font-size: var(--fs-label); margin-right: 6px; }
@@ -3489,6 +3502,13 @@
   review.</p>
 </div>
 
+  <div class="bootfail" id="bootfail" role="alert">
+    This page did not finish starting, so its buttons will not respond.
+    Running <span data-server-version></span>.
+    <a href="/report">Get a problem report</a> to send us, or restart
+    ToneCommand and reload this page.
+  </div>
+
 <div class="wrap" id="shell">
 
   <!-- LAYER 1: the hardware bar. Read before anything else, because every
@@ -3497,7 +3517,7 @@
     <a class="brand" href="/" title="Unofficial FX3">
       <span class="brandtext">
         <h1>Unofficial FX3</h1>
-        <span class="verbadge" id="verbadge" title="the version running"></span>
+        <span class="verbadge" id="verbadge" title="the version running" data-server-version></span>
       </span>
     </a>
     <a class="hint" href="https://github.com/Axelman8/ToneCommand/issues" target="_blank" rel="noopener noreferrer">Report a problem</a>
@@ -3904,6 +3924,18 @@
       <button class="mclose" id="drawclose" title="close">&#10005;</button></div>
 
     <div class="drawpane" id="drawer-devices" hidden>
+      <div class="console" id="axefx3hardware" data-nofold data-label="AXE-FX III" hidden>
+        <label for="axefx3chassis">Hardware type (declared, not detected)</label>
+        <select id="axefx3chassis" disabled style="display:block;width:100%;margin:10px 0">
+          <option value="mk1">Mark I - 512 presets</option>
+          <option value="mk2">Mark II - 1024 presets</option>
+          <option value="turbo">Turbo - 1024 presets</option>
+        </select>
+        <p class="hint">Choose the type of your connected Axe-Fx III to connect/read it.
+          This sets the preset-name read range for this session. It does not detect
+          your hardware or enable sound editing, Store, NAM or controllers.</p>
+        <p class="hint" id="axefx3chassisstatus" role="status" aria-live="polite"></p>
+      </div>
       <button id="deviceManualSetup" type="button" aria-expanded="false" aria-controls="fm3hardware">Set up a MIDI device</button>
       <div class="console" id="fm3hardware" data-label="FRACTAL FM3" hidden>
         <p>The FM3 has no MIDI over USB. Use a USB MIDI interface connected to
@@ -4016,6 +4048,14 @@
     </div>
 
     <div class="drawpane" id="drawer-settings" hidden>
+      <div class="console" data-nofold data-label="LANGUAGE" id="tc-language-settings">
+        <label class="flabel" for="tc-language-select">Language</label>
+        <select id="tc-language-select" aria-label="Interface language" data-no-translate>
+          <option value="en">English</option>
+        </select>
+        <p class="hint">Missing translations stay English. Preset names, AI replies and technical identifiers are unchanged.</p>
+        <p class="hint" id="tc-language-status" role="status" data-no-translate></p>
+      </div>
       <div class="console" data-label="WHO PLANS YOUR TONES" id="aimodal">
         <div class="airow">
           <!-- One question, answered by picking a name. The plumbing that
@@ -4128,6 +4168,9 @@
 
       <div class="console" data-nofold data-label="ABOUT">
         <div class="hint" id="aboutver">ToneCommand</div>
+        <div class="saverow">
+          <button class="small" id="aboutreport">REPORT A PROBLEM</button>
+        </div>
         <div id="aboutupd" hidden>
           <div class="hint updavail" id="aboutupdmsg"></div>
           <div class="saverow">
@@ -4330,12 +4373,13 @@ function renderScenes(s) {
     // tooltip carries it in full for the rare name too long even for that. A
     // scene that did not answer shows its number and nothing else.
     const nm = sc.name ? esc(sc.name) : '&nbsp;';
-    return `<button class="sc${on}${warn}" data-scene="${sc.number}" title="${sc.name ? esc(sc.name) : 'scene ' + sc.number}">
+    return `<button class="sc${on}${warn}" data-scene="${sc.number}" ${s.navigation_read_only ? 'disabled' : ''} title="${sc.name ? esc(sc.name) : 'scene ' + sc.number}">
               <span class="n">${sc.number}</span><span class="nm">${nm}</span></button>`;
   }).join('');
 }
 
 async function gotoScene(n) {
+  if (lastState && lastState.navigation_read_only) return;
   if (sceneBusy) return;
   sceneBusy = true;
   const btn = document.querySelector(`.sc[data-scene="${n}"]`);
@@ -4486,6 +4530,7 @@ function loadPresets(refresh) {
 }
 
 async function _loadPresets(refresh) {
+  const scanGen = deviceGen;
   // A device with named parameters has no 512-slot library. The IR-2 has two
   // stored patches, which is what its footswitch toggles, so that is what the
   // selector offers. Scanning 512 FM9 slots against it returned nothing and
@@ -4505,7 +4550,7 @@ async function _loadPresets(refresh) {
     renderPresets(false);
     return allSlots;
   }
-  presetScan = {read: 0, total: 512};
+  presetScan = {read: 0, total: deviceState?.axefx3?.preset_count || 512};
   renderPresetScan();
   try {
     const r = await fetch('/api/presets/stream' + (refresh ? '?refresh=true' : ''));
@@ -4513,6 +4558,7 @@ async function _loadPresets(refresh) {
     let got = null;
     for await (const [ev, d] of sseFrom(r)) {
       if (ev === 'progress') {
+        if (scanGen !== deviceGen) continue;
         presetScan = {read: d.read, total: d.total};
         renderPresetScan();
       }
@@ -4520,6 +4566,7 @@ async function _loadPresets(refresh) {
       else if (ev === 'result') { got = d; break; }
     }
     if (!got) throw new Error('the scan ended before it finished');
+    if (scanGen !== deviceGen) return;  // An old device/profile scan cannot restore stale names.
     allSlots = got.slots || [];
     if (!$('ppop').hidden) renderPresets(true);
   } catch (e) {
@@ -4531,6 +4578,7 @@ async function _loadPresets(refresh) {
 }
 
 async function gotoPreset(n, force) {
+  if (lastState && lastState.navigation_read_only) return;
   if (presetBusy) return;
   if (!force && bufferDirty && !window.confirm(
       'The edit buffer holds unsent or unstored changes. Loading a preset '
@@ -6719,7 +6767,7 @@ $('gridbig').addEventListener('click', e => {
 // always has. `deviceGen` is bumped by a selection; a poll that started
 // before the bump leaves the device block alone (a stale answer must never
 // revert a fresh choice).
-const DEVICE_SHORT = { fm9: 'FM9', headrush: 'HEADRUSH', ir2: 'IR-2', fm3: 'FM3' };
+const DEVICE_SHORT = { fm9: 'FM9', headrush: 'HEADRUSH', ir2: 'IR-2', fm3: 'FM3', axefx3: 'AXE-FX III' };
 let deviceGen = 0;
 let deviceState = null;
 function deviceShort(dev) {
@@ -6738,6 +6786,7 @@ function visibleDeviceChoices(dev) {
 function renderDevice(dev) {
   const changed = !deviceState || deviceState.active !== dev.active;
   deviceState = dev;
+  renderAxeFxChassis(dev);
   renderFM3Settings(dev);
   if (changed && typeof renderExamples === 'function') renderExamples();
   const wrap = $('devwrap');
@@ -6781,6 +6830,7 @@ async function selectDevice(kind) {
     if (gen !== deviceGen) return;   // a newer selection is in flight
     const dev = Object.assign({}, deviceState || {}, {active: d.active, selected: d.selected, ambiguous: false,
       label: ((deviceState && deviceState.available) || []).filter(x => x.kind === d.active).map(x => x.label)[0] || d.active});
+    if (d.axefx3) dev.axefx3 = d.axefx3; else delete dev.axefx3;
     renderDevice(dev);
     $('devpop').hidden = true;
     if ($('link').classList.contains('on')) $('linktext').textContent = `${deviceShort(dev)} · LINKED`;
@@ -6810,6 +6860,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 // --- #209: the device catalog, live ------------------------------------------
+let axeFxChassisBusy = false;
 let fm3ManualSetup = false;
 function renderFM3Settings(dev) {
   const relevant = dev?.active === 'fm3' || dev?.selected === 'fm3'
@@ -6822,6 +6873,40 @@ $('deviceManualSetup').onclick = () => {
   fm3ManualSetup = !fm3ManualSetup;
   renderFM3Settings(deviceState);
   if (fm3ManualSetup) loadFM3Port(); // Enumerate names only, never save/connect.
+};
+function renderAxeFxChassis(dev) {
+  const select = $('axefx3chassis');
+  const reachable = dev?.active === 'axefx3' || dev?.selected === 'axefx3'
+    || dev?.available?.some(item => item.kind === 'axefx3');
+  $('axefx3hardware').hidden = !reachable;
+  select.disabled = axeFxChassisBusy || !reachable || !!presetScanPromise;
+  if (!axeFxChassisBusy) select.value = dev?.axefx3?.chassis || 'mk1';
+}
+$('axefx3chassis').onchange = async () => {
+  if (axeFxChassisBusy || presetScanPromise) { renderAxeFxChassis(deviceState); return; }
+  const chassis = $('axefx3chassis').value;
+  axeFxChassisBusy = true;
+  ++deviceGen;
+  renderAxeFxChassis(deviceState);
+  try {
+    const response = await fetch('/api/device/select', {method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify({kind:'axefx3',chassis})});
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || 'Hardware choice was not confirmed.');
+    renderDevice({...deviceState, active:result.active, selected:result.selected,
+      ambiguous:false, label:'Fractal Axe-Fx III', axefx3:result.axefx3});
+    allSlots = [];
+    $('axefx3chassisstatus').textContent = 'Declared hardware: ' + chassis.toUpperCase()
+      + '. Read-only preset-name range: 0..' + (result.axefx3.preset_count - 1)
+      + '. Use RESCAN to read names; no sound was changed.';
+  } catch (error) {
+    $('axefx3chassisstatus').textContent = 'Could not confirm the hardware choice. Reopen Devices to check. '
+      + String(error.message || error);
+  } finally {
+    axeFxChassisBusy = false;
+    renderAxeFxChassis(deviceState);
+    await refresh();
+  }
 };
 // The server names every device it recognises on the MIDI bus (by port name
 // only; nothing is sent to it). A supported device that ARRIVES while the
@@ -6947,7 +7032,9 @@ async function runPlugCard(dev, io) {
     paint({error: true, pct: null, text: `Could not read the ${dev.label}. Check the cable, then click the link light.`});
     return 'unread';
   }
-  paint({pct: 100, done: true, text: dev.read_only
+  paint({pct: 100, done: true, text: dev.kind === 'axefx3'
+    ? 'Connected, read-only: change presets and scenes on the unit; refresh to read them.'
+    : dev.read_only
     ? 'Connected, read-only for now: presets and scenes switch; nothing changes your sound.'
     : 'Ready. Ask for a tone.'});
   io.later(() => { if (mine === plugCardGen) io.paint(null); }, 4000);
@@ -7052,6 +7139,7 @@ async function refresh() {
     // #212: a read-only device (the FM3) shows its preset, scenes and which
     // blocks are on, and offers nothing that would change the sound.
     document.body.classList.toggle('readonly-device', !!s.read_only);
+    document.body.classList.toggle('readonly-navigation', !!s.navigation_read_only);
     const ctxf = $('context');
     if (ctxf) ctxf.setAttribute('data-label', 'LIVE '
       + ((deviceState && deviceState.label) || 'FM9').toUpperCase() + ' CONTEXT');
@@ -7118,6 +7206,10 @@ function renderReadOnlyBlocks(s) {
     `<span class="robk${b.bypassed ? ' off' : ''}">${esc(b.label)} · ${esc(b.channel)}${b.bypassed ? ' · off' : ''}</span>`).join('');
   // One row: on a laptop-height window a second row pushed the request
   // heading off the top of the workspace.
+  if (s.navigation_read_only) {
+    $('blocks').innerHTML = `<div class="ropanel"><span class="ronote">${esc(s.read_only_reason || 'Read-only: change presets and scenes on the unit.')}</span>${chips}</div>`;
+    return;
+  }
   $('blocks').innerHTML = `<div class="ropanel"><span class="ronote">Read-only for now: presets and scenes `
     + `switch from here; <a href="https://github.com/monzta1/ToneCommand/issues/40" `
     + `target="_blank" rel="noopener">full ${esc(deviceShort(deviceState))} support</a> comes later.</span>`
@@ -7782,6 +7874,7 @@ const DEVICE_EXAMPLES = {
   ],
   // #212: read-only, so no request it would only refuse is suggested.
   fm3: [],
+  axefx3: [],
 };
 
 function renderExamples() {
@@ -12713,6 +12806,10 @@ refresh();
 // somebody pressed NAMES, so it is refreshed from the filled cache after.
 loadPresets(false).then(() => loadSaveSlots(false));
 setInterval(refresh, 5000);
+if ($('aboutreport')) $('aboutreport').onclick = () => openReport();
+// #282: the last statement. If the script failed to parse or stopped on an
+// error before here, the notice stays and points at /report.
+$('bootfail')?.remove();
 </script>
 </body>
 </html>

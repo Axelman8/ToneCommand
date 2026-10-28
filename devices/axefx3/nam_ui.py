@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 from fm9 import ai_settings, planner
 from fm9.device import get_store_slots
 from . import tone3000, tone3000_routes, nam_install, store_review
+from .readonly_adapter import is_readonly_device
 
 
 class StoreTarget(BaseModel):
@@ -26,13 +27,14 @@ class StoreConsent(BaseModel):
 def register(app, host):
     def selected():
         ctx=host.device_context()
-        if ctx.kind != 'axefx3' or ctx.adapter is None:
+        if (ctx.kind != 'axefx3' or ctx.adapter is None
+                or is_readonly_device(ctx.adapter)):
             raise tone3000.ToneError('Connect the Axe-Fx III workspace first.',409)
         return ctx.adapter
 
     def policy():
         ctx=host.device_context()
-        dev=ctx.adapter if ctx.kind == 'axefx3' else None
+        dev=ctx.adapter if ctx.kind == 'axefx3' and not is_readonly_device(ctx.adapter) else None
         pending=bool(host._plan_revisions or host._audition['open']
                      or host._afx3_tone_reviews.pending or host._controller_reviews.pending)
         return dict(device='axe-fx-iii' if dev else None,

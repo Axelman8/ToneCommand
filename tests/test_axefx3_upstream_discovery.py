@@ -18,6 +18,7 @@ def test_available_devices_preserves_fx3_context_and_upstream_helpers(monkeypatc
     monkeypatch.setattr(mido, "open_output", no_ports)
     monkeypatch.setattr(mido, "open_ioport", no_ports)
     monkeypatch.setattr(server, "_headrush_configured", lambda: configured)
+    monkeypatch.setattr(server, "detected_devices", lambda: [])
     monkeypatch.setattr(server, "_tonex_configured", lambda: configured)
     monkeypatch.setattr(server, "_ir2_port_present", lambda: False)
     monkeypatch.setattr(server, "_fm3_port_present", lambda: False)
@@ -31,3 +32,16 @@ def test_available_devices_preserves_fx3_context_and_upstream_helpers(monkeypatc
     assert server._context is previous
     assert devices == (["fm9"] + (["axefx3"] if kind == "axefx3" else [])
                        + (["headrush", "tonex"] if configured else []))
+
+
+def test_detected_iii_is_available_without_selecting_or_opening_it(monkeypatch):
+    monkeypatch.setattr(server, 'detected_devices', lambda: [{'kind': 'axefx3'}])
+    monkeypatch.setattr(server, '_headrush_configured', lambda: False)
+    monkeypatch.setattr(server, '_tonex_configured', lambda: False)
+    monkeypatch.setattr(server, '_ir2_port_present', lambda: False)
+    monkeypatch.setattr(server, '_fm3_port_present', lambda: False)
+    for name in ('TONECOMMAND_HEADRUSH_SIM', 'TONECOMMAND_TONEX_SIM',
+                 'TONECOMMAND_IR2_SIM', 'TONECOMMAND_FM3_SIM'):
+        monkeypatch.delenv(name, raising=False)
+    with server.use_device('fm9', SimpleNamespace(), SimpleNamespace(), 'FM9'):
+        assert 'axefx3' in [entry['kind'] for entry in server.available_devices()]

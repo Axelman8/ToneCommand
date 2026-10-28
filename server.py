@@ -19,8 +19,8 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
-from fastapi.responses import (FileResponse, JSONResponse, Response,
-                               StreamingResponse)
+from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
+                               Response, StreamingResponse)
 from pydantic import BaseModel
 
 # #177: a plain wheel install has no config/, ui/ or recipes/; say so in one
@@ -151,14 +151,15 @@ DEVICE_KINDS = {
     "fm9": "Fractal FM9",
     "headrush": "HeadRush",
     "tonex": "IK Multimedia ToneX",
-    "axefx3": "Axe-Fx III (controllers)",
     "ir2": "BOSS IR-2",
     # #212: read-only through the FM9 module, addressed as an FM3.
     "fm3": "Fractal FM3",
+    "axefx3": "Fractal Axe-Fx III",
 }
 #: Chosen explicitly, by kind, through /api/device/select. None means no
 #: choice has been made, which is only a problem when there is a choice.
 _selected_kind: dict = {"kind": None}
+_axefx3_chassis: dict = {"value": "mk1"}  # Conservative, process-local declaration.
 
 
 def _headrush_configured() -> bool:
@@ -182,7 +183,8 @@ _CONFIGURED = {"headrush": _headrush_configured, "tonex": _tonex_configured}
 def available_devices() -> list[dict]:
     import os
     out = [{"kind": "fm9", "label": DEVICE_KINDS["fm9"]}]
-    if device_context().kind == "axefx3":
+    if device_context().kind == "axefx3" or any(
+            d["kind"] == "axefx3" for d in detected_devices()):
         out.append({"kind": "axefx3", "label": DEVICE_KINDS["axefx3"]})
     if _headrush_configured():
         out.append({"kind": "headrush", "label": DEVICE_KINDS["headrush"]})
@@ -249,13 +251,17 @@ def device_target() -> tuple[str | None, list[dict]]:
     return None, avail
 
 
-def _build_context(kind: str) -> DeviceContext:
+def _build_context(kind: str, *, axefx3_chassis=None) -> DeviceContext:
     """A connected context for `kind`. The FM9 keeps its lazy path (the
     adapter is None until get_fm9 connects it); a HeadRush is connected here,
     through the committed client, against the simulator when asked."""
     import os
     if kind == "fm9":
         return _default_context
+    if kind == "axefx3":
+        from devices.axefx3.readonly_adapter import AxeFxIII, ReadOnlyRegistry
+        chassis = axefx3_chassis or _axefx3_chassis['value']
+        return DeviceContext(kind, ReadOnlyRegistry(), AxeFxIII(chassis=chassis), DEVICE_KINDS[kind])
     if kind == "headrush":
         from devices.headrush import registry as hr_registry
         from devices.headrush.adapter import HeadrushAdapter
@@ -301,6 +307,19 @@ def _build_context(kind: str) -> DeviceContext:
     raise KeyError(kind)
 
 
+def _axefx3_read_profile() -> dict:
+    ctx = device_context()
+    if ctx.kind != 'axefx3':
+        return {}
+    from devices.axefx3 import readonly_protocol as protocol
+    from devices.axefx3.readonly_adapter import is_readonly_device
+    if not is_readonly_device(ctx.adapter):
+        return {'axefx3': {'read_only': False, 'workspace': '/axefx3'}}
+    chassis = getattr(ctx.adapter, 'chassis', _axefx3_chassis['value'])
+    return {'axefx3': {'chassis': chassis, 'preset_count': protocol.preset_count(chassis),
+                      'declared': True, 'read_only': True}}
+
+
 def device_block() -> dict:
     """#139: what the header renders on every poll: the active device, its
     label, every reachable kind and whether a choice is still owed. Derived
@@ -309,7 +328,7 @@ def device_block() -> dict:
     active = device_context().kind
     return {"active": active, "label": DEVICE_KINDS.get(active, active),
             "selected": kind, "available": avail, "ambiguous": kind is None,
-            "detected": detected_devices()}
+            "detected": detected_devices(), **_axefx3_read_profile()}
 
 
 @app.get("/api/device")
@@ -317,7 +336,8 @@ def api_device():
     kind, avail = device_target()
     return {"selected": kind, "active": device_context().kind,
             "available": avail,
-            "ambiguous": kind is None, "detected": detected_devices()}
+            "ambiguous": kind is None, "detected": detected_devices(),
+            **_axefx3_read_profile()}
 
 
 @app.post("/api/device/select")
@@ -326,6 +346,15 @@ def api_device_select(body: dict):
     frozen), while a reviewed plan is pending (it was planned for the other
     device), and for a kind this process cannot reach."""
     kind = str(body.get("kind") or "")
+    chassis = body.get('chassis', _axefx3_chassis['value'])
+    if kind == 'axefx3':
+        from devices.axefx3 import readonly_protocol as protocol
+        try:
+            protocol.preset_count(chassis)
+        except ValueError as exc:
+            return JSONResponse({'error': str(exc)}, status_code=400)
+    elif 'chassis' in body:
+        return JSONResponse({'error': 'The chassis choice is only for Axe-Fx III'}, status_code=400)
     avail = {d["kind"] for d in available_devices()}
     if kind not in avail:
         return JSONResponse({"error": f"no device {kind!r} here; available: "
@@ -334,7 +363,9 @@ def api_device_select(body: dict):
         if _gig_mode["on"]:
             return JSONResponse({"error": "GIG LOCK is on: the target device "
                                           "cannot change"}, status_code=423)
-        if _plan_revisions and kind != device_context().kind:
+        changed_chassis = (kind == 'axefx3' and
+                           chassis != getattr(device_context().adapter, 'chassis', _axefx3_chassis['value']))
+        if _plan_revisions and (kind != device_context().kind or changed_chassis):
             return JSONResponse(
                 {"error": "a reviewed plan is pending for the current device; "
                           "send or discard it before switching"},
@@ -344,7 +375,8 @@ def api_device_select(body: dict):
             # in words (and logged for Report a problem) and the current
             # device is left exactly as it was.
             try:
-                ctx = _build_context(kind)
+                ctx = (_build_context(kind, axefx3_chassis=chassis)
+                       if kind == 'axefx3' else _build_context(kind))
             except Exception as e:      # noqa: BLE001  any failure to open is reported, never raised
                 note_connection(False, f"{DEVICE_KINDS.get(kind, kind)}: {e}")
                 return JSONResponse({"error": f"could not open the {DEVICE_KINDS.get(kind, kind)}: {e}"},
@@ -357,9 +389,18 @@ def api_device_select(body: dict):
                 except Exception:      # noqa: BLE001  a dead handle is being dropped anyway
                     pass
             select_device_context(ctx)
+            _preset_cache['slots'] = None
             note_connection(True)
+        if kind == 'axefx3':
+            adapter = device_context().adapter
+            if adapter is not None:
+                adapter.set_chassis(chassis)
+            _axefx3_chassis['value'] = chassis
+            if changed_chassis:
+                _preset_cache['slots'] = None
         _selected_kind["kind"] = kind
-    return {"ok": True, "selected": kind, "active": device_context().kind}
+    return {"ok": True, "selected": kind, "active": device_context().kind,
+            **_axefx3_read_profile()}
 
 
 @app.get("/api/fm3/port")
@@ -686,7 +727,8 @@ def get_fm9() -> DeviceAdapter:
     context's adapter, gated exactly the same way."""
     global _fm9
     ctx = device_context()
-    if ctx.kind == "axefx3":
+    from devices.axefx3.readonly_adapter import is_readonly_device
+    if ctx.kind == "axefx3" and not is_readonly_device(ctx.adapter):
         raise CapabilityDeclined("controller_workspace_only", "get_fm9")
     if ctx.kind != "fm9" or ctx.adapter is not None:
         if ctx.adapter is None:
@@ -1915,6 +1957,9 @@ def scene_names(fm9: DeviceAdapter) -> list[dict]:
 
 
 def snapshot(fm9: DeviceAdapter) -> dict:
+    if device_context().kind == "axefx3":
+        from devices.axefx3.readonly_adapter import snapshot as readonly_snapshot
+        return readonly_snapshot(fm9, _gig_mode["on"])
     preset = fm9.current_preset()
     if preset is None:
         # Nothing came back. An open port is not a connected device: pulling
@@ -2272,9 +2317,120 @@ def check_revision(body: ApplyBody):
     return None
 
 
+def _badge_text() -> str:
+    """#282: the running version for the page's badge, filled in by the
+    server so a page whose script never runs still says what is running.
+    Version only: the branch and commit (#264) need git, which can be slow
+    on some machines, so the page's own script adds them once it runs."""
+    from fm9 import updates as _updates
+    try:
+        cur = _updates.current_version()
+    except Exception:      # noqa: BLE001  a version badge must never fail the page
+        return ""
+    return f"v{cur}" if cur else ""
+
+
+_SERVER_VERSION_SLOT = re.compile(r"(<span\b[^>]*\bdata-server-version\b[^>]*>)(</span>)")
+
+
+def interface_page(filename: str):
+    """Fixed app entry pages show a version even when their script fails."""
+    import html as _html
+    page = resource_path("ui", filename).read_text(encoding="utf-8")
+    badge = _html.escape(_badge_text())
+    page = _SERVER_VERSION_SLOT.sub(lambda m: m.group(1) + badge + m.group(2), page)
+    return HTMLResponse(page, headers={"Cache-Control": "no-cache"})
+
+
 @app.get("/")
 def index():
-    return FileResponse(resource_path("ui", "index.html"))
+    return interface_page("index.html")
+
+
+_REPORT_PAGE = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unofficial FX3: report a problem</title>
+<style>
+  body {{ margin: 0; padding: 24px 16px; background: #05080d; color: #c9dcea;
+         font: 16px/1.5 ui-monospace, Menlo, Consolas, monospace; }}
+  main {{ max-width: 860px; margin: 0 auto; }}
+  h1 {{ font-size: 20px; letter-spacing: 0.12em; color: #2fe6ff; margin: 0 0 8px; }}
+  p {{ margin: 0 0 14px; }}
+  .muted {{ color: #7d98ad; }}
+  textarea {{ width: 100%; box-sizing: border-box; background: #0b1520;
+             color: #c9dcea; border: 1px solid #1a7f96; border-radius: 6px;
+             padding: 10px; font: inherit; font-size: 14px; }}
+  button, .go {{ display: inline-block; margin: 6px 10px 18px 0; padding: 10px 16px;
+                background: #0b1520; color: #2fe6ff; border: 1px solid #2fe6ff;
+                border-radius: 6px; font: inherit; text-decoration: none; cursor: pointer; }}
+</style>
+</head>
+<body>
+<main>
+<h1>UNOFFICIAL FX3: REPORT A PROBLEM</h1>
+<p>ToneCommand {version}. This page works even when the main page does not.</p>
+<p class="muted">Nothing is sent from here. Read the report below, then open a
+GitHub issue with it yourself, or copy it and paste it anywhere.</p>
+<form method="post" action="/report">
+  <label for="note">What were you doing? (optional)</label>
+  <textarea id="note" name="note" rows="3">{note}</textarea>
+  <button type="submit">ADD TO THE REPORT</button>
+</form>
+<label for="report">What will be included</label>
+<textarea id="report" rows="18" readonly>{text}</textarea>
+{hint}<p><a class="go" href="{url}" target="_blank" rel="noopener">OPEN A GITHUB ISSUE WITH THIS REPORT</a>
+<a class="go" href="/">BACK TO UNOFFICIAL FX3</a></p>
+</main>
+</body>
+</html>
+"""
+
+
+#: #282: a GitHub "new issue" link longer than this is refused or cut off by
+#: browsers and GitHub alike, so the page offers copy-and-paste instead.
+_REPORT_URL_LIMIT = 7000
+_REPORT_NOTE_LIMIT = 2000
+
+
+@app.api_route("/report", methods=["GET", "POST"])
+async def report_page(request: Request):
+    """#282: Report a problem without the page's script. The main page's
+    button lives in the same script it would be reporting on, so a page that
+    fails to start (1.5.3's, #281) could never offer it. This is plain
+    server-built HTML: the same scrubbed package as the button, a form for the
+    player's note (POSTed, so it never sits in a URL or the access log), and
+    a link they open themselves. Nothing is sent from here, and nothing is
+    asked of the device: MIDI port names are listed, no handle is used.
+    """
+    import html as _html
+    from urllib.parse import parse_qs
+    from starlette.concurrency import run_in_threadpool
+    from fm9 import diagnostics
+    note = ""
+    if request.method == "POST":
+        raw = (await request.body())[:16384].decode("utf-8", errors="replace")
+        note = (parse_qs(raw).get("note") or [""])[0]
+    note = note[:_REPORT_NOTE_LIMIT]
+    try:
+        pkg = await run_in_threadpool(diagnostics.package_for_sharing,
+                                      note=note, query_device=False)
+        text = pkg["title"] + "\n\n" + pkg["body"]
+        url = pkg["url"]
+    except Exception as e:      # noqa: BLE001  the report page must survive a broken install
+        text = f"The report could not be built: {type(e).__name__}"
+        url = f"https://github.com/{diagnostics.REPO}/issues/new"
+    hint = ""
+    if len(url) > _REPORT_URL_LIMIT:
+        url = f"https://github.com/{diagnostics.REPO}/issues/new"
+        hint = ("<p class=\"muted\">The report is too long for a link: copy it "
+                "from the box above and paste it into the new issue.</p>")
+    page = _REPORT_PAGE.format(version=_html.escape(_badge_text() or "(version not read)"),
+                               note=_html.escape(note), text=_html.escape(text),
+                               url=_html.escape(url, quote=True), hint=hint)
+    return HTMLResponse(page, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/logo.png")
@@ -2468,7 +2624,7 @@ def api_state():
             snap = snapshot(get_fm9())
             snap["device"] = device
             # #212: the page offers no sound-changing control for this device.
-            snap["read_only"] = device_context().kind == "fm3"
+            snap["read_only"] = device_context().kind in ("fm3", "axefx3")
             note_connection(True)
             return snap
         except FM9NotFound as e:
@@ -3323,6 +3479,9 @@ def _plan_for(body: PromptBody, on_count=None, cancel=None, on_status=None):
     if kind == "fm3":
         from fm9.device import FM3_READ_ONLY
         return {"error": FM3_READ_ONLY, "read_only": True}
+    if kind == "axefx3":
+        from devices.axefx3.readonly_adapter import READ_ONLY
+        return {"error": READ_ONLY, "read_only": True}
     # #84: a new plan reads the rig as it is; an audition still hanging in
     # the edit buffer would be read as the player's cab. Put it back first.
     with _lock:
@@ -5687,20 +5846,33 @@ def api_set_store_slots(body: StoreSlotsBody):
         }
 
 
+def _preset_cache_owner():
+    ctx = device_context()
+    return (ctx.kind, id(ctx.adapter), getattr(ctx.adapter, 'chassis', None))
+
+
+def _preset_cache_matches():
+    owner = _preset_cache.get('owner')
+    # Legacy unowned caches remain compatible for other devices, never for III.
+    return (owner == _preset_cache_owner() if owner is not None
+            else device_context().kind != 'axefx3')
+
+
 @app.get("/api/presets")
 def api_presets(refresh: bool = False):
     """Every slot name, read by number without disturbing the loaded preset."""
-    if _preset_cache["slots"] is not None and not refresh:
+    if _preset_cache["slots"] is not None and not refresh and _preset_cache_matches():
         return {"slots": _preset_cache["slots"], "cached": True}
     with _lock:
         try:
             fm9 = get_fm9()
+            owner = _preset_cache_owner()
             slots = []
-            for s in fm9.scan_slots(0, 511):
+            for s in fm9.scan_slots(0, getattr(fm9, 'preset_count', 512) - 1):
                 slots.append({
                     "number": s.number,                       # wire
-                    "editor": proto.editor_number(s.number),  # what the unit shows
-                    "label": proto.slot_label(s.number),      # both, for prompts
+                    "editor": getattr(s, 'editor', proto.editor_number(s.number)),
+                    "label": getattr(s, 'label', proto.slot_label(s.number)),
                     "name": s.name,
                     "empty": proto.is_empty_slot_name(s.name),
                 })
@@ -5713,6 +5885,7 @@ def api_presets(refresh: bool = False):
             drop_fm9()
             return JSONResponse({"error": str(e)}, status_code=500)
     _preset_cache["slots"] = slots
+    _preset_cache['owner'] = owner
     return {"slots": slots, "cached": False}
 
 
@@ -5725,27 +5898,29 @@ def api_presets_stream(refresh: bool = False):
     unit is empty". The count is real progress, measured off the wire.
     """
     def work(emit, cancel):
-        if _preset_cache["slots"] is not None and not refresh:
+        if _preset_cache["slots"] is not None and not refresh and _preset_cache_matches():
             emit("result", {"slots": _preset_cache["slots"], "cached": True})
             return
         slots = []
         with _lock:
             try:
                 fm9 = get_fm9()
-                for s in fm9.scan_slots(0, 511):
+                owner = _preset_cache_owner()
+                total = getattr(fm9, 'preset_count', 512)
+                for s in fm9.scan_slots(0, total - 1):
                     if cancel.is_set():
                         # Nobody is watching and a partial list must never be
                         # cached as though it were the unit.
                         return
                     slots.append({
                         "number": s.number,
-                        "editor": proto.editor_number(s.number),
-                        "label": proto.slot_label(s.number),
+                        "editor": getattr(s, 'editor', proto.editor_number(s.number)),
+                        "label": getattr(s, 'label', proto.slot_label(s.number)),
                         "name": s.name,
                         "empty": proto.is_empty_slot_name(s.name),
                     })
                     if (s.number + 1) % 16 == 0:
-                        emit("progress", {"read": s.number + 1, "total": 512})
+                        emit("progress", {"read": s.number + 1, "total": total})
             except FM9NotFound:
                 drop_fm9()
                 emit("error", "FM9 not connected")
@@ -5757,6 +5932,7 @@ def api_presets_stream(refresh: bool = False):
                 emit("error", str(e))
                 return
         _preset_cache["slots"] = slots
+        _preset_cache['owner'] = owner
         emit("result", {"slots": slots, "cached": False})
 
     return _stream_response(work, final=("result", "error"))
@@ -8540,6 +8716,16 @@ def main():
         raise ValueError("TONECOMMAND_PORT must be an integer from 1 to 65535") from exc
     if not 1 <= port <= 65535:
         raise ValueError("TONECOMMAND_PORT must be an integer from 1 to 65535")
+    # #282: the terminal is the one place every player sees, even when the
+    # page fails to start, so it names the version and the fallback report.
+    from fm9 import updates as _updates
+    try:
+        _version = _updates.current_version()
+    except Exception:      # noqa: BLE001  a startup banner must never stop the server
+        _version = "(version not read)"
+    print(f"ToneCommand {_version}: open http://127.0.0.1:{port}\n"
+          f"If the page does not respond: http://127.0.0.1:{port}/report",
+          flush=True)
     uvicorn.run(app, host="127.0.0.1", port=port)
 
 

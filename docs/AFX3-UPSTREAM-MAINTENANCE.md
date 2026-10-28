@@ -20,6 +20,35 @@ certify untested firmware, controllers, NAM formats or upstream features.
 
 ## Repeatable update check
 
+### Current source reconciliation, 2026-10-28
+
+The candidate foundation is upstream1.6.2 at
+`4d81851ecd163a984fd5dc3fc2cff9ad7a0f0dde`. Keep the older dated notes below
+as historical evidence, not current feature limits. The integration manifest
+records source reconciliation separately from final regression, installation,
+native hardware and remote CI acceptance. No firmware write is enabled by a
+version bump or a successful merge.
+
+The official read-only III source maps to `readonly_adapter.py` and
+`readonly_protocol.py` in this full fork. Its closed name/Amp components and
+unchanged-assertion tests use that explicit namespace. The existing full
+`adapter.py` and `protocol.py` retain their measured workspace boundary. For a
+future upstream update, compare these two mapped files with their original
+upstream paths, then review connection handoff and shared snapshot dispatch.
+Never resolve an add/add conflict by replacing the full adapter with read-only
+source, or by letting the shared executor use the full workspace adapter.
+
+The shared Devices selection and declared chassis capacity use the official
+read-only interface. The existing explicit workspace Connect transfers MIDI
+ownership only after closing that interface. Generic FM9 execution remains
+blocked in the full workspace. Problem reports now work without JavaScript
+and link to this fork's tracker without querying the unit. The fork remains
+Unofficial; original authorship and legal attribution are retained.
+
+This preparation is not an extra maintained application or a deployment. The
+two focused draft contributions289/290 are not merged, rewritten or approved
+by reconciling this branch. Their upstream review remains separate.
+
 ### Current source integration boundary, 2026-10-21
 
 The shared source integrates upstream1.5.16 at

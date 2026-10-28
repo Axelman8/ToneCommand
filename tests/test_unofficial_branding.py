@@ -65,7 +65,7 @@ def test_mk1_ai_entry_has_own_identity_without_factory_or_ai_calls():
 
 def test_fork_reports_never_point_to_upstream_issue_queue(monkeypatch,tmp_path):
     assert diagnostics.REPO=='Axelman8/ToneCommand'
-    monkeypatch.setattr(diagnostics,'environment',lambda:['Unofficial FX3 test'])
+    monkeypatch.setattr(diagnostics,'environment',lambda query_device=True:['Unofficial FX3 test'])
     package=diagnostics.package_for_sharing(path=tmp_path/'absent.jsonl')
     assert package['url'].startswith(TRACKER+'/new?')
 

@@ -1002,3 +1002,4 @@ el('send').onclick=()=>run(async()=>{
   note(result.ok?tcText("Build complete; no audible result measured."):tcText("Stopped. Partial changes may remain; keep audio muted."));
 });
 run(refresh);
+document.getElementById('bootfail')?.remove();

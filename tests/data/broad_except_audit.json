@@ -5,6 +5,14 @@
   {"file":"devices/axefx3/tone3000_routes.py","function":"callback","ordinal":1,"disposition":"OAuth exchange errors become a fixed 502 page with no token, authorization code or exception details; no MIDI in callback."}
  ],
  "_comment": "Every 'except Exception' block in server.py by AST identity (enclosing function qualified name plus the ordinal of the block within that function). tests/test_capability_gates.py enforces exact correspondence and that each block either re-raises CapabilityDeclined first or states why a decline cannot reach it (#111).",
+ "component_blocks": [
+  {
+   "file": "devices/axefx3/amp_writer.py",
+   "function": "AmpWriter.apply_amp",
+   "ordinal": 1,
+   "disposition": "After an attempted SET, wrap ordinary transport and all verification failures as an uncertain AmpReadbackError; latch the connection, never retry or restore. No capability routing occurs in this explicit component."
+  }
+ ],
  "blocks": [
   {
    "function": "read_modifiers",
@@ -465,6 +473,21 @@
    "function": "api_state",
    "ordinal": 1,
    "disposition": "re-raises CapabilityDeclined: wraps _named_param_state, whose named_params() is itself a gated method (#198). Everything else answers 200 with the reason rather than 500, because the page polls this every second and a device that cannot be read is an OFFLINE pill, not a broken page."
+  },
+  {
+   "function": "_badge_text",
+   "ordinal": 1,
+   "disposition": "unreachable: reads the installed version for the page's server-rendered badge (#282); no device handle and no git in the try body"
+  },
+  {
+   "function": "report_page",
+   "ordinal": 1,
+   "disposition": "unreachable: builds the scrubbed diagnostics package for /report (#282) with query_device=False, so it lists MIDI port names and never uses a device handle"
+  },
+  {
+   "function": "main",
+   "ordinal": 1,
+   "disposition": "unreachable: reads the version for the startup line (#282) before the server starts; no device handle in the try body"
   }
  ]
 }

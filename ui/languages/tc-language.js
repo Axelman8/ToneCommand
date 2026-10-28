@@ -8,8 +8,7 @@
   const registered = [], loaded = new Map();
   const attrs = ['title', 'placeholder', 'aria-label'];
   const select = document.getElementById('tc-language-select');
-  let status = document.getElementById('tc-language-status');
-  let picker = null, controlsReady = false;
+  const status = document.getElementById('tc-language-status');
   const engine = window.i18next?.createInstance();
   if (engine) engine.init({lng: 'en', fallbackLng: 'en', initAsync: false,
     keySeparator: false, nsSeparator: false, returnNull: false,
@@ -79,7 +78,7 @@
       else entry.node.nodeValue = entry.last;
     }
     document.documentElement.lang = selected;
-    syncControls();
+    if (select) select.value = selected;
     window.dispatchEvent(new CustomEvent('tc-language-changed', {detail: {locale: selected}}));
   }
   async function jsonAsset(name) {
@@ -115,74 +114,18 @@
       catch { /* Session-only choice when browser storage is unavailable. */ }
     }
   }
-  function syncControls() {
-    if (select) select.value = selected;
-    picker?.querySelectorAll('input[type=radio]').forEach(input => {
-      input.checked = input.value === selected;
-      input.disabled = !engine || !controlsReady;
-    });
-  }
-  async function chooseFromControl(locale) {
-    try {
-      await choose(locale);
-      if (status) status.textContent = text('Interface language changed. Existing plans and unsent input are unchanged.');
-    } catch (error) {
-      syncControls();
-      if (status) status.textContent = error.message;
-    }
-  }
-  function renderChoices(languages) {
-    if (!picker) return;
-    const options = picker.querySelector('.tc-language-options');
-    options.replaceChildren(...languages.map(language => {
-      const label = document.createElement('label');
-      label.className = 'tc-language-choice';
-      const badge = document.createElement('span');
-      badge.className = 'tc-language-code'; badge.textContent = language.locale.toUpperCase();
-      badge.setAttribute('aria-hidden', 'true');
-      const name = document.createElement('span');
-      name.className = 'tc-language-name'; name.textContent = language.name;
-      const input = document.createElement('input');
-      input.type = 'radio'; input.name = 'tc-interface-language'; input.value = language.locale;
-      input.onchange = () => { if (input.checked) chooseFromControl(input.value); };
-      label.append(input, name, badge);
-      return label;
-    }));
-    syncControls();
-  }
-  function mountPicker() {
-    if (select) return; // The upstream Settings dropdown needs no extra dialog.
-    const style = document.createElement('link');
-    style.rel = 'stylesheet'; style.href = '/language/tc-language.css';
-    document.head.append(style);
-    picker = document.createElement('dialog');
-    picker.id = 'tc-language-dialog';
-    picker.setAttribute('aria-labelledby', 'tc-language-title');
-    picker.setAttribute('aria-describedby', 'tc-language-description');
-    picker.innerHTML = '<div class="tc-language-heading"><span class="tc-language-icon" aria-hidden="true">'
-      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c5 5 5 13 0 18-5-5-5-13 0-18Z"/></svg></span>'
-      + '<div><h2 id="tc-language-title">Interface language</h2><p id="tc-language-description">Choose the language for menus and controls.</p></div></div>'
-      + '<fieldset><legend>Choose your language</legend><div class="tc-language-options" data-no-translate></div></fieldset>'
-      + '<p class="tc-language-note">Missing translations stay in English. Your requests, plans and device names are not translated.</p>'
-      + '<p id="tc-language-status" role="status" aria-live="polite" data-no-translate></p>'
-      + '<div class="tc-language-footer"><span>Changes apply immediately.</span><button type="button" class="tc-language-close">Done</button></div>';
-    document.body.append(picker);
-    status = picker.querySelector('#tc-language-status');
-    picker.querySelector('button').onclick = () => picker.close();
-    const trigger = document.createElement('button');
-    trigger.type = 'button'; trigger.className = 'tc-language-trigger';
-    trigger.textContent = 'Language'; trigger.setAttribute('aria-label', 'Interface language');
-    trigger.onclick = () => { syncControls(); picker.showModal(); };
-    const settings = document.getElementById('drawer-settings');
-    const header = document.querySelector('#hwbar .status, header, nav');
-    (settings || header || document.body).append(trigger);
-    renderChoices([{locale: 'en', name: 'English'}]);
-  }
-  mountPicker();
   capture(document.body);
   if (select) {
     select.disabled = true;
-    select.onchange = () => chooseFromControl(select.value);
+    select.onchange = async () => {
+      try {
+        await choose(select.value);
+        if (status) status.textContent = text('Interface language changed. Existing plans and unsent input are unchanged.');
+      } catch (error) {
+        select.value = selected;
+        if (status) status.textContent = error.message;
+      }
+    };
   }
   const ready = (async () => {
     let listReady = false;
@@ -205,8 +148,6 @@
         throw new Error('Invalid bundled language list. Keep using English.');
       available = manifest.languages.map(item => item.locale);
       listReady = true;
-      controlsReady = true;
-      renderChoices(manifest.languages);
       if (select) {
         select.replaceChildren(...manifest.languages.map(item => new Option(item.name, item.locale)));
         select.disabled = !engine;
@@ -222,8 +163,6 @@
       if (engine) await engine.changeLanguage('en');
       apply();
       if (select) { select.value = 'en'; select.disabled = !engine || !listReady; }
-      controlsReady = listReady;
-      syncControls();
       if (status) status.textContent = error.message;
     }
   })();

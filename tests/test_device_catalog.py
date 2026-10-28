@@ -89,8 +89,8 @@ def test_recognise_names_unsupported_devices_with_their_issue():
     for d in got.values():
         # #212: the FM3 is driven read-only through the FM9 module; its issue
         # still links the full support it lacks
-        assert d["supported"] is (d["kind"] == "fm3") and d["verified"] is False
-        assert d["read_only"] is (d["kind"] == "fm3")
+        assert d["supported"] is (d["kind"] in ("fm3", "axefx3")) and d["verified"] is False
+        assert d["read_only"] is (d["kind"] in ("fm3", "axefx3"))
         assert d["issue_url"] == f"https://github.com/monzta1/ToneCommand/issues/{d['issue']}"
     ir2 = catalog.recognise(["IR-2"])[0]
     assert ir2 == {"kind": "ir2", "label": "BOSS IR-2", "supported": True,
@@ -312,6 +312,15 @@ def test_card_walks_to_ready_by_switching_to_a_new_device(tmp_path):
 def test_card_reconnects_the_active_device_on_a_replug(tmp_path):
     r = _card(tmp_path, card=IR2, active="ir2", read=GOOD_READ)
     assert r["results"] == ["ready"] and r["calls"] == [["reconnect"], ["refresh"]]
+
+
+def test_iii_read_only_card_does_not_offer_navigation_or_tone_requests(tmp_path):
+    card = dict(FM9, kind="axefx3", label="Fractal Axe-Fx III", read_only=True)
+    r = _card(tmp_path, card=card, active="fm9",
+              read={"connected": True, "active": "axefx3", "fresh": True})
+    assert r["results"] == ["ready"]
+    assert r["paints"][-1]["text"] == (
+        "Connected, read-only: change presets and scenes on the unit; refresh to read them.")
 
 
 def test_card_shows_the_servers_refusal_and_never_ready(tmp_path):

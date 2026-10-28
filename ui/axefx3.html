@@ -7,6 +7,11 @@
 .afx3-workspace .device-bar select{padding:2px 5px;max-width:170px;font:inherit;color:var(--cyan);background:var(--bg);border:1px solid var(--cyan-dim)}
 .afx3-workspace #hwbar .brand img{width:32px;height:32px}.afx3-workspace #hwbar h1{font-size:16px}.afx3-workspace #hwbar .brand{gap:8px}
 .afx3-workspace #target{max-width:30vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.afx3-workspace #workspaceSettings{position:relative;flex:none}
+.afx3-workspace #workspaceSettings summary{cursor:pointer;color:var(--cyan)}
+.afx3-workspace #workspaceSettings>div{position:absolute;bottom:100%;right:0;width:260px;padding:16px;background:var(--panel);border:1px solid var(--line);border-radius:6px;z-index:20}
+.afx3-workspace #workspaceSettings select{display:block;width:100%;margin-top:8px;padding:8px;font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line)}
+.afx3-workspace #workspaceSettings p{font-size:var(--fs-hint);margin-top:10px}
 .afx3-workspace #connectDevice.linked{color:var(--green);border-color:var(--green)}
 .afx3-workspace dialog{width:min(680px,85vw);max-height:80vh;overflow:auto;background:var(--panel);color:var(--text);border:1px solid var(--cyan-dim);padding:22px;border-radius:8px}
 .afx3-workspace dialog::backdrop{background:#000a}.afx3-workspace dialog input:not([type=checkbox]){width:100%;padding:10px;background:var(--bg);color:var(--text);border:1px solid var(--line)}
@@ -49,10 +54,11 @@
 .afx3-workspace .warning{color:var(--amber);white-space:pre-wrap;font-size:var(--fs-hint)}.afx3-workspace .warnings:empty{display:none}
 .afx3-workspace .checks label{display:flex;gap:12px;margin:18px 0;align-items:start}.afx3-workspace .checks input{flex:none;margin-top:5px;accent-color:var(--cyan)}
 .afx3-workspace pre{white-space:pre-wrap;overflow-wrap:anywhere}.afx3-workspace #namResults a{display:block;padding:8px 0}
-.afx3-workspace #shelf{grid-template-columns:minmax(0,1fr) auto}.afx3-workspace #status{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:var(--fs-hint);color:var(--amber);align-self:center}
+.afx3-workspace #shelf{grid-template-columns:minmax(0,1fr) auto auto}.afx3-workspace #status{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:var(--fs-hint);color:var(--amber);align-self:center}
 .afx3-workspace #workflowError{flex:none;max-height:110px;overflow:auto;padding:10px 14px;border:1px solid var(--amber);border-radius:4px;background:var(--panel);color:var(--amber);font-size:var(--fs-hint);white-space:pre-wrap;overflow-wrap:anywhere}
 .afx3-workspace #controllerHint{margin:8px 0}.afx3-workspace #who{font-size:var(--fs-hint);color:var(--muted)}.afx3-workspace .stageintro{flex:none}.afx3-workspace #shelf a{font-size:var(--fs-label)}
 </style></head><body class="afx3-workspace" data-stage="request">
+<div class="bootfail" id="bootfail" role="alert">This page did not finish starting, so its buttons will not respond. Running <span data-server-version></span>. <a href="/report">Get a problem report</a>.</div>
 <div id="unsupported"><p>Use a desktop window at least 1180 pixels wide to review the proposal and hardware confirmation safely.</p></div>
 <div class="wrap" id="shell">
 <dialog id="presetDialog"><h2>CHOOSE PRESET</h2><p id="presetScanStatus">Preset names are read from the Fractal; this switches nothing.</p><input id="presetSearch" placeholder="Search by name or number" aria-label="Search presets"><div id="presetChoices"></div><button id="presetClose">CLOSE</button></dialog>
@@ -84,4 +90,4 @@
 <div id="namInstallPanel" hidden><p id="namInstallSummary"></p><p id="namInstallWarning" class="warning"></p><label><input id="namInstallMute" type="checkbox">External audio remains fully muted.</label><label><input id="namInstallFlash" type="checkbox">I confirm a permanent NAM memory write.</label><label><input id="namInstallOverwrite" type="checkbox"><span id="namSlotConsent">I confirm the selected target slot.</span></label><button id="namInstallCommit" disabled>INSTALL IN SELECTED SLOT</button></div>
 <p>4. In design options, choose the fully read, installed NAM. Installation and preset selection are separate; TC does not silently choose another slot. An empty-preset build starts with one scene; afterwards you can expand to two scenes (NAM A/B). No automatic installation or preset storage.</p><p>Native installation requires Windows, declared MK2, the exact measured FW33 build and a supported A2 structure. Axe-Edit is not required. Other profiles stay blocked.</p></details>
 <details><summary>CAPABILITIES &amp; SAFETY</summary><p>TC uses only the verified Axe-Fx III write profile. The chassis choice is declared by the user, not independently proven.</p><p>On FW32.06 TC can build supported serial routes and configure Amp, Cab, Wah, Delay, Reverb, Chorus, Drive, Compressor and existing EQ. No automatic rebuild of existing presets.</p><p>AI uses local audio measurements, not guitar isolation or direct listening to the recording. No proven tone match or physical volume control.</p></details></aside></main>
-<div id="workflowError" role="alert" hidden></div><footer id="shelf"><span id="status" role="status" aria-live="polite">Reading state...</span><a class="shbtn" href="/controllers"><span id="workspaceIdentity">TC FX3</span> | CONTROLLERS</a></footer></div><script src="/axefx3.js" defer></script></body></html>
+<div id="workflowError" role="alert" hidden></div><footer id="shelf"><span id="status" role="status" aria-live="polite">Reading state...</span><a class="shbtn" href="/controllers"><span id="workspaceIdentity">TC FX3</span> | CONTROLLERS</a><details id="workspaceSettings"><summary>SETTINGS</summary><div><label for="tc-language-select">Language</label><select id="tc-language-select" disabled><option value="en">English</option></select><p id="tc-language-status" role="status" aria-live="polite"></p></div></details></footer></div><script src="/axefx3.js" defer></script></body></html>

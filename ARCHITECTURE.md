@@ -33,8 +33,10 @@ invariant this codebase is organised around.
 Experimental AFX3 work is isolated in `devices/axefx3`; the `/controllers`
 workspace explicitly connects its own device context for reviewed Wah/Volume
 bindings. `/axefx3` adds bounded text designs compiled by `planning.py`, with
-state-bound review/send in `tone_ui.py` and `tone_review.py`. Generic API routes and the FM9 handle are refused while this
-context is selected. It implements the adapter contract without FM9
+state-bound review/send in `tone_ui.py` and `tone_review.py`. Generic API routes
+and the FM9 handle are refused while this full workspace context is selected.
+The official shared read-only context is separate, as described below.
+It implements the adapter contract without FM9
 transport inheritance or FM9 global routing restore. Its own firmware-pinned
 registry and captured SET domains prevent a product-byte-only substitution.
 The isolated executor validates the whole plan before routing construction,
@@ -42,7 +44,7 @@ preserves separate scene/channel intent, and stops at the first failed
 readback. Cab imports/selections and narrow grid/modifier operations remain
 behind this boundary; broad topology/modifier capabilities stay disabled.
 See `docs/AFX3-INTEGRATION.md` for the remaining
-server/UI and hardware gates. `server.py` has 8,481 lines in this stage.
+server/UI and hardware gates. The current measured server size is listed below.
 
 FX3 reference measurements and descriptive comparison live in the side-effect
 free `audio_measurements.py`; their endpoint does not obtain a device or call
@@ -110,12 +112,39 @@ Read/choose/review do not write. The shared writer lock, GIG LOCK, explicit
 mute acknowledgement and device-side independent readback guard execution.
 
 Interface languages are local data, not AI or device actions. `fm9/language.py`
-serves a fixed asset allowlist. The bundled i18next engine translates registered
+serves an asset allowlist including bundled locale files. A single dropdown in
+Settings selects a shipped language. The local i18next engine translates registered
 initial markup and explicitly marked messages; user input, live device readings
-and existing plans are not scanned. English is the source and fallback. Imported
-JSON is matched to its catalog hash, rendered as text, stored only in the browser
-and cannot alter option values or critical English confirmations. Catalog and
-release ZIP checks live in `tools/language_packs.py`.
+and existing plans are not scanned. English is the source and fallback. Bundled
+JSON is matched to its catalog hash and rendered as text. Only the locale choice
+is stored in the browser; old imported translation data is not restored. Language
+changes cannot alter option values or critical English confirmations. Catalog
+and bundled-file checks live in `tools/language_packs.py`.
+
+Experimental Axe-Fx III reading is isolated in `devices/axefx3`. The existing
+Devices selector creates a separate adapter with a strict final output wrapper;
+only product 0x10 basic read forms reach MIDI. It neither inherits FM9 nor
+loads its parameter/model/cab catalogs. The shared block-name table is used
+only for status labels; unknown IDs remain numeric. `snapshot` delegates this
+context to a read-only status reader rather than the FM9's grid/parameter path.
+Preset/scene navigation, sound changes, NAM and account integration are outside
+this slice of #270. See `docs/AXEFX3-READONLY.md` for independent acceptance.
+The Devices panel declares preset-name capacity, defaulting to Mark I/512.
+Mark II/Turbo explicitly allow 1024 name reads at both output boundaries.
+The choice is process-local, never hardware autodetection or a write release.
+Shared name scans derive their bound from the adapter and scope their cache
+to the selected context/connection/chassis; FM9 retains its 512-name default.
+Name-list formatting uses each adapter's slot labels: the III displays wire
+numbers directly, while FM9 keeps its existing one-based display numbering.
+
+The full fork preserves its independently tested `adapter.py`/`protocol.py`.
+The upstream read-only slice is namespaced as `readonly_adapter.py` and
+`readonly_protocol.py`; upstream's closed name/Amp components import only that
+boundary. Its tests retain their assertions with the same explicit import map.
+The shared Devices selector opens the read-only context, not the workspace
+writer. An explicit workspace connection closes that handle before opening
+its own. A failed handoff stays disconnected, never retries or reuses it.
+This source reconciliation does not promote a firmware, model or write family.
 
 | Layer | Files | Knows about |
 |---|---|---|
@@ -154,7 +183,7 @@ locally, and the only way to catch a layout regression is a screenshot.
 **Fix:** split into `ui/index.html`, `ui/app.css`, and JavaScript modules by
 concern. Served as static files. No behaviour change, mechanical, testable.
 
-### 2. `server.py` is 8,587 lines; routes include the bounded FX3 workspace, upstream discovery and local language assets
+### 2. `server.py` is 8,773 lines; routes include the bounded FX3 workspace, upstream discovery, scriptless reports and local language assets
 
 Every concern in one module: device polling, planning, applying, settings,
 recipes, sharing, snapshots, profiles, slot admin. Eight pieces of

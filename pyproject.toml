@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tonecommand"
-version = "1.5.16"
+version = "1.6.2"
 description = "Natural-language tone control over USB MIDI: Fractal FM9 and BOSS IR-2, more devices joining"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -92,6 +92,8 @@ py-modules = ["server"]
 # `tools` too: server.py (path_audit) and fm9/health.py (conventions) import
 # from it, so a non-editable install without it cannot import the server
 # (found 2026-09-20 with the numpy defect; editable installs hid both).
+# #209: devices.ir2 and devices.tonex were missing, so a non-editable install
+# could not build either device; the test now checks dotted subpackages.
 packages = ["fm9", "devices", "devices.headrush", "devices.axefx3", "devices.ir2", "devices.tonex", "tools"]
 
 [tool.setuptools.package-data]

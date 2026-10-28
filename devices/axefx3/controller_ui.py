@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, StrictBool, StrictInt, Field
 
 from fm9.paths import resource_path
 from .adapter import AxeFxIII
+from .readonly_adapter import is_readonly_device
 from .registry import Registry
 from .controller_review import Reviews, inspect
 
@@ -31,7 +32,8 @@ def register(app, host):
 
     def selected():
         ctx = host.device_context()
-        if ctx.kind != 'axefx3' or ctx.adapter is None:
+        if (ctx.kind != 'axefx3' or ctx.adapter is None
+                or is_readonly_device(ctx.adapter)):
             raise HTTPException(409, 'Connect the Axe-Fx III controller workspace first.')
         return ctx.adapter
 
@@ -57,8 +59,9 @@ def register(app, host):
             origin = request.headers.get('origin')
             if origin and origin != f'{request.url.scheme}://{request.url.netloc}':
                 return JSONResponse({'error': 'Cross-origin controller requests are not allowed.'}, status_code=403)
-        if host.device_context().kind == 'axefx3':
-            allowed = {'/controllers', '/controllers.js', '/axefx3', '/axefx3.js', '/axefx3.css', '/logo.png', '/api/device'}
+        ctx = host.device_context()
+        if ctx.kind == 'axefx3' and not is_readonly_device(ctx.adapter):
+            allowed = {'/controllers', '/controllers.js', '/axefx3', '/axefx3.js', '/axefx3.css', '/logo.png', '/api/device', '/report'}
             allowed.update({'/api/tone3000/login', '/api/tone3000/callback', '/api/tone3000/status',
                             '/api/tone3000/load', '/api/tone3000/logout'})
             if request.url.path == '/':
@@ -70,7 +73,7 @@ def register(app, host):
 
     @app.get('/controllers')
     def page():
-        return FileResponse(resource_path('ui', 'controllers.html'))
+        return host.interface_page('controllers.html')
 
     @app.get('/controllers.js')
     def script():
@@ -79,7 +82,8 @@ def register(app, host):
     @app.get('/api/controllers/state')
     def state():
         with host._lock:
-            if host.device_context().kind != 'axefx3':
+            if (host.device_context().kind != 'axefx3'
+                    or is_readonly_device(host.device_context().adapter)):
                 return dict(connected=False, controller_selected=False, gig_locked=host._gig_mode['on'])
             if host.device_context().adapter is None:
                 return dict(connected=False, controller_selected=True, gig_locked=host._gig_mode['on'])
@@ -92,7 +96,9 @@ def register(app, host):
     def connect():
         with host._lock:
             editable()
-            if host.device_context().kind == 'axefx3' and host.device_context().adapter is not None:
+            ctx = host.device_context()
+            if (ctx.kind == 'axefx3' and ctx.adapter is not None
+                    and not is_readonly_device(ctx.adapter)):
                 return dict(connected=True)
             if os.environ.get('TONECOMMAND_SIM') == '1' and reviews.connect_device is hardware:
                 raise HTTPException(409, 'No live Axe-Fx III connection in simulator mode.')

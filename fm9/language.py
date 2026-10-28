@@ -1,5 +1,6 @@
 """Local, allowlisted language assets. No AI, network, settings or MIDI."""
 import re
+
 from fastapi import HTTPException
 from fastapi.responses import FileResponse
 from fm9.paths import resource_path

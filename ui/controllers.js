@@ -137,3 +137,4 @@ el('send').onclick = () => run(async () => {
   message(result.ok ? tcText("Transmission complete. Check physical controls and loudness separately.") : tcText("Stopped. Do not automatically resend."));
 });
 run(load);
+document.getElementById('bootfail')?.remove();

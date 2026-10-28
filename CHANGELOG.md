@@ -4,6 +4,14 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Reconcile upstream1.6.2 with the full Unofficial fork. Preserve the measured
+  workspace adapter and isolate upstream's basic read-only interface, declared
+  chassis capacity and closed name/Amp components behind explicit imports.
+  Test the single-owner handoff and preserve refusal after a failed connection.
+- Retain scriptless version/problem reports and the shared Settings language
+  dropdown, pointing fork reports to its own tracker. Source integration does
+  not approve new firmware writes, NAM installation or the draft PRs.
+
 - Mark all fork test screens Unofficial FX3, remove displayed upstream logos
   and wordmarks, and route voluntary problem reports to the fork issue tracker.
   Add current MK1 guidance while retaining historical read-only limitations.
@@ -693,12 +701,83 @@ Notable changes to ToneCommand. Dates are UTC.
   Windows account cannot create symlinks. All other OS errors still fail;
   the production path containment rule is unchanged.
 ### Added
-- English-first interface language packs, using a locally bundled i18next
-  engine. Import version-matched JSON from Settings without AI translation,
-  hardware access, a CDN or changing protocol identifiers. Missing entries
-  stay English. See docs/LANGUAGE-PACKS.md for coverage and release updates.
+- Bundle the exact FW33 Axe-Fx III Amp model names/ordinals as a validated,
+  offline reference catalog. No model selector, app/planner write capability,
+  live discovery, firmware/chassis promotion or account workflow is enabled.
 
 ### Fixed
+- Let the developer-only Axe-Fx III Amp writer inspect unused modifier
+  records with a residual parameter number after an editor preset clear.
+  Source and target effect must both be zero; all 25 words remain preserved
+  and checked. Active or assigned modifiers still refuse the operation.
+
+## 1.6.2 (2026-10-24)
+
+### Added
+- Add an explicitly constructed MK2 Amp 1/channel A parameter experiment:
+  one bounded Gain or Mid change per expiring review, exact output permits,
+  independent display/bulk checks and uncertainty latching. No GUI/planner,
+  model/routing/level change, Store or MK1 write capability is enabled.
+
+### Fixed
+- **A page that fails to start can still say what is running and send a
+  report (#282).** In #281 a page rendered but nothing responded, and its
+  version badge and Report a problem button were both inside the script that
+  had failed. Now the server fills in the version badge itself; a notice
+  appears if the page's script never finishes, naming the version and linking
+  a new plain `/report` page that needs no script (the same scrubbed report,
+  a note box, and the GitHub link you open yourself); the terminal prints the
+  version and the `/report` address at startup; and Settings has a REPORT A
+  PROBLEM button, so it no longer waits for an error in the chat.
+- Harden the developer-only Axe-Fx III Amp writer (#280): it now refuses
+  when a scene name did not read back, before or after the edit, instead of
+  comparing two unread names as equal; and the wire tests pin a fractional
+  value (3.3), so the float32 rounding the unit applies cannot drift unseen.
+
+## 1.6.1 (2026-10-24)
+
+### Added
+- Isolated Axe-Fx III name-edit previews and an explicit developer-only MK2
+  writer for the measured FW33 beta identity, with single-use review, exact
+  final-output permits and independent name/status readback. No Store or
+  normal GUI/planner capability is enabled; the normal adapter stays read-only.
+
+### Fixed
+- Harden the opt-in Axe-Fx III name writer: transmit fresh MIDI messages from
+  checked bytes, recheck review expiry immediately before arming a write, and
+  report uncertain transport/readback failures consistently. Literal wire-byte
+  tests cover preset and scene names. The read-only output uses checked copies
+  too; no new write capability or permanent storage is enabled.
+- Hide the Axe-Fx III hardware-type box in Devices unless a III is available,
+  active or selected. It starts hidden and disappears when no longer relevant;
+  showing or hiding it never connects a device or changes the current request.
+- Hide the FM3 settings card unless relevant or explicitly opened through
+  the generic MIDI setup action. A new FM3 behind an unrecognised MIDI
+  interface can still be configured without displaying absent hardware.
+
+## 1.6.0 (2026-10-23)
+
+### Added
+- English-first interface language packs, using a locally bundled i18next
+  engine and one Language dropdown in Settings. English, Dutch and German
+  ship with the app; Dutch/German cover core labels, with English fallback
+  elsewhere. No separate dialog, import/download step, AI translation or
+  hardware action. See docs/LANGUAGE-PACKS.md for coverage and contributions.
+- Declared Axe-Fx III hardware type in Devices: Mark I reads 512 preset names;
+  Mark II/Turbo read 1024. The default remains Mark I. This only expands
+  read-only name requests, scopes their cache and updates scan progress.
+  Sound editing, navigation, Store, NAM and controllers remain unavailable.
+- Experimental Axe-Fx III reading through the existing Devices selector:
+  firmware major/minor, preset and scene names, block bypass/channel status.
+  No navigation, parameter reads or writes, grid editing, NAM or account
+  workflow is enabled by this contribution. See docs/AXEFX3-READONLY.md.
+
+### Fixed
+- Axe-Fx III preset numbers now match Axe-Edit's zero-based numbering in
+  current status and both name-list endpoints. FM9 numbering is unchanged.
+- Release an already opened MIDI input when opening its output fails or is
+  interrupted, on both mido and supriya. Successful pair ownership and the
+  FM3's exact input/output binding stay unchanged.
 - **The bottom shelf is one row again.** It was laid out for eight
   buttons; since DEVICES made nine, SETTINGS sat on a row of its own. Each
   button now gets an equal bay, however many there are.

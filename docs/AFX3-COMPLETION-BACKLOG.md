@@ -19,22 +19,22 @@ Private messages, email and forum conversations were not inspected by this
 GitHub audit. No hardware operation, GitHub reply, merge or release was made.
 
 - Upstream main: `4d81851ecd163a984fd5dc3fc2cff9ad7a0f0dde`, release1.6.2.
-- Full maintained fork: local `675f438e4a075185385a6d78a415a502d7d0a099`;
-  remote contribution/reference head still `b90f4da`. Its shared integration
-  foundation remains1.5.16. Separate review worktrees are not that integration.
+- At audit time the full fork was local675f438, remoteb90f4da, based on1.5.16.
+  B/C is now committed and pushed as `c593393` on the maintained source branch.
+  D/E reconciles1.6.2 in an isolated preparation branch; final acceptance and
+  transfer to the maintained branch must be recorded before calling it deployed.
 - [PR289](https://github.com/monzta1/ToneCommand/pull/289) and
   [PR290](https://github.com/monzta1/ToneCommand/pull/290) are draft/open,
   mergeable, all15 checks successful on each current head. No submitted
   reviews or unresolved inline threads were found. PR290 contains the bridge
   dependency; reconcile it after289 lands, not by merging everything in270.
 - [PR270](https://github.com/monzta1/ToneCommand/pull/270) is a reference-only
-  draft and currently has merge conflicts. Its body still describes an old
-  head and old CI/conflict status. Update the description in a separate
-  authorized communication step; wholesale conflict resolution is not the
-  requested upstream delivery strategy.
-- The [MK1 thread](https://github.com/Axelman8/ToneCommand/issues/1) still
-  opens with the old read-only assignment. Later posts supersede it with
-  an experimental one-scene writer and one maintained shared source. Old ZIPs
+  draft. Its original body described old source/CI status; the current banner
+  now identifies it as reference only and retains the original in a historical
+  section. Wholesale merging270 is not the requested upstream delivery strategy.
+- The [MK1 thread](https://github.com/Axelman8/ToneCommand/issues/1) now
+  opens with current guidance and labels the original read-only assignment
+  historical. It distinguishes the experimental one-scene writer and shared source. Old ZIPs
   remain immutable historical artifacts, not the current development branch.
 - Latest MK1 tester reply found: successful-write report on24October.
   Acknowledged evidence is67 verified actions on preset70, source43666be,
@@ -51,6 +51,21 @@ Chrome checks and real served-resource tests cover those entries. Existing
 read-only/experimental write boundaries are unchanged; no new installer or
 hardware support is implied. Final source/package acceptance remains gated
 by the regression and installation steps, not by these UI checks alone.
+
+B/C acceptance at c593393: mandatory/changed572 passed,1 skipped; full6545
+passed,19 skipped. A fresh installed Git clone passed117 capacity checks,
+55 branding/diagnostic/language checks and script-disabled Chrome inspection
+of all five entry pages, with zero logo/API requests. This proves that source
+and local Windows installation scope, not other hardware, audible quality or
+a new downloadable ZIP. Historical assets remain unchanged.
+
+D/E preparation maps official read-only source to an explicit namespace and
+preserves the full adapter/protocol. Connection-boundary tests verify close
+before open, no reuse after failure and refusal of workspace writes on the
+read-only context. Shared and workspace language controls are now native
+Settings dropdowns. Workspace version/report fallback also works without
+JavaScript. The source remains a candidate until its final regression,
+installation and merge checkpoints are recorded. No new hardware writes.
 
 Current guidance is now at the top of the
 [MK1 coordination thread](https://github.com/Axelman8/ToneCommand/issues/1).
@@ -85,9 +100,9 @@ No calendar deadline is promised before firmware and external-test gates pass.
 | ID | Work package and current status | Depends on | Exit criterion and required help |
 |---|---|---|---|
 | A | Consolidate messages and evidence: DONE |None |Every relevant request has a source, status and owner in this ledger. Recheck for new replies before the next upstream handoff. |
-| B | Unofficial branding and support: OPEN, first priority |A |All shipped test entry points, page titles, headers, favicons, controller/FX3 pages and previews are unmistakably Unofficial, contain no TC logo/wordmark styling, and link to the fork's own issue tracker. Retain legal attribution. Browser/resource tests cover every entry; no hardware needed. |
-| C | One maintained source and clear download/start instructions: PARTIAL |B |One launcher/dependency set; exact source/version visible. Update current guidance in270/issue1 and distinguish source checkout from historical ZIPs. Do not overwrite old tags/assets or the tester's changes. No hardware needed. |
-| D | Reconcile current upstream foundation: OPEN |C |Controlled integration of current main, not a second app. Preserve accepted FX3 features/profile evidence and upstream FM9 behavior. Resolve source conflicts, rerun regressions, update the foundation manifest honestly. No hardware for source work; hardware acceptance stays separate. |
+| B | Unofficial branding and support: DONE at c593393 |A |All shipped test entry points, page titles, headers, favicons, controller/FX3 pages and previews are unmistakably Unofficial, contain no TC logo/wordmark styling, and link to the fork's own issue tracker. Retain legal attribution. Browser/resource tests cover every entry; no hardware needed. |
+| C | One maintained source and clear download/start instructions: DONE for current source |B |One launcher/dependency set; exact source/version visible. Update current guidance in270/issue1 and distinguish source checkout from historical ZIPs. Do not overwrite old tags/assets or the tester's changes. No hardware needed. |
+| D | Reconcile current upstream foundation: IN VALIDATION |C |Controlled integration of current main, not a second app. Preserve accepted FX3 features/profile evidence and upstream FM9 behavior. Resolve source conflicts, rerun regressions, update the foundation manifest honestly. No hardware for source work; hardware acceptance stays separate. |
 | E | Shared minimal UX, localization and diagnostics: PARTIAL |D |Use the existing Settings Language dropdown and request/conversation/review stages. Hide unavailable devices; show chassis only when relevant. New UI text uses bundled packs, retaining protected English confirmations/technical identifiers and untranslated user/AI/device content. Problem reports work on III and on script-load failure, send users to the correct issue tracker, and exclude secrets. Browser/installed-resource tests pass. |
 | F | Internal reviewed-edit bridge,289: REVIEW |A |Address actual review comments, preserve exact-frame/single-use/expiry/state gates, CI passes on the final head. Monzta1 decides upstream acceptance. No automatic merge. |
 | G | Existing REVIEW/CONFIRM/SEND route/UI wiring,290: REVIEW |F |Reconcile after289 lands. Player clicks SEND; no accidental scene sweep, false Undo/tone-check claims or second MIDI owner. Capability-route table, language packs and script-free reports tested. Monzta1 review plus final native acceptance. |
