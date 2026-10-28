@@ -8588,7 +8588,8 @@ function showPlan(plan) {
   const prevSrc = $('plansrc'); if (prevSrc) prevSrc.remove();
   $('plansummary').textContent = plan.summary;
   renderTension(plan.request_tensions || []);
-  renderToneCheck(plan.tone_review || []);
+  if (plan.afx3_edit) { $('tonecheck').hidden = true; $('tonecheck').replaceChildren(); }
+  else renderToneCheck(plan.tone_review || []);
   // What the plan DOES, in one line, above the button that sends it. An
   // eight-scene build is 140 cards; the things that matter (how many changes,
   // what gets renamed, and whether a preset slot gets overwritten) were
@@ -8632,7 +8633,7 @@ function showPlan(plan) {
     + (blocked ? ` ${blocked} ${blocked === 1 ? 'is' : 'are'} marked BLOCKED `
                  + `and will not transmit.` : '')
     + ` If it reads right, continue to REVIEW, confirm, and send`
-    + (devNamed()
+    + (plan.afx3_edit ? AFX3ReviewedEdit.completionNote() : devNamed()
         // No false comfort here either: this device has no undo at all.
         ? `. There is no undo on this device.`
         : willStore
@@ -8650,7 +8651,7 @@ function showPlan(plan) {
   // is the one moment the blast-radius hints earn their audible sweep. The
   // plan is already rendered above: the hints fill in when the map lands,
   // and only if this is still the plan on screen.
-  if (!sharedMap || sharedFor !== currentPresetNumber) {
+  if (!plan.afx3_edit && (!sharedMap || sharedFor !== currentPresetNumber)) {
     ensureShared().then(ok => {
       if (!ok || currentPlan !== plan) return;
       refreshBlastRadius(plan);

@@ -60,6 +60,9 @@ new proposals, changes to action/target/connection, Gig Lock, expiry and
 repeated SEND cannot reuse approval. Late HTTP responses cannot restore
 invalidated client authority. Server-side checks remain authoritative even
 if the page is stale or requests are submitted outside the UI.
+No automatic shared-scene sweep runs for this proposal. The shared-channel
+warning remains conservative; the page does not claim automatic Undo or a
+passed musical tone check for a single parameter edit.
 
 ## Registered endpoints
 

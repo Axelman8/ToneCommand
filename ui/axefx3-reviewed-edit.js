@@ -188,5 +188,6 @@ window.AFX3ReviewedEdit = (() => {
     node('reversebody').textContent=tcText("Edit buffer only; nothing is permanently stored. No automatic Undo.");
   }
   const readonlyNote=()=>tcText("General controls remain read-only. This opt-in proposal edits only Amp 1/channel A Gain or Mid through REVIEW, CONFIRM and SEND. No Store or automatic Undo.");
-  return {active,prepare,review,restart,renderConfirm,consentChanged,arm,send,invalidate,poll,lockCards,renderRail,readonlyNote};
+  const completionNote=()=>tcText(". This edit stays unsaved. There is no automatic Undo.");
+  return {active,prepare,review,restart,renderConfirm,consentChanged,arm,send,invalidate,poll,lockCards,renderRail,readonlyNote,completionNote};
 })();

@@ -22,6 +22,8 @@ Notable changes to ToneCommand. Dates are UTC.
   live discovery, firmware/chassis promotion or account workflow is enabled.
 
 ### Fixed
+- Keep one-edit Axe-Fx III proposals out of the automatic shared-scene
+  sweep. Their plan banner no longer promises Undo or a musical tone check.
 - Let the developer-only Axe-Fx III Amp writer inspect unused modifier
   records with a residual parameter number after an editor preset clear.
   Source and target effect must both be zero; all 25 words remain preserved
