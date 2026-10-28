@@ -8,7 +8,10 @@ window.AFX3ReviewedEdit = (() => {
   const active=()=>!!currentPlan?.afx3_edit;
   const ticket=()=>currentPlan?.afx3_ticket;
   const status=text=>{node('afx3editstatus').textContent=text;};
-  function controls(){node('afx3prepare').disabled=busy||!metadata?.available;}
+  function controls(){
+    const allowed=metadata?.allowed_values?.[node('afx3control').value];
+    node('afx3prepare').disabled=busy||!metadata?.available||!!allowed&&!allowed.includes(Number(node('afx3value').value));
+  }
   async function api(path,body){
     const r=await fetch('/api/axefx3/edit/'+path,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const d=await r.json();
@@ -155,6 +158,8 @@ window.AFX3ReviewedEdit = (() => {
       const value=s.device?.active==='axefx3'?await api('state'):null;
       if(context!==latestContext)return;  // A late response belongs to the old selection.
       metadata=value;
+      node('afx3editlimits').textContent=metadata?.calibration_only===true
+        ?tcText("Beta 5 calibration: preset 327, scene 1, isolated Bassguy Amp 1/A only. Gain 4.6 or 5.0; Mid 5.0 or 5.6. No general preset writing."):'';
       if(metadata?.available&&(!dirty||previous?.preset!==metadata.preset||previous?.scene!==metadata.scene)){
         node('afx3value').value=metadata.values[node('afx3control').value];dirty=false;
       }
@@ -167,9 +172,9 @@ window.AFX3ReviewedEdit = (() => {
   node('afx3prepare').onclick=prepare;
   node('afx3control').onchange=()=>{
     if(metadata?.values)node('afx3value').value=metadata.values[node('afx3control').value];
-    dirty=false;invalidate();
+    dirty=false;invalidate();controls();
   };
-  node('afx3value').oninput=()=>{dirty=true;invalidate();};
+  node('afx3value').oninput=()=>{dirty=true;invalidate();controls();};
   node('afx3muted').onchange=consentChanged;
   const railText=confirm=>confirm
     ?tcText("Confirm the exact target and external audio mute. Other scenes may share Amp channel A. No automatic Undo or measured loudness limit.")

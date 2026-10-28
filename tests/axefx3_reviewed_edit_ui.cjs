@@ -7,7 +7,7 @@ function element(){return {hidden:false,disabled:false,checked:false,value:'',te
   classList:{add(){}},append(...items){this.children.push(...items);},replaceChildren(){this.children=[];}};}
 const node=id=>nodes[id]??(nodes[id]=element());
 node('afx3control').value='DISTORT_DRIVE';node('afx3value').value='3.3';node('afx3editbox').hidden=true;
-let hold=null,sequence=0,sendError=false;
+let hold=null,sequence=0,sendError=false,calibration=false;
 const context={console,structuredClone,JSON,Promise,Error,Number,String,document:{getElementById:node,
   querySelectorAll:()=>[],createElement:()=>element()},currentPlan:null,stage:'request',stageDone:{},
   gigOn:false,armTimer:null,armLeft:0,planSending:false,planSent:0,planTotal:0,
@@ -20,6 +20,7 @@ const context={console,structuredClone,JSON,Promise,Error,Number,String,document
     calls.push({path,body});
     if(hold?.path===path){const current=hold;hold=null;await current.promise;}
     if(path==='state')return {ok:true,json:async()=>({configured:true,available:true,preset:321,scene:1,
+      ...(calibration?{calibration_only:true,allowed_values:{DISTORT_DRIVE:[4.6,5],DISTORT_MID:[5,5.6]}}:{}),
       values:{DISTORT_DRIVE:3,DISTORT_MID:5}})};
     if(path==='discard')return {ok:true,json:async()=>({stage:'request'})};
     if(path==='send')return {ok:!sendError,json:async()=>sendError
@@ -82,6 +83,13 @@ async function armed(){await reviewed();node('ack').checked=true;node('afx3muted
     await ui.poll(III);assert.equal(node('afx3value').value,'3.7');
     node('afx3control').value='DISTORT_MID';node('afx3control').onchange();
     assert.equal(node('afx3value').value,5);
+  }else if(scenario==='calibration'){
+    calibration=true;await ui.poll(III);
+    node('afx3value').value='4.1';node('afx3value').oninput();assert.equal(node('afx3prepare').disabled,true);
+    node('afx3value').value='4.6';node('afx3value').oninput();assert.equal(node('afx3prepare').disabled,false);
+    assert.match(node('afx3editlimits').textContent,/No general preset writing/);
+    node('afx3control').value='DISTORT_MID';node('afx3control').onchange();
+    assert.equal(node('afx3value').value,5);assert.equal(node('afx3prepare').disabled,false);
   }else throw Error('Unknown scenario');
   console.log(JSON.stringify({passed:true,scenario,requests:calls.map(c=>c.path)}));
 })().catch(error=>{console.error(error);process.exitCode=1;});

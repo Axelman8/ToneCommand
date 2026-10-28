@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, Strict
 from fm9.device import ReadOnly
 from fm9.paths import resource_path
 from .amp_writer import AmpWriter, AmpReadbackError
+from . import amp_beta5
 from .edit_workflow import EditWorkflow
 
 
@@ -29,7 +30,8 @@ def connect(chassis):
         raise ReadOnly('The reviewed Amp experiment requires declared MK2 hardware')
     if os.environ.get('TONECOMMAND_SIM') == '1':
         raise ReadOnly('The opt-in writer cannot open physical MIDI in simulator mode')
-    return AmpWriter(chassis=chassis)
+    profile = os.environ.get('TONECOMMAND_AXEFX3_REVIEWED_AMP_PROFILE','measured')
+    return AmpWriter(chassis=chassis,profile=profile)
 
 
 class Preparation(BaseModel):
@@ -105,7 +107,13 @@ def register(app, host):
                 values = {'DISTORT_DRIVE':dev._display(1), 'DISTORT_MID':dev._display(3)}
                 if any(type(v) not in (int,float) or not 0 <= v <= 10 for v in values.values()):
                     raise ReadOnly('Independent Gain and Mid displays must be readable')
-                return dict(configured=True, available=not host._gig_mode['on'],
+                details = {}
+                if dev.profile == amp_beta5.KEY:
+                    from .amp_writer import AmpEdit
+                    dev._observe(AmpEdit(preset[0],'gain',5.))  # Read-only fixture validation; no review minted.
+                    details = dict(calibration_only=True,
+                        allowed_values={'DISTORT_DRIVE':[4.6,5.], 'DISTORT_MID':[5.,5.6]})
+                return dict(configured=True, available=not host._gig_mode['on'],**details,
                     preset=preset[0], scene=scene, values=values, gig_locked=host._gig_mode['on'], stored=False)
             except (ReadOnly, ValueError, OSError) as exc:
                 return dict(configured=True, available=False, reason=str(exc))

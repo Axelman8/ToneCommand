@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "catalog_version": "1.5.16-lang.2",
-  "catalog_sha256": "bfc171e472ef378cc15c71825ef685812d89b787b290ed058b0e88435cf98b6b",
+  "catalog_sha256": "88615b790bb154750090e4af04c7c3bda52fe7960728d4222a4f2afe749edf8b",
   "locale": "en",
   "name": "English",
   "translations": {
@@ -98,6 +98,7 @@
     "Back to live context": "Back to live context",
     "Band, guitarist or amp": "Band, guitarist or amp",
     "Base tone for this design.": "Base tone for this design.",
+    "Beta 5 calibration: preset 327, scene 1, isolated Bassguy Amp 1/A only. Gain 4.6 or 5.0; Mid 5.0 or 5.6. No general preset writing.": "Beta 5 calibration: preset 327, scene 1, isolated Bassguy Amp 1/A only. Gain 4.6 or 5.0; Mid 5.0 or 5.6. No general preset writing.",
     "Bigger view": "Bigger view",
     "Binding": "Binding",
     "Binding read back and confirmed": "Binding read back and confirmed",

@@ -8,6 +8,11 @@ included. Use official releases for ordinary use.
 
 ## Connection and supported operation
 
+The following describes the default measured profile from #290. A separate,
+explicitly selected [closed Beta 5 calibration profile](AXEFX3-BETA5-AMP-CALIBRATION.md)
+has a much narrower fixture and literal-value contract; it is not an upgrade
+of the default profile or general Beta 5 support.
+
 Only an explicit process environment setting,
 `TONECOMMAND_AXEFX3_REVIEWED_AMP=1`, selects the existing `AmpWriter` when
 connecting declared Mark II hardware. There is one connection and no

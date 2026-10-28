@@ -1,4 +1,4 @@
-"""Explicit MK2 Amp 1/channel A experiment, never constructed by the app.
+"""Explicit MK2 Amp 1/channel A experiment; default connections stay read-only.
 
 One Gain or Mid change. No model/channel/bypass/scene/routing/level writes,
 Store, NAM or global settings. Readback covers the stated observed surfaces,
@@ -6,7 +6,7 @@ not every parameter on every other block or physical audio.
 """
 from contextlib import contextmanager
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 import hashlib
 import json
 import math
@@ -21,6 +21,7 @@ from fm9 import protocol as shared
 from fm9.device import FM9NotFound, ReadOnly
 from fm9.safety import sysex_guard
 from . import protocol
+from . import amp_beta5
 from .adapter import AxeFxIII, ReadOnlyOutput, snapshot
 
 
@@ -95,15 +96,20 @@ class AmpReadbackError(RuntimeError):
 class _AmpOutput(ReadOnlyOutput):
     guard = sysex_guard('Axe-Fx III explicit Amp experiment', {1, 8, 10, 11, 12, 13, 14, 19, 31})
 
-    def __init__(self, port, chassis):
+    def __init__(self, port, chassis, profile='measured'):
+        if profile not in ('measured',amp_beta5.KEY):
+            raise ReadOnly('Unknown Amp operation profile')
         super().__init__(port, chassis)
         self._permit = None
+        self._profile = profile
 
     @contextmanager
     def _once(self, edit):
         if type(edit) is not AmpEdit or self._permit is not None:
             raise ReadOnly('One reviewed AmpEdit is required')
         checked = AmpEdit(edit.preset, edit.control, edit.value)
+        if self._profile == amp_beta5.KEY:
+            amp_beta5.check_edit(checked)
         self._permit = (threading.get_ident(), tuple(checked.frame()))
         try:
             yield
@@ -114,7 +120,7 @@ class _AmpOutput(ReadOnlyOutput):
         frame = [240, *message.data, 247] if message.type == 'sysex' else []
         if protocol.allowed(frame, self._chassis):
             return super().send(mido.Message('sysex', data=frame[1:-1]))
-        if _extra_read(frame):
+        if _extra_read(frame) or self._profile == amp_beta5.KEY and amp_beta5.extra_read(frame):
             self.guard.check(frame[5])
         else:
             if self._permit != (threading.get_ident(), tuple(frame)):
@@ -139,15 +145,25 @@ class AmpReview:
 class AmpWriter(AxeFxIII):
     """Opt-in acceptance component; ordinary adapter capabilities stay read-only."""
 
-    def __init__(self, ports=None, *, chassis='mk2'):
+    def __init__(self, ports=None, *, chassis='mk2', profile='measured'):
         if chassis != 'mk2':
             raise ReadOnly('Amp writing requires the measured MK2 profile')
+        if profile not in ('measured',amp_beta5.KEY):
+            raise ReadOnly('Choose an explicit measured Amp operation profile')
+        if profile == amp_beta5.KEY and ports is None and not amp_beta5.native_supported():
+            raise ReadOnly('Native Beta 5 calibration requires measured Windows/Python 3.12/mido')
+        self.profile = profile
         self._review, self._uncertain = None, False
         super().__init__(ports, chassis=chassis)
 
-    @staticmethod
-    def _output(port, chassis):
-        return _AmpOutput(port, chassis)
+    def _output(self, port, chassis):
+        return _AmpOutput(port, chassis, self.profile)
+
+    def firmware_label(self):
+        if self.profile == amp_beta5.KEY:
+            self._identity()
+            return amp_beta5.LABEL
+        return super().firmware_label()
 
     def _send(self, frame):
         self.outp.send(mido.Message('sysex', data=frame[1:-1]))
@@ -162,16 +178,20 @@ class AmpWriter(AxeFxIII):
             raise ReadOnly('Exact measured MK2 firmware identity required; reconnect after uncertainty')
         reply = self._request(8, [], tuple)
         if (self._closed or self._uncertain or self.chassis != 'mk2'
-                or reply is None or hashlib.sha256(bytes(reply)).hexdigest() != IDENTITY_SHA256):
+                or reply is None or hashlib.sha256(bytes(reply)).hexdigest()
+                    != (amp_beta5.IDENTITY_SHA256 if self.profile == amp_beta5.KEY else IDENTITY_SHA256)):
             raise ReadOnly('Exact measured MK2 firmware identity required; reconnect after uncertainty')
 
     def _bulk(self, eid, timeout=1.5):
-        if type(eid) is not int or eid not in BULK_IDS:
-            raise ValueError('Only the Amp and modifier inspection surfaces are admitted')
+        counts = {58:AMP_WORDS, **{eid:25 for eid in range(3,35)}}
+        if self.profile == amp_beta5.KEY:
+            counts.update(amp_beta5.WORDS)
+        if type(eid) is not int or eid not in counts:
+            raise ValueError('Only this profile\'s Amp, modifier and context read surfaces are admitted')
         with self._lock:
             for _ in self.inp.iter_pending():
                 pass
-            self._send(protocol.envelope(31, [eid, 0]))
+            self._send(protocol.envelope(31, list(shared.encode14(eid))))
             deadline, count, words = time.monotonic() + timeout, None, []
             while time.monotonic() < deadline:
                 for message in self.inp.iter_pending():
@@ -181,7 +201,7 @@ class AmpWriter(AxeFxIII):
                     if data[4] == shared.FN_BCAST_HEAD:
                         head = shared.parse_bcast_head(data)
                         if (count is not None or len(data) != 10 or not head
-                                or head != (eid, AMP_WORDS if eid == 58 else 25)):
+                                or head != (eid, counts[eid])):
                             return None
                         count = head[1]
                     elif data[4] == shared.FN_BCAST_BODY:
@@ -189,7 +209,8 @@ class AmpWriter(AxeFxIII):
                         if count is None or not body or len(body) % 3 or any(b > 3 for b in body[2::3]):
                             return None
                         words.extend(shared.parse_bcast_body(data) or [])
-                        if len(words) > count or any(w > 65534 for w in words):
+                        limit = 65535 if self.profile == amp_beta5.KEY and eid in amp_beta5.WORDS else 65534
+                        if len(words) > count or any(w > limit for w in words):
                             return None
                     elif data[4] == shared.FN_BCAST_END:
                         return words if len(data) == 6 and count == len(words) else None
@@ -206,10 +227,14 @@ class AmpWriter(AxeFxIII):
             bits = ''.join(f'{b:07b}' for b in data[20:20+length])
             raw = bytes(int(bits[i:i+8], 2) for i in range(0, len(bits)-7, 8))
             text = raw.split(b'\0', 1)[0].decode('ascii', errors='replace').strip()
+            if self.profile == amp_beta5.KEY and pid == 21:
+                return float(text.removesuffix(' dB')) if re.fullmatch(r'-?\d+(?:\.\d{1,3})?(?: dB)?',text) else None
             return float(text) if re.fullmatch(r'(?:\d|10)(?:\.\d{1,3})?', text) else None
         return self._request(1, _display_query(pid)[6:-2], parse)
 
     def _observe(self, edit):
+        if self.profile == amp_beta5.KEY:
+            amp_beta5.check_edit(edit)
         self._identity()
         status = snapshot(self)
         # snapshot() records an unanswered scene name as None. Unread on both
@@ -233,7 +258,17 @@ class AmpWriter(AxeFxIII):
         if self._bulk(58) != amp or snapshot(self) != status:
             raise ReadOnly('Observed context changed during parameter inspection')
         self._identity()
-        return dict(status=status, amp=amp, modifiers=modifiers, shown=shown)
+        result = dict(status=status, amp=amp, modifiers=modifiers, shown=shown)
+        if self.profile == amp_beta5.KEY:
+            cells = self._request(1,amp_beta5.grid_query()[6:-2],shared.parse_grid_layout)
+            if cells is None:
+                raise ReadOnly('The complete calibration grid must be readable')
+            result.update(grid=[asdict(c) for c in cells],level=self._display(21),
+                controllers={str(eid):self._bulk(eid) for eid in amp_beta5.WORDS})
+            amp_beta5.fixture(result)
+            if self._request(1,amp_beta5.grid_query()[6:-2],shared.parse_grid_layout) != cells or snapshot(self) != status:
+                raise ReadOnly('Calibration fixture changed during inspection')
+        return result
 
     def review_amp(self, edit):
         if type(edit) is not AmpEdit:

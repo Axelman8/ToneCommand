@@ -5,6 +5,10 @@ Notable changes to ToneCommand. Dates are UTC.
 ## Unreleased
 
 ### Added
+- Prepare a separately selected MK2 Beta 5 Amp calibration profile with
+  four captured Gain/Mid literals, an isolated preset327 fixture and full
+  grid/controller preservation reads. The default profile remains unchanged;
+  no general Beta 5, MK1, preset-build, level or Store capability is enabled.
 - Add an explicitly opt-in, single Gain/Mid edit through the existing
   REVIEW/CONFIRM/SEND screens. The measured MK2 writer retains its exact
   firmware pin, shared-channel warning, explicit external-mute confirmation,

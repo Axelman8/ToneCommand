@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.mark.parametrize('scenario', ['lifecycle', 'consent', 'timeout', 'queued-discard',
-    'late-proposal', 'late-state', 'target', 'uncertain', 'dirty-input'])
+    'late-proposal', 'late-state', 'target', 'uncertain', 'dirty-input', 'calibration'])
 def test_reviewed_edit_controller(scenario):
     node = shutil.which('node')
     if not node:
