@@ -2,6 +2,25 @@
 
 ## Current master plan and GitHub audit, 2026-10-28
 
+### Later continuation: targeted Beta5 Amp measurements and CI repair
+
+The H/I source checkpoint at7c0d2b6 passed6,980 tests/19 skips and379
+mandatory/targeted checks on this Windows host. The one USB-enumeration
+warning is informational. This is not a claim that remote CI is green.
+The remote083e22 run exposed a full-browser test still targeting the removed
+language dialog and Windows launcher tests with unavailable Get-FileHash.
+These receive explicit native-dropdown and platform-SHA256 fixes, preserving
+all draft, consent, stale-source, no-second-owner and fail-closed assertions.
+Record the final local and per-head remote results before release acceptance.
+
+J now additionally has sixteen exact native Amp literal SETs across eight
+controls on isolated327/A, with full-state preservation, separate restoration
+and fresh independent Axe-Edit checks. See
+[the bounded family record](AFX3-BETA5-PARAMETER-FAMILIES.md). This is private
+measurement evidence, not implementation of a normal Beta5 family writer.
+The production adapter's before-output refusal remains correct and recorded.
+Fresh access was confirmed; the earlier request for confirmation is historical.
+
 ### Later hardware continuation: read-only identification and names
 
 Fresh power/external-mute/desktop confirmation was received after the source

@@ -111,6 +111,7 @@ function Start-Process {
  $global:started=$true
  [pscustomobject]@{HasExited=$false}
 }
+function Get-FileHash { throw 'Module-discovered Get-FileHash is unavailable in this host' }
 function Stop-Process { throw 'Never terminate existing process' }
 function Get-Process { param($Name,$ErrorAction); return }
 $env:TONECOMMAND_DEVICE='sentinel'

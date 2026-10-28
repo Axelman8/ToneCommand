@@ -1,5 +1,10 @@
 # FW33 public beta #2 (Beta 5): migration checkpoint
 
+28October follow-up: [read-only labels/names](AXEFX3-READONLY.md) and
+[eight bounded Amp-control measurements](AFX3-BETA5-PARAMETER-FAMILIES.md)
+extend the evidence below. They do not enable the normal Beta5 writer.
+The27October record remains historical where superseded by those dated checks.
+
 Status: 27 October 2026. Exact identity recognition and read-only discovery,
 **not new-build write support**. The initial-release roadmap and discussion:
 [Axelman8/ToneCommand issue 2](https://github.com/Axelman8/ToneCommand/issues/2).

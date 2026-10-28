@@ -371,8 +371,8 @@ const path=require('node:path');
     ];
     for(const [locale,status,placeholder] of namLanguageCases){
       const requestCount=requestAttempts.length;
-      await page.locator('.tc-language-trigger').click();
-      await page.locator('#tc-language-dialog input[value="'+locale+'"]').check();
+      await page.locator('#workspaceSettings>summary').click();
+      await page.locator('#tc-language-select').selectOption(locale);
       await page.waitForFunction(value=>TCLanguage.locale===value,locale);
       await page.waitForFunction(value=>document.getElementById('namStatus').textContent===value,status);
       assert.equal(await page.getAttribute('#namKey','placeholder'),placeholder);
@@ -380,7 +380,8 @@ const path=require('node:path');
       assert.equal(await page.inputValue('#prompt'),namDraft);
       assert.equal(await page.locator('#muted').isChecked(),namConsent);
       assert.equal(requestAttempts.length,requestCount); // No account refresh or POST on language change.
-      await page.locator('.tc-language-close').click();
+      assert.equal(await page.locator('#tc-language-dialog,.tc-language-trigger').count(),0);
+      await page.locator('#workspaceSettings>summary').click();
     }
     const refreshNamStatus=async()=>{
       await page.click('#namPanel summary');await page.click('#namPanel summary');

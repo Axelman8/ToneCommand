@@ -25,6 +25,19 @@ $tcFiles = @('server.py','fm9/planner.py','fm9/protocol.py','fm9/device.py',
     'devices/axefx3/data/fw33_effect_models.json') + @(
     Get-ChildItem -LiteralPath (Join-Path $tcSource 'devices\axefx3') -File -Filter '*.py' |
         ForEach-Object { 'devices/axefx3/' + $_.Name })
+function Get-TcSourceHash([string]$LiteralPath) {
+    # Use the platform SHA256 implementation, not a module-discovered cmdlet.
+    # PowerShell 5 launched from PowerShell 7 may inherit another PSModulePath.
+    $tcHasher = [Security.Cryptography.SHA256]::Create()
+    $tcStream = $null
+    try {
+        $tcStream = [IO.File]::OpenRead($LiteralPath)
+        return ([BitConverter]::ToString($tcHasher.ComputeHash($tcStream))).Replace('-','').ToLowerInvariant()
+    } finally {
+        if ($null -ne $tcStream) { $tcStream.Dispose() }
+        $tcHasher.Dispose()
+    }
+}
 function Assert-TcWorkspace($State, $Listener) {
     if ($State.workspace.contract -ne 'fx3-workspace-20261012' -or
         $State.workspace.source_root -ne $tcSource -or
@@ -35,7 +48,7 @@ function Assert-TcWorkspace($State, $Listener) {
         throw 'TC source-file set changed. Restart normally; do not reuse a partial update.'
     }
     foreach ($tcFile in $tcFiles) {
-        $tcHash = (Get-FileHash -LiteralPath (Join-Path $tcSource $tcFile) -Algorithm SHA256).Hash.ToLowerInvariant()
+        $tcHash = Get-TcSourceHash (Join-Path $tcSource $tcFile)
         if ($State.workspace.files.$tcFile -ne $tcHash) {
             throw 'TC is running older imported code. Restart it normally before opening the updated workspace.'
         }

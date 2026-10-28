@@ -4,6 +4,14 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Record sixteen isolated Beta5 Amp literal tests with independent display,
+  full-state preservation, restoration and editor checks. Keep normal Beta5
+  parameter writing blocked until its own reviewed implementation is verified.
+
+- Keep the full offline FX3 browser flow on the native Settings language
+  selector. Verify source hashes without depending on PowerShell module lookup,
+  including when Windows PowerShell inherits a PowerShell7 module path.
+
 - Name exact previously observed firmware responses in the shared read-only
   adapter without enabling writes. Unknown97.00 responses remain unidentified.
 - Add an offline Axe-Edit/TC preset-name comparison tool that preserves leading
