@@ -8,7 +8,7 @@ simulator never grants a write capability.
 |---|---:|---|---|
 |32.06 |75 |Read-only III connection |Retained guarded legacy operations, not every hardware function. |
 |33.00-beta.20261006 |83 |Read-only by default; the explicitly enabled MK2 experiment permits one existing Amp1/A Gain or Mid edit through REVIEW/CONFIRM/SEND. |Retained measured operation families, each with its own gates. |
-|33.00-beta5.20261026 |0 |Known exact fingerprint label; read-only. The opt-in Amp writer still refuses this build. |General writing blocked. Closed developer measurements are not normal app support. |
+|33.00-beta5.20261026 |0 |Default read-only. Older Amp opt-in still refuses. Separate explicit model0 Gain/Mid experiment has its own native evidence. |General writing blocked. No model selector or whole-rig approval follows from the separate experiment. |
 |Unknown response or raw97.00 |0 |Unknown/raw fallback, read-only |No inferred compatibility, verified writes or rename capability. |
 
 The earlier83-definition profile retains approved parent controls and measured

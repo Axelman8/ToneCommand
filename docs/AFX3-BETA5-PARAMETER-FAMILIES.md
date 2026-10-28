@@ -69,15 +69,23 @@ controller bulk and scene name stayed unchanged. Level remained -12dB. The
 last model0 observation exactly matched the complete baseline, and ports
 closed normally. No Store, other preset, global or shared-memory write occurred.
 
-The final fresh post-native Axe-Edit comparison remains pending because the
-Windows foreground/screenshot became unavailable again. This is completed
-native literal evidence, not completed model-family app acceptance. Neither
+The final fresh post-native Axe-Edit comparison subsequently passed after
+desktop access returned. A complete native comparison also matched the full
+model0 baseline. A stale Gain5.0 test expectation belonged to the earlier
+parameter fixture, not this model-scan baseline, whose actual Gain is4.4.
+No corrective write hid that test mistake. This is completed native/editor
+literal evidence, not completed model-family app acceptance. Neither
 the normal Beta5 writer nor MK1/Turbo selector support is enabled by this scan.
 
 The shared reviewed-edit API also received native negative acceptance on
 this build: disabled-by-default preparation sent nothing, while explicit
 opt-in rejected the unmatched firmware using GETs only. Complete before/after
 state matched. This confirms refusal, not a successful parameter write.
+
+A subsequent [separate Gain/Mid experiment](AXEFX3-BETA5-REVIEWED-AMP.md) has
+its own exact Beta5 pin, model0 scope and registered native API/boundary
+evidence. It does not change the older writer or approve general Beta5
+parameters/models/rig building. Default connections stay read-only.
 
 ## What remains before normal app support
 

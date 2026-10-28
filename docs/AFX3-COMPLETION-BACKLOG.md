@@ -16,7 +16,11 @@ reviewed-edit flows passed. The registered API was also tested on the native
 Beta5 connection: default mode refused preparation without additional traffic,
 and explicit opt-in refused the unmatched identity using GETs only. Full state
 was unchanged. This is negative acceptance, not a successful Beta5 write.
-Installed-candidate and exact-head remote results remain separate gates. Existing
+The committed integration atb6d0303 has all16 remote CI checks green. A fresh
+Windows CMD installation of that exact commit passed437 bootstrap tests/1
+skip,171 installed checks,261 follow-up checks and all seven mocked Chrome
+flows. These are same-host installation results, not another-machine, native
+browser SEND or listening acceptance. Existing
 completed source at e8daacb has all16 actual remote checks successful and a
 fresh Windows CMD install:437 bootstrap/1 skip,171 installed,39 extra checks,
 five browser flows. Its earlier full6,980/19 and later313 targeted results are
@@ -31,6 +35,14 @@ constraint; design a separately reviewed connection-bound invalidation flow.
 
 ### Later continuation: targeted Beta5 Amp measurements and CI repair
 
+A subsequent separate candidate adds explicit Beta5 reviewed Gain/Mid for
+existing model0 only, not a full-workspace profile. It has four native
+registered-API SETs with fresh separate reviews and independent editor checks,
+plus six captured native boundary literals with full preservation. Its final
+software/CI/installation acceptance is separate from b6d0303. See
+[the bounded experiment](AXEFX3-BETA5-REVIEWED-AMP.md). Other Beta5 families
+and normal model selection/rig construction remain blocked.
+
 The CI-repair source atd9a0704 passed the full6,980 tests/19 skips plus156
 mandatory/targeted tests and the full mocked FX3 Chrome workflow. The later
 capability correction also declines advertised renaming on unverified builds;
@@ -44,7 +56,8 @@ queries, repeated full-state reads and preservation of other channels, grid,
 modifiers, controller bulks and names passed at every step. Exactly336 native
 model SETs were sent without retry; final model0 matched the complete baseline.
 The quiet -12dB level and bypass state were preserved throughout. The final
-fresh post-native editor comparison is still pending restored desktop access.
+fresh post-native editor comparison and another complete native comparison
+subsequently passed after desktop access returned.
 The earlier editor had closed normally without Save after a fresh fixture
 check. No forced close, desktop-security workaround, Store or reference326/328
 change occurred. Current327 is an unsaved, disconnected model0 Amp fixture,

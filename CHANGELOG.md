@@ -4,6 +4,11 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Add a separate disabled-by-default Beta5 MK2 reviewed Gain/Mid experiment
+  for existing 59 Bassguy Bright on Amp1/A only. Retain the older writer pin,
+  model/rig/other-family gates and all permanent-memory restrictions. Conflicting
+  explicit modes refuse; armed reviews cannot migrate between them.
+
 - Record all336 Beta5 Amp selector literals with native full-state readback
   and exact final restoration. Final post-native editor acceptance and a normal
   reviewed model writer remain separate; no Beta5 capability is enabled.
