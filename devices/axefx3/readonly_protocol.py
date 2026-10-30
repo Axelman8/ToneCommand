@@ -5,16 +5,14 @@ Fractal's Third-Party MIDI specification remains there. No editor opcode,
 parameter getter implemented as a setter, memory transfer or navigation.
 """
 from fm9 import protocol as shared
+from .chassis import MODEL_BYTE, PRESET_COUNTS, declared
 
-MODEL = 0x10
+MODEL = MODEL_BYTE
 FUNCTIONS = frozenset({0x08, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x13})
-PRESET_COUNTS = {'mk1': 512, 'mk2': 1024, 'turbo': 1024}
 
 
 def preset_count(chassis):
-    if not isinstance(chassis, str) or chassis not in PRESET_COUNTS:
-        raise ValueError('Choose mk1, mk2 or turbo explicitly; no automatic chassis detection')
-    return PRESET_COUNTS[chassis]
+    return declared(chassis).presets
 
 
 def envelope(function, payload):

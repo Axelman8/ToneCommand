@@ -5,15 +5,17 @@ import os
 from pathlib import Path
 import tempfile
 from . import fw33_profile
+from .chassis import modern_cab_metadata
 
 
 def path_for(reg):
     variant=getattr(reg,'hardware_variant',None)
-    if reg.firmware!=fw33_profile.KEY or variant not in ('mk1','mk2'):return None
+    if not modern_cab_metadata(reg.firmware) or variant not in ('mk1','mk2'):return None
     override=os.environ.get('TONECOMMAND_AXEFX3_STATE_DIR','').strip()
     if os.environ.get('TONECOMMAND_SIM')=='1' and not override:return None
     root=Path(override) if override else Path.home()/'.tonecommand'/'axefx3'
-    return root/f'cab-names-fw33-{variant}.json'
+    build = 'fw33' if reg.firmware == fw33_profile.KEY else 'fw33-beta5-20261026'
+    return root/f'cab-names-{build}-{variant}.json'
 
 
 def canonical(data):
@@ -60,7 +62,8 @@ def restore_if_empty(reg):
         bank,ordinal,name=row
         reg.cab_catalog.position(bank,ordinal)
         if (not isinstance(name,str) or not 1<=len(name)<=160 or any(ord(c)<32 for c in name)
-                or (bank,ordinal) in incoming or (bank==3 and not reg.cab_catalog.user2_enabled)):
+                or (bank,ordinal) in incoming or (bank==3 and not reg.cab_catalog.user2_enabled)
+                or (bank==6 and not reg.cab_catalog.fullres_enabled)):
             raise ValueError('Invalid or reserved cached cabinet entry')
         incoming[bank,ordinal]=name
     reg.cab_catalog.names=incoming

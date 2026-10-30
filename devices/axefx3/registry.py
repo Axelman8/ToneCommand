@@ -50,7 +50,8 @@ class Registry(BaseRegistry):
         self.dynacabs = {}
         from .catalog import Catalog
         self.cab_catalog = Catalog(firmware)
-        if firmware == fw33_profile.KEY:
+        from .chassis import modern_cab_metadata
+        if modern_cab_metadata(firmware):
             self.cab_bank_names = {'0':'FACTORY 1', '1':'FACTORY 2', '2':'USER 1',
                                    '3':'USER 2', '6':'USER 3 (FullRes)'}
         from .profile import apply

@@ -41,6 +41,7 @@ def choices(reg, *, include_fullres=False):
                  fullres=b==6,eligible_ir_slots=[3,4] if b==6 else [1,2,3,4])
             for (b,o),n in sorted(names.items())
             if occupied(n) and b in (0,1,2,3,6) and (include_fullres or b!=6)
+            and (b!=6 or reg.cab_catalog.fullres_enabled)
             and (b!=3 or reg.cab_catalog.user2_enabled)]
 
 
@@ -48,6 +49,7 @@ def selection(reg,bank,ordinal,ir):
     if (reg.firmware!=fw33_profile.KEY or type(bank) is not int or type(ordinal) is not int
             or type(ir) is not int or ir not in range(1,5) or bank not in (0,1,2,3,6)
             or not 0<=ordinal<(64 if bank==6 else 1024) or (bank==6 and ir<3)
+            or (bank==6 and not reg.cab_catalog.fullres_enabled)
             or (bank==3 and not reg.cab_catalog.user2_enabled)):
         raise ValueError('Cab bank/slot is outside the firmware/chassis/IR-slot policy')
     name=(factory_roster(reg.firmware) if bank in (0,1) else reg.cab_catalog.names).get((bank,ordinal))

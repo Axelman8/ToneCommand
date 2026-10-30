@@ -1,5 +1,16 @@
 # Axe-Fx III completion backlog
 
+## Shared MK1/MK2 foundation, 2026-10-30
+
+One central chassis definition supplies capacity to the shared read-only
+protocol and full workspace; the parameter/protocol implementation is common.
+Beta5 user-name imports now use modern bank addresses instead of falling back
+to the old layout. MK1 protects NAM-reserved User2 and persistent FullRes,
+including stale-cache and direct-selection paths. Private name caches are
+isolated per build/chassis. See [the shared implementation](AFX3-SHARED-IMPLEMENTATION.md).
+This is source integration, not new native MK1 or broad Beta5 write approval.
+The operation-specific completion work below remains open where indicated.
+
 ## Current hardware continuation, 2026-10-30
 
 After the offline checkpoint below, the owner freshly confirmed power and

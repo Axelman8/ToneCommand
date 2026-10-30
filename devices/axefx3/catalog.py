@@ -2,14 +2,14 @@
 import csv
 import io
 import re
-from . import fw33_profile
+from .chassis import modern_cab_metadata
 
 
 def parse_names(text: str, kind: str, *, firmware='32.06') -> dict[tuple[int, int], str]:
     if kind not in {"user", "factory"}:
         raise ValueError("List type must be User or Factory.")
     prefix = "U" if kind == "user" else "F"
-    modern = firmware == fw33_profile.KEY
+    modern = modern_cab_metadata(firmware)
     entries = {}
     for raw in text.splitlines():
         line = raw.strip().lstrip('\ufeff')
@@ -62,7 +62,7 @@ def wire_address(kind, bank, slot, *, firmware='32.06'):
     """Convert explicit display bank/slot, never infer the other device's bank."""
     if kind not in {"factory", "user"} or type(bank) is not int or type(slot) is not int:
         raise ValueError("Explicit list kind and integer bank/slot required")
-    modern = firmware == fw33_profile.KEY
+    modern = modern_cab_metadata(firmware)
     banks = (1, 2, 3) if modern and kind == 'user' else (1, 2)
     limit = 64 if modern and kind == 'user' and bank == 3 else 1024 if modern or kind == 'factory' else 512
     if bank not in banks or slot not in range(1, limit + 1):
@@ -79,6 +79,7 @@ class Catalog:
         self.firmware = firmware
         self.names = {}
         self.user2_enabled = True
+        self.fullres_enabled = True
 
     def import_text(self, text, kind, *, replace=False):
         if not isinstance(text, str) or len(text.encode("utf-8")) > 2 * 1024 * 1024:
@@ -86,8 +87,10 @@ class Catalog:
         parsed = parse_names(text, kind, firmware=self.firmware)
         if kind == 'user' and not self.user2_enabled and any(b == 2 for b, s in parsed):
             raise ValueError('User2 is reserved for NAM on MK1/unknown NAM-era hardware. Import User1 only, or confirm MK2.')
+        if kind == 'user' and not self.fullres_enabled and any(b == 3 for b, s in parsed):
+            raise ValueError('Persistent FullRes User3 requires MK2 storage; MK1 Scratchpad is not this bank.')
         incoming = {wire_address(kind, b, s, firmware=self.firmware): n for (b, s), n in parsed.items()}
-        user_banks = (2, 3, 6) if self.firmware == fw33_profile.KEY else (2,)
+        user_banks = (2, 3, 6) if modern_cab_metadata(self.firmware) else (2,)
         merged = {key: name for key, name in self.names.items()
                   if not replace or (key[0] in user_banks) != (kind == "user")}
         merged.update(incoming)
@@ -102,7 +105,7 @@ class Catalog:
         return matches[0]
 
     def position(self, bank, ordinal):
-        if self.firmware == fw33_profile.KEY:
+        if modern_cab_metadata(self.firmware):
             limits = {0:1024, 1:1024, 2:1024, 3:1024, 6:64}
             if type(bank) is not int or type(ordinal) is not int or bank not in limits or not 0 <= ordinal < limits[bank]:
                 raise ValueError('Unknown Axe-Fx III IR address')
@@ -114,7 +117,7 @@ class Catalog:
                 if bank == 2 else f"FACTORY {bank + 1} slot {ordinal + 1}")
 
     def rosters(self):
-        banks = (0, 1, 2, 3, 6) if self.firmware == fw33_profile.KEY else (0, 1, 2)
+        banks = (0, 1, 2, 3, 6) if modern_cab_metadata(self.firmware) else (0, 1, 2)
         return {str(b): {str(o): n for (bank, o), n in self.names.items() if bank == b} for b in banks}
 
     def restrict_user2(self, enabled):
@@ -122,4 +125,10 @@ class Catalog:
         self.user2_enabled = enabled
         if not enabled:
             self.names = {k:v for k,v in self.names.items()
-                          if not (k[0] == 3 if self.firmware == fw33_profile.KEY else k[0] == 2 and k[1] >= 512)}
+                          if not (k[0] == 3 if modern_cab_metadata(self.firmware) else k[0] == 2 and k[1] >= 512)}
+
+    def restrict_fullres(self, enabled):
+        """Persistent User3 names are not the MK1's temporary Scratchpad."""
+        self.fullres_enabled = enabled
+        if not enabled:
+            self.names = {k: v for k, v in self.names.items() if k[0] != 6}

@@ -33,6 +33,10 @@ refusal.
 
 ## Declared chassis and memory
 
+MK1/MK2 share one control implementation and firmware-specific parameter
+definitions. [Central chassis/storage policy](AFX3-SHARED-IMPLEMENTATION.md)
+does not grant writer approval; native acceptance remains separately scoped.
+
 | Chassis | Shared name-read range | NAM-era User2 CAB policy | NAM installation acceptance |
 |---|---|---|---|
 |MK1 |0..511 |Reserved for NAM, not a CAB bank |Not independently verified on MK1. The roadmap's128-slot layout is not MK2 parity. |

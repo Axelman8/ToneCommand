@@ -4,6 +4,11 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Centralize shared Axe-Fx III chassis/storage facts. Keep one MK1/MK2 control
+  implementation, correct Beta5 User-cab name addressing, protect MK1's
+  NAM-reserved User2 and persistent FullRes, and isolate name caches by build.
+  No additional firmware, effect, storage or chassis writes are enabled.
+
 - Record exact upstream PR294 native API/editor acceptance and complete the
   Legacy CAB four-slot selector comparison on fresh MK2 Beta5 test state.
   Keep general model/CAB/whole-rig, memory and MK1/Turbo gates unchanged.
