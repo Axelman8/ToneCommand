@@ -4,6 +4,10 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Prepare a separate opt-in Beta5 MK2 Gain/Mid experiment for existing
+  Amp1/A model0. Keep older firmware approval, default read-only behavior,
+  model/other-family gates and permanent-storage restrictions unchanged.
+
 ### Added
 - Add an explicitly opt-in, single Gain/Mid edit through the existing
   REVIEW/CONFIRM/SEND screens. The measured MK2 writer retains its exact
