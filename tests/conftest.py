@@ -79,6 +79,7 @@ def isolated_env(tmp_path, monkeypatch):
     # The simulator is a real implementation, so nothing is lost by pinning
     # it here for every module whether the test asks or not.
     monkeypatch.setenv("TONECOMMAND_SIM", "1")
+    monkeypatch.delenv('TONECOMMAND_BETA5_CORE',raising=False)
     # Fifth time, same lesson, and this one downloads. /api/acquire routes a
     # catalogued artist through fm9.gallery's verified fetch (#157), and a
     # test that faked acquire._download only found "Periphery" in the real

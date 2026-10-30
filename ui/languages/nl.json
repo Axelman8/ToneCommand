@@ -1,11 +1,12 @@
 {
   "schema": 1,
   "catalog_version": "1.6.2-lang.2",
-  "catalog_sha256": "519616594825d5859893b37d4caabe6b469a36b201cfb94705f72cda59b66e17",
+  "catalog_sha256": "e91bb87ada84441b37fc93f5a5a4d695e03ebc46173ce50f7e8aed62c1ac0aa6",
   "locale": "nl",
   "name": "Nederlands",
   "coverage": "Core request, Settings and navigation labels; untranslated and protected text stays English.",
   "translations": {
+    "One AMP/CAB scene, channel A. No effects, controllers or NAM.": "Eén AMP/CAB-scène, kanaal A. Geen effecten, controllers of NAM.",
     "Send Pitch setup": "Pitch-instellingen verzenden",
     "Pitch setup read back and confirmed": "Pitch-instellingen teruggelezen en bevestigd",
     "This review expires after {{seconds}} seconds or when device state changes.": "Dit voorstel vervalt na {{seconds}} seconden of zodra de apparaatstatus verandert.",

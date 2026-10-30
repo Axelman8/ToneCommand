@@ -4,6 +4,14 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Add an opt-in, exact-Beta5 minimal AMP/CAB workspace experiment: one scene,
+  channel A, four fixed cells, reviewed AI model/cabinet choices, explicit IR1
+  mix and conservative staging. Read back every step; consume failed reviews
+  and latch uncertain connections. No legacy firmware approval, extra effects,
+  controller, NAM, Store or automatic recovery is enabled. Native empty-grid
+  construction and the actual AI/GUI/review/SEND path passed on MK2; physical
+  MK1 acceptance and broader preset construction remain separate.
+
 - Centralize shared Axe-Fx III chassis/storage facts. Keep one MK1/MK2 control
   implementation, correct Beta5 User-cab name addressing, protect MK1's
   NAM-reserved User2 and persistent FullRes, and isolate name caches by build.

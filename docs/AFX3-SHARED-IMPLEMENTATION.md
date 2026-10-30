@@ -64,3 +64,62 @@ Next release work is the same for both chassis: complete the shared reviewed
 AMP/CAB workflow, then effects/controllers/scenes, refinement and storage.
 NAM/IR installation and MK1 storage need their own separate acceptance. This
 foundation is not a declaration that the full Beta5 preset builder is ready.
+
+## Bounded Beta5 AMP/CAB experiment
+
+`TONECOMMAND_BETA5_CORE=1` enables a separate, exact-identity experiment in
+the existing `/axefx3` workspace. It does not add Beta5 to the legacy registry's
+writable firmware list. Unknown builds, an undeclared chassis, another grid,
+active or assigned modifiers, missing reads and changed targets refuse.
+
+The common implementation supports one scene on channel A with exactly
+`Input 1 -> Amp 1 -> Cab 1 -> Output 1` in the first four cells of row1.
+It can construct this route on an empty grid or configure the same existing
+route. It never clears a different preset or resumes a partially failed build.
+The AI proposes an exact catalog amp, IR1 cabinet and eight amp settings.
+The server, not the AI, creates the staging and routing operations.
+
+The normal request, clarification, review, confirmation and SEND interface is
+used. Both target confirmation and external mute remain required. Reviews are
+device/state/catalog-bound, expire after ten minutes and are single-use.
+Transport uncertainty consumes the review and locks this connection until
+reconnect and inspection. There is no automatic retry, rollback or Undo.
+
+The output is staged at -18 dB and the amp at -18 dB before voicing. The amp
+final level is restricted to -60..-12 dB. IR1 is explicitly mixed at0dB,
+center; IR2-4 are explicitly muted. Slot-level and block-level encodings are
+separate. These are conservative policies, not a physical audio limiter.
+External muting must continue throughout all channel/model transitions.
+
+Only bank selection changes, never IR data. MK1 cannot select NAM-reserved
+User2; MK2 may select that bank if current nonempty local metadata exists.
+This core has no Dyna-Cab, FullRes, NAM, controller, extra-effect, multiple-scene,
+refinement or permanent Store operation. Unsupported requirements must not
+be presented as a complete build. The musical AI can ask about reduced scope;
+unsupported structured selections refuse before planning.
+
+### Functional acceptance on 30 October
+
+Measured device: MK2, exact `33.00-beta5.20261026`, Axe-Edit III1.15.02.
+All work used unsaved preset327 with external audio muted. Presets326 and328,
+resource memory, global controls and firmware were not changed.
+
+- CAB bank/index boundaries and Amp knob/level endpoints were captured in the
+  editor, replayed natively once per operation, read back repeatedly and checked
+  for preservation of unrelated complete block/channel/controller/modifier state.
+- Native construction by the new component passed from an independently
+  editor-confirmed empty grid, including all three actual cables.
+- Actual Chrome, the selected AI backend, review, both acknowledgements and
+  exactly one normal SEND passed on the resulting existing core route. The AI
+  selected Brit 800 2204 High and Factory2 slot517,4x12 Brit70s GB57B.
+- Fresh independent Axe-Edit comparisons confirmed the final model, eight amp
+  controls, cabinet, visible mute states, output level, names and connected grid.
+  This editor's UIA M-button labels incorrectly all report Off; screenshots and
+  native mute-word readback were used instead of treating those labels as proof.
+
+These are functional MK2 results, not a listening test, tone-match score,
+physical loudness measurement, MK1 hardware acceptance or approval of every
+possible model/IR combination. MK1 consumes the same code and has separate
+storage restrictions, not a second application or automatic evidence alias.
+Private timestamped traces and source-hash reports remain local, not in release
+packages. Broader effects, multi-scene construction and storage remain next work.

@@ -209,14 +209,14 @@ function controls(){
   const fw33=state?.firmware==='33.00-beta.20261006';
   const awaitingRoute=chooseRoute&&!el('buildRoute').value&&!adjusting;
   const ampAvailable=awaitingRoute&&!!state?.album_build_supported;
-  const maxScenes=album||ampAvailable?Math.max(...albumCounts):serial?1:fw33?(state.route?.length?2:1):state?.multiscene_planning_supported?8:4;
+  const maxScenes=state?.beta5_core_supported?1:album||ampAvailable?Math.max(...albumCounts):serial?1:fw33?(state.route?.length?2:1):state?.multiscene_planning_supported?8:4;
   for(const option of el('scenes').options)option.disabled=album||ampAvailable?!albumCounts.includes(Number(option.value)):Number(option.value)>maxScenes;
   if(intakeSceneCount===null){
     if((album||ampAvailable)&&!albumCounts.includes(Number(el('scenes').value)))el('scenes').value=String(albumCounts[0]);
     if(Number(el('scenes').value)>maxScenes)el('scenes').value=String(maxScenes);
   }
   el('requestOptionsSummary').textContent=tcText("DESIGN OPTIONS: {{v0}} SCENE(S), SOURCE AND CONTROLLERS", {v0:(el('scenes').value)});
-  el('generate').disabled=busy||el('deviceChoice').value!=='axefx3'||!state?.connected||!!state.route_problem||(!fw33&&!state.cab_count);
+  el('generate').disabled=busy||el('deviceChoice').value!=='axefx3'||!state?.connected||!!state.route_problem||(!fw33&&!state.beta5_core_supported&&!state.cab_count);
   if((serial||album)&&state?.scene!==1)el('generate').disabled=true;
   const chosenRoute=routeExploration?.routes.find(r=>r.mode===el('buildRoute').value);
   if(chooseRoute&&!adjusting&&chosenRoute&&!chosenRoute.enabled)el('generate').disabled=true;
@@ -423,7 +423,7 @@ async function refresh(){
     const name=document.createElement('span');name.className='nm';name.textContent=label;scene.append(num,name);el('sceneRack').append(scene);
   }
   if(el('namPanel').open)await accountStatus();
-  note(state.route_problem||(state.connected?tcText("State read. Nothing sent."):tcText("Not connected yet.")));
+  note(state.route_problem||state.warning||(state.connected?tcText("State read. Nothing sent."):tcText("Not connected yet.")));
 }
 el('refresh').onclick=()=>run(refresh);
 function renderPresets(){
@@ -840,6 +840,14 @@ function showDesign(plan){
     const hint=document.createElement('p');hint.textContent=tcText("Design check, not listening evidence. ")+(plan.adjustment?tcText("Adjusted: {{v0}}. Protected: {{v1}}. The full design is reapplied with verification, not a minimal live patch.", {v0:(plan.adjustment.changed_scenes.join(', ')), v1:(plan.adjustment.preserved_scenes.join(', ')||tcText("none"))}):tcText("After SEND, check tone and balance at low physical volume."));intentPanel.append(hint);
   }
   const design=plan.design, controller=plan.controller;
+  if(plan.mode==='beta5-core'){
+    el('toneChoice').textContent=`Amp: ${design.amp_model} | IR1: ${plan.cab_choices[0].name} (${plan.cab_choices[0].position})`;
+    el('controllerChoice').textContent=tcText("One AMP/CAB scene, channel A. No effects, controllers or NAM.");
+    el('planWarnings').replaceChildren();for(const warning of plan.warnings||[]){const li=document.createElement('li');li.textContent=warning;el('planWarnings').append(li);}
+    el('sceneTable').hidden=false;el('sceneRows').replaceChildren();const row=document.createElement('tr');
+    for(const value of [`1. ${design.scene_name} / A`,`${design.amp_model} | gain ${design.amp.gain} | EQ ${design.amp.bass}/${design.amp.mid}/${design.amp.treble} | master ${design.amp.master} | depth ${design.amp.depth} | presence ${design.amp.presence} | ${design.amp.level} dB`,tcText('Not in route'),tcText('Not in route'),tcText('Not in route'),tcText('Not in route'),`${plan.cab_choices[0].name} | IR1 only | Output A -18 dB`]){const td=document.createElement('td');td.textContent=value;row.append(td);}
+    el('sceneRows').append(row);return;
+  }
   if(plan.mode==='album'){
     el('toneChoice').textContent=tcText("Up to four amp voicings and four cab channels A-D, with explicit assignments per scene; Output A -18dB.");
     el('controllerChoice').textContent=controller?.source?tcText("Wah A: {{v0}} | Auto Engage: {{v1}}. Global CC mapping unchanged.", {v0:(controller.source), v1:(controller.auto_engage||tcText("preserved"))}):tcText("Only configured effects are active; the existing wah binding is preserved. No NAM.");

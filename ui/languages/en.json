@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "catalog_version": "1.6.2-lang.2",
-  "catalog_sha256": "519616594825d5859893b37d4caabe6b469a36b201cfb94705f72cda59b66e17",
+  "catalog_sha256": "e91bb87ada84441b37fc93f5a5a4d695e03ebc46173ce50f7e8aed62c1ac0aa6",
   "locale": "en",
   "name": "English",
   "translations": {
@@ -400,6 +400,7 @@
     "On (shared A)": "On (shared A)",
     "On FW32.06 TC can build supported serial routes and configure Amp, Cab, Wah, Delay, Reverb, Chorus, Drive, Compressor and existing EQ. No automatic rebuild of existing presets.": "On FW32.06 TC can build supported serial routes and configure Amp, Cab, Wah, Delay, Reverb, Chorus, Drive, Compressor and existing EQ. No automatic rebuild of existing presets.",
     "On your Fractal you choose which physical pedal or MIDI-CC feeds an External controller. TC binds that source to the parameter but does not change the global setting. No fixed CC number is assumed.": "On your Fractal you choose which physical pedal or MIDI-CC feeds an External controller. TC binds that source to the parameter but does not change the global setting. No fixed CC number is assumed.",
+    "One AMP/CAB scene, channel A. No effects, controllers or NAM.": "One AMP/CAB scene, channel A. No effects, controllers or NAM.",
     "One Amp 1/channel A change": "One Amp 1/channel A change",
     "One existing Amp 1/channel A setting only. This is not full preset planning. Other scenes sharing A may change. No Store or automatic Undo.": "One existing Amp 1/channel A setting only. This is not full preset planning. Other scenes sharing A may change. No Store or automatic Undo.",
     "One final check before ToneCommand changes the FM9.": "One final check before ToneCommand changes the FM9.",

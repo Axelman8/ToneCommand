@@ -167,5 +167,6 @@ jobs:
           node tests/axefx3_readonly.browser.cjs
           node tests/axefx3_capacity.browser.cjs
           node tests/axefx3_reviewed_edit.browser.cjs
+          node tests/axefx3_beta5_core.browser.cjs
         env:
           TC_PLAYWRIGHT_MODULE: ${{ runner.temp }}/tc-browser/node_modules/playwright

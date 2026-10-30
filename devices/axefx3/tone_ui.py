@@ -16,6 +16,7 @@ from . import album_build,album_planning,runtime,scene_intent,amp_inventory,amp_
 from . import cab_inventory,cab_mix,design_history,cab_metadata
 from . import audio_measurements, request_intake, design_dialogue,wah_voicing,scene_contract
 from .audio_measurements import Measurements
+from . import beta5_core, beta5_core_plan
 from .readonly_adapter import is_readonly_device
 
 AnnotatedSceneNumber = Annotated[StrictInt, Field(ge=1,le=8)]
@@ -102,6 +103,7 @@ class ResumeDesign(BaseModel):
 
 def register(app, host):
     reviews, planning_lock = tone_review.Reviews(), threading.Lock()
+    core_reviews = beta5_core.Reviews()
     conversations = design_dialogue.Sessions()
     workspace = runtime.identity()
 
@@ -154,6 +156,24 @@ def register(app, host):
                 runtime_error=fw33.runtime_write_error(dev)
                 if runtime_error:policy={**policy,'write_supported':False}
                 nam_profile_missing = dev.reg.firmware == fw33_profile.KEY and policy['variant'] != 'mk2'
+                if beta5_core.supported(dev):
+                    now=beta5_core.snapshot(dev)
+                    try:
+                        beta5_core.prepare_base(now)
+                        problem=('Reconnect and inspect after uncertain execution; do not automatically retry.'
+                                 if dev in core_reviews.uncertain else None)
+                    except ValueError as exc:
+                        problem=str(exc)
+                    return dict(connected=True,workspace=workspace,firmware=dev.reg.firmware,
+                        profile=policy,audio_analysis_version=2,beta5_core_supported=True,
+                        ai_clarification_supported=True,amp_refresh_supported=True,
+                        preset=now['preset'][0],name=now['preset'][1],scene=1,
+                        cab_count=len(dev.reg.cab_catalog.names),route_problem=problem,
+                        route=list(beta5_core_plan.ROUTE) if now['grid'] else [],
+                        route_blocks=[dict(label=beta5_core_plan.ROUTE[i],channel='ABCD'[next(b['channel'] for b in now['status'] if b['effect_id']==eid)],
+                            bypassed=next(b['bypassed'] for b in now['status'] if b['effect_id']==eid)) for i,eid in enumerate(beta5_core.NODES)] if now['grid'] else [],
+                        scene_names=now['scenes'],
+                        warning='Experimental Beta5 core: one scene, AMP/CAB only. No effects, controllers, NAM, Store or automatic Undo.')
                 if not policy['write_supported'] or nam_profile_missing:
                     preset = dev.current_preset()
                     return dict(connected=True, workspace=workspace, firmware=dev.reg.firmware, profile=policy,audio_analysis_version=2,
@@ -209,6 +229,7 @@ def register(app, host):
             editable()
             dev = selected()
             reviews.clear()
+            core_reviews.clear()
             return dict(profile=profile.apply(dev.reg, body.variant), hardware_written=False)
 
     @app.post('/api/axefx3/search')
@@ -327,6 +348,56 @@ def register(app, host):
             if acquired:host._settings_lock.release()
             planning_lock.release()
 
+    def build_core(body):
+        if not planning_lock.acquire(blocking=False):
+            raise HTTPException(409,'Another plan is being prepared')
+        acquired=False
+        try:
+            with host._lock:
+                editable();dev=selected()
+                core_reviews.clear();reviews.clear()
+                if dev in core_reviews.uncertain:
+                    raise ValueError('Reconnect and inspect after uncertain execution; no new AI call or write retry')
+                if (body.scenes!=1 or body.mode not in ('auto','amp') or body.wah_source
+                        or body.nam_slot is not None or body.nam_query or body.refine_token or body.source_kind!='tone'):
+                    raise ValueError('This bounded Beta5 experiment supports one AMP/CAB scene only; no controllers, NAM, rig translation or refinement')
+                initial=beta5_core.snapshot(dev);beta5_core.prepare_base(initial)
+                if initial['preset'][0]!=body.expected_preset:raise ValueError('Target changed; regenerate')
+                intake=dict(ready=True,scenes=1,questions=[],message='One-scene Beta5 core')
+                binding=dict(request=body.model_dump(exclude={'dialogue_token','answers'}),
+                    variant=initial['variant'],firmware=initial['firmware'],catalogs=initial['catalogs'])
+                turn=conversations.begin(body.dialogue_token,body.answers,binding,dev,'amp','plan',beta5_core.digest(initial))
+            acquired=host._settings_lock.acquire(blocking=False)
+            if not acquired:raise HTTPException(423,'AI settings are in use')
+            ai_settings.apply_to_env()
+            if not planner._env('PLANNER_BACKEND').strip() or len(planner.candidates())!=1:
+                raise ValueError('Choose one explicit AI backend; no automatic or paid fallback')
+            def validate(raw):
+                proposal,question=design_dialogue.unwrap(raw)
+                return dict(ai_question=question) if question else beta5_core_plan.compile_design(dev.reg,proposal)
+            shape=design_dialogue.schema(beta5_core_plan.Design.model_json_schema())
+            context=design_dialogue.context(turn)
+            if body.audio_reference:
+                context+='\nUser supplied local measurements, not hearing or an isolated guitar: '+body.audio_reference.model_dump_json()
+            result=planner.plan(body.prompt+context,json.dumps(dict(preset=initial['preset'],scene=1,route=initial['grid'])),
+                beta5_core_plan.reference(dev.reg),system=beta5_core_plan.SYSTEM+'\n'+design_dialogue.SYSTEM,
+                shape=json.dumps(shape),schema=shape,validate=validate)
+            with host._lock:
+                editable()
+                if selected() is not dev or beta5_core.snapshot(dev)!=initial:
+                    raise ValueError('Device changed while planning; nothing sent')
+                if result.get('ai_question'):
+                    return design_dialogue.response(intake,result['ai_question'],conversations.finish(turn,result['ai_question']))
+                prepared=core_reviews.prepare(dev,result,initial)
+                prepared.update(conversations.finish(turn))
+                prepared.update({k:result[k] for k in ('backend','model') if k in result})
+                return prepared
+        except (ValueError,RuntimeError,OSError,KeyError) as exc:
+            raise HTTPException(409,str(exc)) from exc
+        finally:
+            if acquired:host._settings_lock.release()
+            planning_lock.release()
+
     @app.post('/api/axefx3/plan')
     def build(body: Request):
         requirement_failure = []
@@ -340,6 +411,10 @@ def register(app, host):
             raise HTTPException(409,'Analyse the linked audio first. TC will not pretend to hear an unanalysed link.')
         if body.audio_reference and any(not 0 <= x <= 1 for x in body.audio_reference.band_energy):
             raise HTTPException(422,'Invalid normalized band measurements.')
+        with host._lock:
+            ctx=host.device_context()
+            core_mode=ctx.kind=='axefx3' and ctx.adapter is not None and beta5_core.supported(ctx.adapter)
+        if core_mode:return build_core(body)
         if not planning_lock.acquire(blocking=False):
             raise HTTPException(409,'A text plan is already being prepared; no second AI call started.')
         acquired = False
@@ -575,6 +650,7 @@ def register(app, host):
     def discard():
         with host._lock:
             reviews.clear()
+            core_reviews.clear()
             return dict(ok=True)
 
     @app.get('/api/axefx3/history')
@@ -597,6 +673,8 @@ def register(app, host):
         with host._lock:
             editable()
             try:
+                if core_reviews.owns(body.token):
+                    return core_reviews.send(selected(),**body.model_dump())
                 return reviews.send(selected(),**body.model_dump())
             except (ValueError,RuntimeError,OSError,KeyError) as exc:
                 raise HTTPException(409,str(exc)) from exc
