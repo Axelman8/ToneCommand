@@ -1,6 +1,42 @@
 # Axe-Fx III completion backlog
 
-## Current master plan and GitHub audit, 2026-10-28
+## Current offline update, 2026-10-30
+
+The maintainer merged289 and290 on28October. Their bounded shared bridge and
+review/SEND wiring are accepted upstream; this is not general Beta5, MK1 or
+whole-rig write approval. The retained firmware/operation gates stay intact.
+
+Upstream292 at7c6b59f is reconciled into this fork: strict local Host/Origin
+checks, settled Gig Lock and queued-write checks. The shared middleware runs
+before our full-workspace redirects, and `/api/gig` remains reachable there.
+Independent fake-workspace tests prove an in-flight controller SEND holds
+the shared lock until completion and a later SEND refuses after Gig Lock.
+The security checkpoint8425180 passed238 mandatory/changed tests and actual
+temporary-loopback HTTP/Chrome acceptance in simulator mode, with no native IO.
+
+The pending-download cache leak293 was reproduced in the reported file order
+and isolated in the per-test fixture without changing production caching.
+The combined runtime passed7,323 tests/19 skips and174 mandatory/related
+checks; the one USB-enumeration warning is informational. Documentation and
+foundation metadata are refreshed after that full runtime run. Exact final
+commit installation and remote CI are separate checkpoints, not assumed here.
+
+Two small upstream drafts remain independent of the full fork:
+
+- [294: separate Beta5 Gain/Mid experiment](https://github.com/monzta1/ToneCommand/pull/294),
+  existing model0/A only. The exact upstream port still needs its own native
+  regression; the earlier77e2ded native evidence is reference, not relabelled.
+- [295: per-test install-cache isolation](https://github.com/monzta1/ToneCommand/pull/295),
+  three test/changelog files, no production behavior change. The reported
+  serial order plus deterministic regression passed129 tests. All15 remote
+  CI checks on5ebe039 passed. Local full4,004/17 retains the separately
+  disclosed symlink-creation privilege failure, not a weakened security test.
+
+No native port, Axe-Edit, Store, NAM/IR memory, global setting or firmware
+operation was used for this update. Resume the independently recorded CAB
+comparison only after fresh power, external-mute and desktop confirmation.
+
+## Historical master plan and GitHub audit, 2026-10-28
 
 ### Shared reviewed-edit integration candidate
 
@@ -226,7 +262,7 @@ these verified metadata updates.
 | Complete scene-name reads and fractional Amp literal tests |Maintainer284 merged; not an unanswered request for us to implement again. |
 | Native Gain/Mid check and preservation of unused modifier metadata |287 merged after native/editor verification; all modifier words still preserved. |
 | Offline336-model FW33 Amp catalog |288 merged. Catalog availability is not selector-write permission. |
-| Two drafts, bridge then existing route/UI flow |289/290 published with passing CI. Waiting for review, not waiting to prepare them. |
+| Two drafts, bridge then existing route/UI flow |289/290 merged by the maintainer on28October. Broader firmware/operation acceptance remains separate. |
 
 ### A-Z execution order
 
@@ -242,8 +278,8 @@ No calendar deadline is promised before firmware and external-test gates pass.
 | C | One maintained source and clear download/start instructions: DONE for current source |B |One launcher/dependency set; exact source/version visible. Update current guidance in270/issue1 and distinguish source checkout from historical ZIPs. Do not overwrite old tags/assets or the tester's changes. No hardware needed. |
 | D | Reconcile current upstream foundation: DONE at2ac8f5f, source scope |C |Controlled integration of current main, not a second app. Preserve accepted FX3 features/profile evidence and upstream FM9 behavior. Resolve source conflicts, rerun regressions, update the foundation manifest honestly. No hardware for source work; hardware acceptance stays separate. |
 | E | Shared minimal UX, localization and diagnostics: PARTIAL |D |Use the existing Settings Language dropdown and request/conversation/review stages. Hide unavailable devices; show chassis only when relevant. New UI text uses bundled packs, retaining protected English confirmations/technical identifiers and untranslated user/AI/device content. Problem reports work on III and on script-load failure, send users to the correct issue tracker, and exclude secrets. Browser/installed-resource tests pass. |
-| F | Internal reviewed-edit bridge,289: REVIEW |A |Address actual review comments, preserve exact-frame/single-use/expiry/state gates, CI passes on the final head. Monzta1 decides upstream acceptance. No automatic merge. |
-| G | Existing REVIEW/CONFIRM/SEND route/UI wiring,290: REVIEW |F |Reconcile after289 lands. Player clicks SEND; no accidental scene sweep, false Undo/tone-check claims or second MIDI owner. Capability-route table, language packs and script-free reports tested. Monzta1 review plus final native acceptance. |
+| F | Internal reviewed-edit bridge,289: MERGED |A |Maintainer accepted the bounded bridge. Preserve exact-frame, single-use, expiry and state gates; no broader firmware approval follows. |
+| G | Existing REVIEW/CONFIRM/SEND route/UI wiring,290: MERGED |F |Maintainer accepted the shared wiring. Player clicks SEND; no III sweep, false Undo/tone-check claim or second MIDI owner. New native firmware acceptance stays operation-specific. |
 | H | Explicit firmware/chassis capability matrix: PARTIAL |D |Distinguish MK1/MK2/Turbo and exact builds. Keep32.06/earlier33 evidence without unconditional version aliases. Known Beta5 fingerprint is named; unknown raw97.00 remains unknown. Facts-only registry, capabilities and simulator name unsupported territory instead of pretending. Published matrix says read, write, measured and experimental separately. MK1/Turbo proof needs their owners. |
 | I | Finish outstanding read-only acceptance: PARTIAL |H |Compare all512 upper MK2 names512..1023 independently with Axe-Edit; the successful1024-name native scan and boundary screenshots are not that comparison. Retain/refresh upper-range read/navigation evidence on the target revision. Verify declared-capacity boundaries without querying nonexistent MK1 slots or implying upper-slot Store. MK1/Turbo checks need external hardware. |
 | J | Beta5 parameter families: PARTIAL |G,H |Promote only independently captured/read-back-verified operations. The closed Gain/Mid four-literal fixture is not general Amp/EQ/Delay/Reverb/level/zero/tempo support. Verify every proposed family, refusal and preservation on native hardware plus Axe-Edit. Owner MK2 can be used autonomously while muted/access granted. |

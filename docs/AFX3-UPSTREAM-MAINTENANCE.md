@@ -20,7 +20,24 @@ certify untested firmware, controllers, NAM formats or upstream features.
 
 ## Repeatable update check
 
-### Current source reconciliation, 2026-10-28
+### Current source reconciliation, 2026-10-30
+
+The maintained foundation is7c6b59f, including the maintainer's merged289/290
+and shared security fix292. The full FX3 adapter/protocol and historical
+evidence stay separate from upstream's mapped read-only interface. Global
+local-only checks run outside all fork workspace redirects; Gig Lock remains
+reachable and settles in-flight workspace writes under the same host lock.
+The combined runtime passed7,323 tests/19 skips; final per-head installation
+and remote CI must be recorded separately from those local results.
+
+The next independent draft294 ports only the separately pinned Beta5
+model0/A Gain/Mid experiment. Draft295 fixes a test-fixture cache leak and
+does not change production caching. No new release, hardware promotion,
+package or automatic upstream approval follows from preparing either draft.
+The physical unit is not needed for this source work; native CAB acceptance
+and the exact upstream experiment's native regression remain later gates.
+
+### Historical source reconciliation, 2026-10-28
 
 The candidate foundation is upstream1.6.2 at
 `4d81851ecd163a984fd5dc3fc2cff9ad7a0f0dde`. Keep the older dated notes below

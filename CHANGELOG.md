@@ -4,6 +4,9 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Give every test its own pending-install cache (#293), keeping downloaded
+  fixture bytes from leaking across test modules. Production caching is unchanged.
+
 - Integrate upstream local Host/Origin checks and settled Gig Lock. Apply the
   shared boundary before FX3 workspace redirects and keep Gig Lock reachable
   in that workspace; test that it waits for an in-flight controller SEND.
