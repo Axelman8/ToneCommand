@@ -18,6 +18,8 @@ Notable changes to ToneCommand. Dates are UTC.
   live discovery, firmware/chassis promotion or account workflow is enabled.
 
 ### Fixed
+- Give every test its own pending-install cache, so a download left over by
+  one test module can no longer fail another depending on run order (#293).
 - The local server answers only to 127.0.0.1, localhost and ::1, and
   refuses a state-changing request from another site's page, so a web page
   cannot reach it through a name pointed at this machine (#291).
