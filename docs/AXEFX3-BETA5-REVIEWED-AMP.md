@@ -38,8 +38,33 @@ writes. Those captures and full state remain private.
 
 This small upstream port uses the upstream read-only adapter/protocol names
 and a self-contained fingerprint constant instead of the fork's firmware
-registry import. Its own software, browser, CI and installation results must
-be recorded separately. Native acceptance of this exact upstream candidate
-is still pending; earlier fork results are not relabelled as that acceptance.
+registry import. Its own software, browser, CI and installation results are
+recorded separately from the fork. The native regression below tests the
+actual upstream candidate, rather than relabelling the earlier fork results.
 The shared guard and memory allowlists are unchanged. No native browser SEND,
 physical limiter, audible quality, MK1/Turbo parity or broader family claim.
+
+### Exact upstream native acceptance, 30 October 2026
+
+Runtime source `85d86beb2f7db4f1430bc2f7aa313c30e8a335ab` passed four
+registered prepare/review/confirm/send transactions on the measured MK2:
+Gain5.0->4.6->5.0 and Mid5.0->5.6->5.0, with a fresh review for each SET.
+The upstream adapter/protocol/writer/server module paths and hashes were
+recorded. A separate native output boundary admitted only the one exact
+editor-captured target SET per transaction plus the component's GETs.
+
+Independent full-state reads ran in separate canonical-reader processes,
+never mixed into the upstream Python namespace. Two equal complete readings
+followed every SET: only the addressed Amp A word differed, and the final
+Amp/controller/modifier/grid/name baseline matched exactly. Fresh Axe-Edit
+III1.15.02 instances independently displayed changed Gain, restored Gain
+with changed Mid, and the final restored controls. The initial editor
+baseline was also retained. Fixture327/scene1 was bypassed, -12dB and isolated
+from all Input/Output blocks and cables. No Store or other memory write.
+
+The new local-Host middleware correctly refused a preliminary harness call
+using TestClient's default host. Only constructor GETs had been transmitted;
+no SET was attempted. The harness then used the required127.0.0.1 base URL,
+without changing application security. Private full reports/screenshots stay
+local. This is exact-candidate native API/editor acceptance, not native
+browser SEND, additional controls/models, whole-rig or listening acceptance.

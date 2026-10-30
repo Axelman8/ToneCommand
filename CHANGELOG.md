@@ -4,6 +4,9 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Record exact upstream Beta5 Gain/Mid native API and independent Axe-Edit
+  acceptance on the isolated MK2 fixture, without widening the experiment.
+
 - Prepare a separate opt-in Beta5 MK2 Gain/Mid experiment for existing
   Amp1/A model0. Keep older firmware approval, default read-only behavior,
   model/other-family gates and permanent-storage restrictions unchanged.
