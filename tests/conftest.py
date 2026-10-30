@@ -75,6 +75,10 @@ def isolated_env(tmp_path, monkeypatch):
     # downloader refuses here unless a test replaces it, and its cache
     # lands in tmp_path, never in the developer's ~/.tonecommand.
     from fm9 import gallery
+    import server
+    # #293: pending downloaded bytes must not survive into another test.
+    # Replace the dictionary for this test; do not clear a retained object.
+    monkeypatch.setattr(server, "_install_cache", {})
 
     def _no_network(url):
         raise AssertionError(f"a test reached the network for {url}; "

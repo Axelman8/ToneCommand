@@ -4,6 +4,9 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Give every test its own pending-install cache (#293), keeping downloaded
+  fixture bytes from leaking across test modules. Production caching is unchanged.
+
 ### Added
 - Add an explicitly opt-in, single Gain/Mid edit through the existing
   REVIEW/CONFIRM/SEND screens. The measured MK2 writer retains its exact
