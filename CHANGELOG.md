@@ -4,6 +4,10 @@ Notable changes to ToneCommand. Dates are UTC.
 
 ## Unreleased
 
+- Record exact upstream PR294 native API/editor acceptance and complete the
+  Legacy CAB four-slot selector comparison on fresh MK2 Beta5 test state.
+  Keep general model/CAB/whole-rig, memory and MK1/Turbo gates unchanged.
+
 - Give every test its own pending-install cache (#293), keeping downloaded
   fixture bytes from leaking across test modules. Production caching is unchanged.
 

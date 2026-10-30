@@ -87,6 +87,32 @@ its own exact Beta5 pin, model0 scope and registered native API/boundary
 evidence. It does not change the older writer or approve general Beta5
 parameters/models/rig building. Default connections stay read-only.
 
+## Legacy CAB selector continuation, 30 October 2026
+
+Fresh power/mute/desktop checks found327 genuinely empty after the restart;
+the old unsaved fixture was not assumed or silently replayed. Axe-Edit placed
+an isolated Amp1/A and, after the separate reviewed-Amp acceptance, Cab1/A.
+No Input/Output blocks, cables or shunts were added. Amp stayed bypassed at
+-12dB. A new complete, repeated native baseline was captured before CAB SETs.
+
+On Legacy Cab1/channel A, all four Factory1 IR selectors were independently
+set from displayed index1 to2, then separately restored from2 to1. These are
+wire ordinals0/1 at parameter IDs4..7, not stereo LEFT/RIGHT pan controls.
+Exactly eight already captured editor literals were sent once each. Every
+step required fresh exact identity/context and settled, repeated full-state
+readback. Only its addressed CAB word changed; all other CAB channel words,
+Amp/controller bulks, complete modifier records, grid/status and names stayed
+exact. No IR data was installed, overwritten or automatically unmuted.
+
+Fresh Axe-Edit1.15.02 instances independently showed all four Factory1 slots
+as index1 /1x4 Pig57 before, index2 /1x4 Pig121 after the target SETs, and
+index1 /1x4 Pig57 after restoration. A final separate native comparison
+exactly matched the new baseline. This closes the previously interrupted
+editor comparison using fresh evidence. It establishes only these eight
+literal operations, not arbitrary banks/indices, DynaCab, FullRes, other
+channels, a production CAB writer or MK1/Turbo support. No Store occurred;
+the disconnected two-block fixture remains unsaved on327.
+
 ## What remains before normal app support
 
 Review and implement a bounded family-specific component with software refusal,

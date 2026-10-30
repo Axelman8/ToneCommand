@@ -54,3 +54,24 @@ These are native API tests, not actual native browser SEND, audible quality,
 all336 model voicings or complete Beta5 compatibility. Final software, CI and
 installation acceptance are recorded separately. External mute and conservative
 levels are not a physical limiter.
+
+## Separate upstream-port acceptance, 30 October 2026
+
+The exact PR294 runtime source85d86beb2f7db4f1430bc2f7aa313c30e8a335ab
+subsequently passed its own registered native prepare/review/confirm/send
+transactions: Gain5.0->4.6->5.0 and Mid5.0->5.6->5.0. Each SET had a new
+review and a final output restriction to one exact captured literal plus
+GETs. Actual upstream module paths/hashes were recorded; canonical full-state
+readers ran in separate processes, not in the upstream Python namespace.
+
+Two equal full-state observations followed each transaction. Only its target
+Amp A word changed, and the complete baseline was restored. Independent
+fresh Axe-Edit1.15.02 comparisons covered the baseline, changed Gain, restored
+Gain with changed Mid, and final restored controls. The owner had freshly
+confirmed power and external mute.327 remained disconnected and bypassed at
+-12dB; no Store, NAM/IR/global/firmware write or reference326/328 change.
+
+An initial test-harness request correctly refused the default nonlocal Host
+after constructor GETs only. The harness was corrected to127.0.0.1; no security
+gate was relaxed. This exact upstream API/editor evidence is separate from
+the earlier77e2ded fork proof. No native browser SEND or broader approval.

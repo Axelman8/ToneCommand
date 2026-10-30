@@ -1,6 +1,26 @@
 # Axe-Fx III completion backlog
 
-## Current offline update, 2026-10-30
+## Current hardware continuation, 2026-10-30
+
+After the offline checkpoint below, the owner freshly confirmed power and
+external mute; the desktop was accessible. Exact MK2 Beta5 identity was read,
+and327 was empty after restart. An isolated, unsaved fixture was built through
+Axe-Edit without Input/Output/cables;326/328 were untouched.
+
+PR294 runtime85d86beb passed four actual upstream registered native API SETs,
+Gain5.0->4.6->5.0 and Mid5.0->5.6->5.0, each freshly reviewed. Separate
+canonical processes compared full native state before/after; fresh editor
+instances independently confirmed changed and restored values. Complete final
+baseline matched. This is not a native browser SEND or whole-rig test.
+
+Legacy CAB1/A Factory1 indices1/2 in all four IR slots passed eight exact
+captured SETs, full-state preservation and fresh independent editor comparisons
+before, changed and restored. No production CAB capability was enabled. See
+[the family evidence](AFX3-BETA5-PARAMETER-FAMILIES.md). Full reports, captures
+and screenshots remain private; no Store/NAM/IR/global/firmware write occurred.
+Final327 contains disconnected Amp1/A bypassed at -12dB and active Cab1/A.
+
+## Historical offline update, 2026-10-30
 
 The maintainer merged289 and290 on28October. Their bounded shared bridge and
 review/SEND wiring are accepted upstream; this is not general Beta5, MK1 or
