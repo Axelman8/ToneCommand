@@ -61,7 +61,7 @@ def register(app, host):
                 return JSONResponse({'error': 'Cross-origin controller requests are not allowed.'}, status_code=403)
         ctx = host.device_context()
         if ctx.kind == 'axefx3' and not is_readonly_device(ctx.adapter):
-            allowed = {'/controllers', '/controllers.js', '/axefx3', '/axefx3.js', '/axefx3.css', '/logo.png', '/api/device', '/report'}
+            allowed = {'/controllers', '/controllers.js', '/axefx3', '/axefx3.js', '/axefx3.css', '/logo.png', '/api/device', '/api/gig', '/report'}
             allowed.update({'/api/tone3000/login', '/api/tone3000/callback', '/api/tone3000/status',
                             '/api/tone3000/load', '/api/tone3000/logout'})
             if request.url.path == '/':

@@ -183,7 +183,7 @@ locally, and the only way to catch a layout regression is a screenshot.
 **Fix:** split into `ui/index.html`, `ui/app.css`, and JavaScript modules by
 concern. Served as static files. No behaviour change, mechanical, testable.
 
-### 2. `server.py` is 8,778 lines; routes include the bounded FX3 workspace, opt-in reviewed-edit bridge, upstream discovery, scriptless reports and local language assets
+### 2. `server.py` is 8,918 lines; routes include the bounded FX3 workspace, opt-in reviewed-edit bridge, shared local-only request checks, upstream discovery, scriptless reports and local language assets
 
 Every concern in one module: device polling, planning, applying, settings,
 recipes, sharing, snapshots, profiles, slot admin. Eight pieces of

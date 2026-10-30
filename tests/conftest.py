@@ -139,6 +139,9 @@ def _no_hardware_in_device_discovery(monkeypatch):
     hardware is not.
     """
     import server
+    # #291: Starlette's TestClient sends "Host: testserver"; the real server
+    # answers only to this machine's names.
+    monkeypatch.setattr(server, "_TRUSTED_HOSTS", server._TRUSTED_HOSTS | {"testserver"})
     monkeypatch.setattr(server, "_ir2_port_present", lambda: False)
     # #209: the detected list reads the same bus, so it is off for the same
     # reason; tests/test_device_catalog.py turns the real one back on.

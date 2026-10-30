@@ -5400,6 +5400,9 @@ async function toggleGig() {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({on: !gigOn})})).json();
     renderGig(!!d.gig_mode);
+    // #291: on, but a change that started before it is still sending.
+    if (d.gig_mode && d.settled === false)
+      log('GIG LOCK is on, but a change that started before it is still sending to the rig. Wait for it to finish before you play.', 'err');
   } catch (e) {
     log(`could not switch gig mode: ${e.message}`, 'err');
   }
